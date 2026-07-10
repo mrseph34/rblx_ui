@@ -116,18 +116,18 @@ function UICardComponent:_MakeImage(parent: Instance, size: UDim2, fillWidth: bo
 	self._imageCorner = UIStyler.Corner(12)
 	self._imageCorner.Parent = holder
 
-	-- Aspect ratio. Games use mostly square item art, so specs can request a
-	-- ratio (spec.imageAspect, ~1 for square) locked with a UIAspectRatioConstraint
-	-- so the image never stretches and looks identical on PC/mobile/any size.
-	-- Only meaningful where one axis is a fraction (CardTop/Split): there the
-	-- constraint trims the other axis to hold the ratio. Square offset images
-	-- (Row/TextFirst) are already 1:1, so we skip them to avoid double-constraining.
+	-- Aspect ratio, applied ONLY where the image has a square-ish footprint we
+	-- must protect from stretching — the Row/TextFirst offset thumbnails and the
+	-- Split image column. CardTop images deliberately FILL the full card width
+	-- (a hero banner) and are sized by height alone, so they never leave the ugly
+	-- empty gap beside a shrunken square. `fillWidth` opts a caller out entirely.
 	local aspect = (self._spec :: any).imageAspect
-	if aspect and aspect > 0 and (size.X.Scale ~= 0 or size.Y.Scale ~= 0) then
-		-- fillWidth (CardTop): image spans the card width and its HEIGHT follows
-		-- the aspect, so square art fills the card instead of leaving side gaps.
-		-- Otherwise (Split): a scaled width, so trim HEIGHT to hold the ratio.
-		local dominant = fillWidth and Enum.DominantAxis.Width or Enum.DominantAxis.Height
+	if not fillWidth and aspect and aspect > 0 then
+		-- The concrete axis stays authoritative; the free axis is computed to hold
+		-- the ratio. Width concrete (scaled or offset) -> Width dominant; otherwise
+		-- height is concrete (a fixed-height slot) -> Height dominant.
+		local widthConcrete = size.X.Scale ~= 0 or size.X.Offset ~= 0
+		local dominant = widthConcrete and Enum.DominantAxis.Width or Enum.DominantAxis.Height
 		UIStyler.AspectRatio(aspect, dominant).Parent = holder
 	end
 
@@ -272,11 +272,30 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
-	-- Fixed-height image row keeps every card in a pack the same height (the core
-	-- consistency guarantee). The aspect constraint trims the image to a square
-	-- within that row; packs are sized (column count) so the square fills the card
-	-- width nicely rather than leaving big side gaps.
-	next_(self:_MakeImage(col, UDim2.new(1, 0, 0, spec.imageHeight or 78)))
+	-- Image row. Default: a full-width hero banner (fills edge-to-edge, no side
+	-- gap) at a fixed height, so cards stay a consistent height. Exception: a
+	-- portrait spec (imageAspect < 1) keeps a tall, centred image — for that we
+	-- wrap it in a full-width centering frame so it's centred, never hugging a side.
+	local aspect = (spec :: any).imageAspect
+	if aspect and aspect > 0 and aspect < 1 then
+		-- Portrait: a tall image (width = height*aspect) centred in a full-width
+		-- row, so it never hugs a side. Give the image a CONCRETE height and let
+		-- the aspect constraint compute width (DominantAxis.Height), then centre it.
+		local h = spec.imageHeight or 176
+		local wrap = UIStyler.Frame("ImageWrap")
+		wrap.BackgroundTransparency = 1
+		wrap.Size = UDim2.new(1, 0, 0, h)
+		wrap.Parent = col
+		next_(wrap)
+		-- Pass a concrete portrait size and fillWidth=true to SKIP the aspect
+		-- constraint (we've already computed the exact rectangle; the constraint
+		-- with both axes concrete was collapsing the image to 0x0).
+		local img = self:_MakeImage(wrap, UDim2.fromOffset(math.floor(h * aspect), h), true)
+		img.AnchorPoint = Vector2.new(0.5, 0)
+		img.Position = UDim2.fromScale(0.5, 0)
+	else
+		next_(self:_MakeImage(col, UDim2.new(1, 0, 0, spec.imageHeight or 78), true))
+	end
 	local tags = self:_MakeTags(col)
 	if tags then
 		next_(tags)
