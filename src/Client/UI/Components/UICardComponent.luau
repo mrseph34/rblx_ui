@@ -141,7 +141,7 @@ end
 
 function UICardComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
-	self:_Tween(self.Root, theme.Animations.ThemeSwap, { BackgroundColor3 = c.SurfaceRaised })
+	self:_SetColor(self.Root, "BackgroundColor3", c.SurfaceRaised)
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Large)
 	self._stroke.Color = c.Stroke
 	self._stroke.Thickness = theme.Effects.StrokeThickness

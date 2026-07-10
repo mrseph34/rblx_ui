@@ -53,6 +53,7 @@ function UIComponentBase.new(className: string): Component
 	self.Destroyed = UISignal.new()
 	self._connections = {}
 	self._tweens = {}
+	self._styledOnce = false
 	self._baseSize = UDim2.fromScale(1, 1)
 	self.Root = UIStyler.Frame(className)
 	self.Root.BackgroundTransparency = 1
@@ -109,6 +110,20 @@ function UIComponentBase:ApplyTheme(theme: Types.UITheme?)
 	end
 	self.Theme = theme
 	self:_Style(theme)
+	-- After the first paint, later theme changes are allowed to cross-fade.
+	self._styledOnce = true
+end
+
+-- Apply a color to a property. The FIRST time a component is themed we set it
+-- directly so the correct color is guaranteed to land even if a tween is later
+-- interrupted; subsequent theme swaps cross-fade for the polished feel. This is
+-- why components never tween color straight from the default white.
+function UIComponentBase:_SetColor(instance: Instance, prop: string, color: Color3)
+	if self._styledOnce and self.Theme then
+		self:_Tween(instance, self.Theme.Animations.ThemeSwap, { [prop] = color })
+	else
+		(instance :: any)[prop] = color
+	end
 end
 
 -- ---- shared animation library -----------------------------------------
@@ -125,14 +140,14 @@ function UIComponentBase:PlayAnimation(name: string)
 	local root = self.Root
 
 	if name == "Appear" then
+		-- Scale-pop only. We deliberately do NOT animate descendant transparency:
+		-- doing so would fight the themed transparency values (shadows, strokes)
+		-- and, if interrupted, leave the whole component translucent/grey.
 		root.Visible = true
-		self:_SetTransparencyTree(1)
-		root.Size = self:_ScaledSize(0.85)
+		root.Size = self:_ScaledSize(0.9)
 		self:_Tween(root, anims.Appear, { Size = self._baseSize })
-		self:_FadeTree(0, anims.Appear)
 	elseif name == "Disappear" then
 		self:_Tween(root, anims.Disappear, { Size = self:_ScaledSize(0.9) })
-		self:_FadeTree(1, anims.Disappear)
 	elseif name == "HoverOn" then
 		self:_Tween(root, anims.Hover, { Size = self:_ScaledSize(effects.HoverScale) })
 	elseif name == "HoverOff" then
@@ -168,41 +183,6 @@ function UIComponentBase:_Tween(instance: Instance, info: TweenInfo, goal: { [st
 	local tween = UIStyler.Tween(instance, info, goal)
 	table.insert(self._tweens, tween)
 	return tween
-end
-
--- Walk the tree tweening whatever transparency property each object exposes.
-function UIComponentBase:_FadeTree(target: number, info: TweenInfo)
-	for _, descendant in self:_TransparencyTargets() do
-		self:_Tween(descendant.instance, info, { [descendant.prop] = target + descendant.base })
-	end
-end
-
-function UIComponentBase:_SetTransparencyTree(target: number)
-	for _, descendant in self:_TransparencyTargets() do
-		(descendant.instance :: any)[descendant.prop] = target
-	end
-end
-
--- Collect fade-able (instance, property, base-transparency) triples. `base`
--- lets already-transparent decorations (e.g. a 0.5 shadow) fade proportionally.
-function UIComponentBase:_TransparencyTargets(): { { instance: Instance, prop: string, base: number } }
-	local targets = {}
-	local function consider(obj: Instance)
-		if obj:IsA("GuiObject") then
-			table.insert(targets, { instance = obj, prop = "BackgroundTransparency", base = 0 })
-		end
-		if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-			table.insert(targets, { instance = obj, prop = "TextTransparency", base = 0 })
-		end
-		if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-			table.insert(targets, { instance = obj, prop = "ImageTransparency", base = 0 })
-		end
-	end
-	consider(self.Root)
-	for _, descendant in self.Root:GetDescendants() do
-		consider(descendant)
-	end
-	return targets
 end
 
 -- ---- connection bookkeeping -------------------------------------------

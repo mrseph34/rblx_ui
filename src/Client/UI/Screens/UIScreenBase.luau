@@ -12,6 +12,7 @@ local Players = game:GetService("Players")
 
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
+local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 
 local UIScreenBase = {}
 UIScreenBase.__index = UIScreenBase
@@ -23,6 +24,8 @@ function UIScreenBase.new(name: string, displayOrder: number?)
 	self.ScreenController = nil :: any
 	self._built = false
 	self._visible = false
+	-- Raw (non-component) labels this screen wants kept in sync with the theme.
+	self._themedLabels = {} :: { { label: TextLabel, colorToken: string, fontToken: string } }
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
@@ -46,6 +49,50 @@ end
 function UIScreenBase:SetControllers(themeController: any, screenController: any)
 	self.ThemeController = themeController
 	self.ScreenController = screenController
+	-- Keep raw labels in sync when the theme changes live (editor previews).
+	themeController.ThemeChanged:Connect(function()
+		self:_RepaintLabels()
+	end)
+end
+
+-- Resolve a text key (or pass-through literal).
+function UIScreenBase:_R(keyOrText: string?): string
+	return TextConfig.Resolve(keyOrText)
+end
+
+-- Create a raw TextLabel wired to theme tokens and registered for repaint on
+-- live theme changes. Use for section headers and other non-component text.
+function UIScreenBase:_ScreenLabel(parent: Instance, text: string, colorToken: string, fontToken: string, layoutOrder: number?): TextLabel
+	local label = UIStyler.TextLabel("Label")
+	label.Size = UDim2.new(1, 0, 0, 26)
+	label.Text = text
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	if layoutOrder then
+		label.LayoutOrder = layoutOrder
+	end
+	label.Parent = parent
+	table.insert(self._themedLabels, { label = label, colorToken = colorToken, fontToken = fontToken })
+	self:_PaintLabel(label, colorToken, fontToken)
+	return label
+end
+
+function UIScreenBase:_PaintLabel(label: TextLabel, colorToken: string, fontToken: string)
+	local theme = self:GetTheme()
+	label.TextColor3 = (theme.Colors :: any)[colorToken] or theme.Colors.TextPrimary
+	label.FontFace = (theme.Fonts :: any)[fontToken] or theme.Fonts.Body
+	label.TextSize = (theme.TextSizes :: any)[fontToken] or theme.TextSizes.Body
+end
+
+function UIScreenBase:_RepaintLabels()
+	-- Drop destroyed labels lazily while repainting the live ones.
+	for i = #self._themedLabels, 1, -1 do
+		local entry = self._themedLabels[i]
+		if entry.label.Parent then
+			self:_PaintLabel(entry.label, entry.colorToken, entry.fontToken)
+		else
+			table.remove(self._themedLabels, i)
+		end
+	end
 end
 
 function UIScreenBase:_EnsureBuilt()

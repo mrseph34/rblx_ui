@@ -28,15 +28,6 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 		self._baseSize = root.Size
 	end
 
-	local button = Instance.new("TextButton")
-	button.Name = "Hit"
-	button.BackgroundTransparency = 1
-	button.Size = UDim2.fromScale(1, 1)
-	button.Text = ""
-	button.AutoButtonColor = false
-	button.Parent = root
-	self._button = button
-
 	self._corner = UIStyler.Corner(10)
 	self._corner.Parent = root
 	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
@@ -44,20 +35,28 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	self._gradient = UIStyler.Gradient(90, 0.12)
 	self._gradient.Parent = root
 
+	-- Content holds the icon + label under its own layout. Keeping it separate
+	-- from the Hit button is essential: if the full-size Hit button shared the
+	-- ListLayout, the layout would try to lay Hit + icon + label side by side
+	-- and shove the icon off-center (or right out of the button).
+	local content = UIStyler.Frame("Content")
+	content.BackgroundTransparency = 1
+	content.Size = UDim2.fromScale(1, 1)
 	local layout = UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		VerticalAlignment = Enum.VerticalAlignment.Center,
 		Padding = UDim.new(0, 6),
 	})
-	layout.Parent = root
+	layout.Parent = content
+	content.Parent = root
 
 	local icon = UIStyler.TextLabel("Icon")
 	icon.Size = UDim2.fromOffset(24, 24)
 	icon.TextScaled = true
 	icon.LayoutOrder = 1
 	icon.Visible = false
-	icon.Parent = root
+	icon.Parent = content
 	self._icon = icon
 
 	local label = UIStyler.TextLabel("Label")
@@ -65,8 +64,19 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	label.Size = UDim2.fromScale(0, 1)
 	label.LayoutOrder = 2
 	label.TextXAlignment = Enum.TextXAlignment.Center
-	label.Parent = root
+	label.Parent = content
 	self._label = label
+
+	-- Hit target overlays everything so the whole button is clickable.
+	local button = Instance.new("TextButton")
+	button.Name = "Hit"
+	button.BackgroundTransparency = 1
+	button.Size = UDim2.fromScale(1, 1)
+	button.Text = ""
+	button.AutoButtonColor = false
+	button.ZIndex = 5
+	button.Parent = root
+	self._button = button
 
 	self:_BindInteractions(button)
 	self:SetContent(props)
@@ -115,7 +125,6 @@ end
 function UIButtonComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	local e = theme.Effects
-	local swap = theme.Animations.ThemeSwap
 	local enabled = self.Props.enabled ~= false
 
 	local fill, textColor, filled = self:_VariantColors(theme)
@@ -124,7 +133,7 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 		textColor = c.TextSecondary
 	end
 
-	self:_Tween(self.Root, swap, { BackgroundColor3 = fill })
+	self:_SetColor(self.Root, "BackgroundColor3", fill)
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Medium)
 	self._stroke.Color = filled and c.Stroke or c.Primary
 	self._stroke.Thickness = e.StrokeThickness
