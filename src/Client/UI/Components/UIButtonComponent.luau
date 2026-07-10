@@ -22,23 +22,33 @@ end
 
 function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	local root = self.Root
-	root.BackgroundTransparency = 0
+	root.BackgroundTransparency = 1
 	if not props.size then
 		root.Size = UDim2.new(0, 180, 0, 48)
 		self._baseSize = root.Size
 	end
 
-	self._corner = UIStyler.Corner(10)
-	self._corner.Parent = root
-	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
-	self._stroke.Parent = root
-	self._gradient = UIStyler.Gradient(90, 0.12)
-	self._gradient.Parent = root
+	-- Surface holds the fill + all visuals and is what hover/press scale. The
+	-- Root is a fixed, transparent footprint that stays put in any layout, so
+	-- the hover "pop" never reflows neighbours or spills out of a grid cell.
+	local surface = UIStyler.Frame("Surface")
+	surface.BackgroundTransparency = 0
+	surface.Size = UDim2.fromScale(1, 1)
+	surface.AnchorPoint = Vector2.new(0.5, 0.5)
+	surface.Position = UDim2.fromScale(0.5, 0.5)
+	surface.Parent = root
+	self._surface = surface
+	self:_UseScaleTarget(surface)
 
-	-- Content holds the icon + label under its own layout. Keeping it separate
-	-- from the Hit button is essential: if the full-size Hit button shared the
-	-- ListLayout, the layout would try to lay Hit + icon + label side by side
-	-- and shove the icon off-center (or right out of the button).
+	self._corner = UIStyler.Corner(10)
+	self._corner.Parent = surface
+	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
+	self._stroke.Parent = surface
+	self._gradient = UIStyler.Gradient(90, 0.12)
+	self._gradient.Parent = surface
+
+	-- Content holds the icon + label under its own layout, separate from the
+	-- Hit button so the full-size hit target never joins the content layout.
 	local content = UIStyler.Frame("Content")
 	content.BackgroundTransparency = 1
 	content.Size = UDim2.fromScale(1, 1)
@@ -49,7 +59,7 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 		Padding = UDim.new(0, 6),
 	})
 	layout.Parent = content
-	content.Parent = root
+	content.Parent = surface
 
 	local icon = UIStyler.TextLabel("Icon")
 	icon.Size = UDim2.fromOffset(24, 24)
@@ -133,7 +143,7 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 		textColor = c.TextSecondary
 	end
 
-	self:_SetColor(self.Root, "BackgroundColor3", fill)
+	self:_SetColor(self._surface, "BackgroundColor3", fill)
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Medium)
 	self._stroke.Color = filled and c.Stroke or c.Primary
 	self._stroke.Thickness = e.StrokeThickness

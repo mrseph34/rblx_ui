@@ -30,6 +30,19 @@ function UIComponentBase.SetThemeController(controller: any)
 	themeController = controller
 end
 
+-- Optional UI sound controller (also injected at boot). Buttons play Hover /
+-- Click through it; nil-safe so sound is entirely optional.
+local soundController: any = nil
+function UIComponentBase.SetSoundController(controller: any)
+	soundController = controller
+end
+
+function UIComponentBase:_PlaySound(event: string)
+	if soundController then
+		soundController:Play(event)
+	end
+end
+
 export type Component = typeof(setmetatable(
 	{} :: {
 		Root: GuiObject,
@@ -54,6 +67,8 @@ function UIComponentBase.new(className: string): Component
 	self._connections = {}
 	self._tweens = {}
 	self._styledOnce = false
+	self._scale = nil
+	self._scaleTarget = nil
 	self._baseSize = UDim2.fromScale(1, 1)
 	self.Root = UIStyler.Frame(className)
 	self.Root.BackgroundTransparency = 1
@@ -128,8 +143,26 @@ end
 
 -- ---- shared animation library -----------------------------------------
 
--- Named animations resolve to theme TweenInfos + effect scales so the same
--- call ("HoverOn") feels different per theme without component changes.
+-- Hover/press/appear animate a UIScale on a target that defaults to the Root
+-- but is usually an inner "surface" frame (see _UseScaleTarget). Scaling a
+-- UIScale is purely visual and centered: it does NOT change the Root's Size,
+-- so the element never reflows its list/grid neighbours or "leaves" its cell —
+-- it just pops in place, the way a polished UI should.
+function UIComponentBase:_EnsureScale(): UIScale
+	if not self._scale then
+		local target = self._scaleTarget or self.Root
+		local scale = target:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+		scale.Parent = target
+		self._scale = scale
+	end
+	return self._scale
+end
+
+-- Subclasses call this from _Build to pop an inner surface instead of the Root.
+function UIComponentBase:_UseScaleTarget(target: GuiObject)
+	self._scaleTarget = target
+end
+
 function UIComponentBase:PlayAnimation(name: string)
 	local theme = self.Theme
 	if not theme then
@@ -137,30 +170,30 @@ function UIComponentBase:PlayAnimation(name: string)
 	end
 	local anims = theme.Animations
 	local effects = theme.Effects
-	local root = self.Root
+	local scale = self:_EnsureScale()
 
 	if name == "Appear" then
 		-- Scale-pop only. We deliberately do NOT animate descendant transparency:
 		-- doing so would fight the themed transparency values (shadows, strokes)
 		-- and, if interrupted, leave the whole component translucent/grey.
-		root.Visible = true
-		root.Size = self:_ScaledSize(0.9)
-		self:_Tween(root, anims.Appear, { Size = self._baseSize })
+		self.Root.Visible = true
+		scale.Scale = 0.9
+		self:_Tween(scale, anims.Appear, { Scale = 1 })
 	elseif name == "Disappear" then
-		self:_Tween(root, anims.Disappear, { Size = self:_ScaledSize(0.9) })
+		self:_Tween(scale, anims.Disappear, { Scale = 0.9 })
 	elseif name == "HoverOn" then
-		self:_Tween(root, anims.Hover, { Size = self:_ScaledSize(effects.HoverScale) })
+		self:_Tween(scale, anims.Hover, { Scale = effects.HoverScale })
 	elseif name == "HoverOff" then
-		self:_Tween(root, anims.Hover, { Size = self._baseSize })
+		self:_Tween(scale, anims.Hover, { Scale = 1 })
 	elseif name == "Press" then
-		self:_Tween(root, anims.Press, { Size = self:_ScaledSize(effects.PressScale) })
+		self:_Tween(scale, anims.Press, { Scale = effects.PressScale })
 	elseif name == "Release" then
-		self:_Tween(root, anims.Hover, { Size = self:_ScaledSize(effects.HoverScale) })
+		self:_Tween(scale, anims.Hover, { Scale = effects.HoverScale })
 	elseif name == "Pulse" then
-		local pulse = self:_Tween(root, anims.Emphasis, { Size = self:_ScaledSize(effects.HoverScale + 0.06) })
+		local pulse = self:_Tween(scale, anims.Emphasis, { Scale = effects.HoverScale + 0.06 })
 		pulse.Completed:Once(function()
-			if root.Parent then
-				self:_Tween(root, anims.Emphasis, { Size = self._baseSize })
+			if self.Root.Parent then
+				self:_Tween(scale, anims.Emphasis, { Scale = 1 })
 			end
 		end)
 	end
@@ -196,6 +229,7 @@ function UIComponentBase:_BindInteractions(button: GuiButton)
 	self:_Connect(button.MouseEnter, function()
 		if self.Props.enabled ~= false then
 			self:PlayAnimation("HoverOn")
+			self:_PlaySound("Hover")
 		end
 	end)
 	self:_Connect(button.MouseLeave, function()
@@ -212,8 +246,11 @@ function UIComponentBase:_BindInteractions(button: GuiButton)
 		end
 	end)
 	self:_Connect(button.Activated, function()
-		if self.Props.enabled ~= false and self.Props.onClick then
-			self.Props.onClick()
+		if self.Props.enabled ~= false then
+			self:_PlaySound("Click")
+			if self.Props.onClick then
+				self.Props.onClick()
+			end
 		end
 	end)
 end
