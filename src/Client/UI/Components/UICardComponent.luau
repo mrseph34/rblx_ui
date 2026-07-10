@@ -200,7 +200,7 @@ function UICardComponent:_MakeTags(parent: Instance): Frame?
 	local item = self._item
 	local tagRow = UIStyler.Frame("Tags")
 	tagRow.BackgroundTransparency = 1
-	tagRow.Size = UDim2.new(1, 0, 0, 22)
+	tagRow.Size = UDim2.new(1, 0, 0, 18)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = self._spec.nameAlign == Enum.TextXAlignment.Center

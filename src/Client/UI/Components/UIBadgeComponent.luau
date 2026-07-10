@@ -34,13 +34,15 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 	root.BackgroundTransparency = 0
 	root.AutomaticSize = Enum.AutomaticSize.X
 	if not props.size then
-		root.Size = UDim2.fromOffset(0, 22)
-		self._baseSize = UDim2.fromOffset(48, 22)
+		-- Compact chip: the colour already makes it pop, so it stays small and
+		-- doesn't crowd the more important name/price/buy.
+		root.Size = UDim2.fromOffset(0, 18)
+		self._baseSize = UDim2.fromOffset(40, 18)
 	end
 
 	self._corner = UIStyler.Corner(1000)
 	self._corner.Parent = root
-	UIStyler.PaddingXY(8, 2).Parent = root
+	UIStyler.PaddingXY(6, 1).Parent = root
 
 	local label = UIStyler.TextLabel("Label")
 	label.AutomaticSize = Enum.AutomaticSize.X
@@ -67,7 +69,8 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 	self.Root.BackgroundColor3 = fill
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
 	self._label.FontFace = theme.Fonts.Button
-	self._label.TextSize = theme.TextSizes.Small
+	-- One notch smaller than Small — badges are secondary info; colour carries them.
+	self._label.TextSize = math.max(10, theme.TextSizes.Small - 2)
 	self._label.TextColor3 = c.TextOnPrimary
 end
 

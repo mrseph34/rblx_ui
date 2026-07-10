@@ -198,16 +198,19 @@ function ShopScreen:_RenderItems()
 				self._cardImageSizePx = math.floor(cellW)
 				cardHeight = math.floor(cellW / aspect)
 			else
-				-- CardTop: square image fills width + a COMPACT text strip below.
+				-- CardTop: square image fills width + a text strip below. This height
+				-- MUST fit image + every row + the 6px ListLayout gaps + card padding
+				-- or the Buy button overflows the bottom (measured to match renderer).
 				local imgW = cellW - 20 -- image fills content width (10px pad each side)
 				local imgH = imgW / aspect
 				self._cardImageSizePx = math.floor(imgW)
-				local textBlock = 16 -- tighter padding
-					+ (spec.showTags and 22 or 0)
+				local textBlock = 20 -- surface top+bottom padding
+					+ (spec.showTags and 18 or 0) -- tag row
 					+ 22 -- name
 					+ 20 -- price
-					+ 34 -- buy (compact)
-					+ 10 -- spacing
+					+ 2 -- spacer
+					+ 38 -- buy (Full)
+					+ 36 -- 6 stacked items x ~6px gaps + safety
 				cardHeight = math.floor(imgH + textBlock)
 			end
 		else
