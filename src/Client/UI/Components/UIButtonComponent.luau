@@ -169,9 +169,19 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 		and math.min(self.Root.AbsoluteSize.Y / 2, theme.Radii.Pill)
 		or ThemeShape.Radius(theme, theme.Radii.Medium)
 	self._corner.CornerRadius = UDim.new(0, radius)
-	self._stroke.Color = filled and c.Stroke or c.Primary
+	-- Ghost buttons normally get a coloured accent outline (so an unselected tab
+	-- still reads as clickable) — but that stayed on even when the button was
+	-- DISABLED (owned / can't-afford), leaving a bright accent-coloured ring
+	-- around an otherwise greyed-out button. Disabled always gets a quiet,
+	-- neutral stroke instead, regardless of variant.
+	if not enabled then
+		self._stroke.Color = c.Disabled
+		self._stroke.Transparency = 0.5
+	else
+		self._stroke.Color = filled and c.Stroke or c.Primary
+		self._stroke.Transparency = filled and 0.4 or 0
+	end
 	self._stroke.Thickness = e.StrokeThickness
-	self._stroke.Transparency = filled and 0.4 or 0
 	self._gradient.Enabled = e.UseGradients and filled
 	self._gradient.Color = UIStyler.Gradient(90, e.GradientIntensity).Color
 
