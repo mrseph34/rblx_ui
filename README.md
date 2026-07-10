@@ -105,12 +105,13 @@ entries in a pack are structurally identical and a theme paints them the same.
 Optional elements (e.g. tags) still **reserve their slot** so a row with none
 doesn't shift the rest.
 
-**Image sizing:** grid/card layouts use a **full-width hero image** at a fixed
-height — it fills the card edge-to-edge, so there's never an empty gap beside a
-shrunken square. Row and split layouts use a square thumbnail (locked with a
-`UIAspectRatioConstraint` so it never stretches on any screen), and a portrait
-spec (`imageAspect < 1`) renders a tall image **centred** in a full-width row so
-it never hugs one side. All card heights are sized so the Buy button always fits.
+**Image sizing:** grid/card layouts use a **square image by default** (the shape
+AAA games actually use for item art), **centred** in its row so any leftover
+space is even on both sides — never a lonely square hugging one edge, never a
+stretched wide banner. `imageAspect` reshapes the slot per spec (0.75 = portrait
+for the Roster pack, >1 = wide) without touching the renderer. Row and split
+layouts use square thumbnails locked with a `UIAspectRatioConstraint`. All card
+heights are sized so the Buy button always fits.
 
 Hover/press scale an **inner surface** (a `UIScale` on a child), never the
 layout-participating root — so a card pops in place without reflowing its

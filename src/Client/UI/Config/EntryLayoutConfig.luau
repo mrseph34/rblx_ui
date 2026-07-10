@@ -31,9 +31,10 @@ export type EntrySpec = {
 	imageHeight: number?,
 	imageSize: number?,
 	imageWidth: number?,
-	-- Locks the focal image to width:height = imageAspect (1 = square). Games use
-	-- mostly square art, so most specs set ~1. 0/nil = fill the reserved size
-	-- (used by wide banners that intentionally want a cinematic rectangle).
+	-- Focal image shape, as width:height. For CardTop the image is ALWAYS a fixed
+	-- imageHeight tall, width = imageHeight * imageAspect, CENTRED in its row —
+	-- 1 (or nil/0) = square, the AAA default; 0.75 = portrait; >1 = wide. Change
+	-- this per spec to reshape the art slot without touching the renderer.
 	imageAspect: number?,
 	showTags: boolean,
 	showDescription: boolean,
@@ -47,7 +48,7 @@ export type EntrySpec = {
 EntryLayoutConfig.Specs = {
 	StandardCard = {
 		arrangement = "CardTop",
-		imageHeight = 118,
+		imageHeight = 140,
 		imageAspect = 1, -- square art, the realistic default
 		showTags = true,
 		showDescription = false,
@@ -56,7 +57,7 @@ EntryLayoutConfig.Specs = {
 	},
 	ImageFocal = {
 		arrangement = "CardTop",
-		imageHeight = 150,
+		imageHeight = 190,
 		imageAspect = 1,
 		showTags = true,
 		showDescription = false,
@@ -105,7 +106,7 @@ EntryLayoutConfig.Specs = {
 	-- Small square tiles, centred, minimal text — an icon grid / storefront wall.
 	IconTile = {
 		arrangement = "CardTop",
-		imageHeight = 96,
+		imageHeight = 120,
 		imageAspect = 1,
 		showTags = false,
 		showDescription = false,

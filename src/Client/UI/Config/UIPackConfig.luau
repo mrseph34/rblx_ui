@@ -19,7 +19,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Standard",
 		DisplayName = "Standard",
-		Shop = { Container = "Grid", Columns = 3, CardHeight = 264, EntryLayout = "StandardCard", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -30,7 +30,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "ImageShowcase",
 		DisplayName = "Image Showcase",
-		Shop = { Container = "Grid", Columns = 2, CardHeight = 298, EntryLayout = "ImageFocal", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 2, CardHeight = 338, EntryLayout = "ImageFocal", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1.05, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -87,7 +87,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "IconGrid",
 		DisplayName = "Icon Grid",
-		Shop = { Container = "Grid", Columns = 4, CardHeight = 220, EntryLayout = "IconTile", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 236, EntryLayout = "IconTile", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Top" },
 		Tutorial = { ShowStepList = true },

@@ -272,30 +272,27 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
-	-- Image row. Default: a full-width hero banner (fills edge-to-edge, no side
-	-- gap) at a fixed height, so cards stay a consistent height. Exception: a
-	-- portrait spec (imageAspect < 1) keeps a tall, centred image — for that we
-	-- wrap it in a full-width centering frame so it's centred, never hugging a side.
+	-- Image row: a SQUARE image by default (the AAA-standard item-art shape),
+	-- CENTRED in a full-width row so any leftover space is even on both sides —
+	-- never a lonely square hugging one edge, and never a stretched wide banner.
+	-- spec.imageAspect changes the shape when wanted (0.75 = portrait, 1.6 = wide);
+	-- height is always spec.imageHeight, width = height * aspect. The fixed row
+	-- height keeps every card in the pack identical (the consistency guarantee).
+	local h = spec.imageHeight or 96
 	local aspect = (spec :: any).imageAspect
-	if aspect and aspect > 0 and aspect < 1 then
-		-- Portrait: a tall image (width = height*aspect) centred in a full-width
-		-- row, so it never hugs a side. Give the image a CONCRETE height and let
-		-- the aspect constraint compute width (DominantAxis.Height), then centre it.
-		local h = spec.imageHeight or 176
-		local wrap = UIStyler.Frame("ImageWrap")
-		wrap.BackgroundTransparency = 1
-		wrap.Size = UDim2.new(1, 0, 0, h)
-		wrap.Parent = col
-		next_(wrap)
-		-- Pass a concrete portrait size and fillWidth=true to SKIP the aspect
-		-- constraint (we've already computed the exact rectangle; the constraint
-		-- with both axes concrete was collapsing the image to 0x0).
-		local img = self:_MakeImage(wrap, UDim2.fromOffset(math.floor(h * aspect), h), true)
-		img.AnchorPoint = Vector2.new(0.5, 0)
-		img.Position = UDim2.fromScale(0.5, 0)
-	else
-		next_(self:_MakeImage(col, UDim2.new(1, 0, 0, spec.imageHeight or 78), true))
+	if not aspect or aspect <= 0 then
+		aspect = 1 -- square default
 	end
+	local wrap = UIStyler.Frame("ImageWrap")
+	wrap.BackgroundTransparency = 1
+	wrap.Size = UDim2.new(1, 0, 0, h)
+	wrap.Parent = col
+	next_(wrap)
+	-- Concrete size + fillWidth=true skips the aspect constraint (both axes are
+	-- already exact; the constraint with two concrete axes collapsed to 0x0).
+	local img = self:_MakeImage(wrap, UDim2.fromOffset(math.floor(h * aspect), h), true)
+	img.AnchorPoint = Vector2.new(0.5, 0)
+	img.Position = UDim2.fromScale(0.5, 0)
 	local tags = self:_MakeTags(col)
 	if tags then
 		next_(tags)
