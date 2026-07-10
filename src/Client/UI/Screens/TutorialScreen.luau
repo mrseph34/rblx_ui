@@ -113,12 +113,19 @@ function TutorialScreen:_ShowStep()
 end
 
 -- Move the highlight ring over the step's registered target, if any.
+-- The ring's Position is an OFFSET within its parent, but the target's
+-- AbsolutePosition is a global screen coordinate. Converting between them
+-- requires subtracting the ring parent's own AbsolutePosition — without that,
+-- any GUI-inset difference makes the ring miss the target entirely.
 function TutorialScreen:_PositionRing(step: any)
 	local target = step.highlightTargetId and self.ScreenController:GetHighlightTarget(step.highlightTargetId)
-	if target then
+	if target and target.AbsoluteSize.X > 0 then
 		self._ring.Visible = true
 		local padding = 8
-		self._ring.Position = UDim2.fromOffset(target.AbsolutePosition.X - padding, target.AbsolutePosition.Y - padding)
+		local base = (self._ring.Parent :: GuiObject).AbsolutePosition
+		local localX = target.AbsolutePosition.X - base.X - padding
+		local localY = target.AbsolutePosition.Y - base.Y - padding
+		self._ring.Position = UDim2.fromOffset(localX, localY)
 		self._ring.Size = UDim2.fromOffset(target.AbsoluteSize.X + padding * 2, target.AbsoluteSize.Y + padding * 2)
 		self._ringStroke.Color = self:GetTheme().Colors.Accent
 	else
