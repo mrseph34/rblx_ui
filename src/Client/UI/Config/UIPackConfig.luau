@@ -87,18 +87,19 @@ UIPackConfig.Packs = {
 	{
 		Id = "IconGrid",
 		DisplayName = "Icon Grid",
-		Shop = { Container = "Grid", Columns = 4, CardHeight = 184, EntryLayout = "IconTile", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 220, EntryLayout = "IconTile", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Top" },
 		Tutorial = { ShowStepList = true },
 		Modal = { WidthScale = 0.42 },
 	},
 
-	-- Two big square showcase cards per row. Premium, art-forward.
+	-- Three square showcase cards per row so the square art fills the card width
+	-- (a 2-wide card leaves big side gaps around a square image). Premium look.
 	{
 		Id = "SquareShowcase",
 		DisplayName = "Square Showcase",
-		Shop = { Container = "Grid", Columns = 2, CardHeight = 336, EntryLayout = "SquareShowcase", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 316, EntryLayout = "SquareShowcase", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1.05, MoneyRegion = "TopCenter", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -131,7 +132,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Roster",
 		DisplayName = "Roster (Portrait)",
-		Shop = { Container = "Grid", Columns = 3, CardHeight = 300, EntryLayout = "Portrait", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 324, EntryLayout = "Portrait", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },

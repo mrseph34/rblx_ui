@@ -115,7 +115,7 @@ EntryLayoutConfig.Specs = {
 	-- Big square hero card: large square image, centred name/price, full buy.
 	SquareShowcase = {
 		arrangement = "CardTop",
-		imageHeight = 200,
+		imageHeight = 172,
 		imageAspect = 1,
 		showTags = true,
 		showDescription = false,

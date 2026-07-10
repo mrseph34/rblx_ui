@@ -72,24 +72,78 @@ re-skins with no per-screen wiring.
   and where the currency + nav rail sit. They're orthogonal: any theme × any
   pack, always consistent.
 
+### Shape / style (roundness, Flat / Bubbly / Raised3D)
+
+A theme also carries an optional `Shape` token deciding its *feel* independent of
+colour: `RoundnessScale` (how round everything is) and a `Style`:
+
+- **Flat** — plain surfaces (the classic look).
+- **Bubbly** — pill-round corners + a springy hover bounce (cartoonish).
+- **Raised3D** — an inner bevel (light top / dark bottom) + drop shadow that
+  *depresses on press*, for an extruded, physical AAA button feel.
+
+`ThemeShape.Resolve(theme)` fills a Flat default for older themes, so Shape is
+safe to omit and every component reads it uniformly. Buttons, cards and panels
+all honour roundness + Raised3D bevel/shadow, so a style swap ripples everywhere.
+There are **16 themes**: the four colour-led originals plus twelve generated
+style variants (Midnight, Paper, Mono, Bubblegum, Candy, Jelly, Emboss, Plastic,
+Metal, Gemstone, Toxic, Sunset) spanning all three styles.
+
 ## Layout packs & the one-renderer rule
 
-The six packs (Standard, Image Showcase, Compact/List, Detailed/Text, Split,
-Hero Banner) look very different, yet a shop entry is **always** built by one
-renderer — `UICardComponent`. A pack points its shop at an `EntryLayoutConfig`
-spec (`StandardCard`, `ImageFocal`, `ListRow`, `TextHeavy`, `SplitLeft`,
-`HeroBanner`); the renderer builds the same elements (image, name, description,
-price, tag pills, buy button) via shared `_Make*` helpers and only the
-*arrangement* changes. That is the consistency guarantee: variety comes from
-swapping specs, never from bespoke per-pack card code, so two entries in a pack
-are structurally identical and a theme paints them the same.
+The **twelve packs** (Standard, Image Showcase, Compact/List, Detailed/Text,
+Split, Hero Banner, Icon Grid, Square Showcase, Inventory List, Spotlight/Mirror
+Split, Roster/Portrait, Menu/Settings) look very different, yet a shop entry is
+**always** built by one renderer — `UICardComponent`. A pack points its shop at
+an `EntryLayoutConfig` spec (`StandardCard`, `ImageFocal`, `ListRow`, `TextHeavy`,
+`SplitLeft`, `HeroBanner`, `IconTile`, `SquareShowcase`, `DetailRow`,
+`SplitRight`, `Portrait`, `MenuRow`); the renderer builds the same elements
+(image, name, description, price, tag pills, buy button) via shared `_Make*`
+helpers and only the *arrangement* changes. That is the consistency guarantee:
+variety comes from swapping specs, never from bespoke per-pack card code, so two
+entries in a pack are structurally identical and a theme paints them the same.
+Optional elements (e.g. tags) still **reserve their slot** so a row with none
+doesn't shift the rest.
+
+**Image aspect ratio:** specs carry `imageAspect` (mostly `1`, i.e. square — the
+realistic default for item art) locked with a `UIAspectRatioConstraint`, so
+images never stretch and look identical on PC / mobile / any screen size. A wide
+banner opts out with `imageAspect = 0`.
 
 Hover/press scale an **inner surface** (a `UIScale` on a child), never the
 layout-participating root — so a card pops in place without reflowing its
-neighbours or spilling out of its cell/scroll area.
+neighbours or spilling out of its cell/scroll area. The shop scroll frame is
+padded on every side so the first/last rows and edge columns are never clipped
+and content scrolls cleanly as it grows.
 
 Add a new look = add a spec in `EntryLayoutConfig` + point a pack at it. No
 renderer or screen changes.
+
+## HUD, vitals & overhead billboards
+
+The HUD is declarative (`HUDConfig`): each element names a value key, a format
+(`Number` / `Time` / `Bar`) and a screen region. The **vitals** — health, mana
+and stamina bars — are just `Bar` elements grouped bottom-left. **Any** element
+can be relocated: a pack sets `HUD.Regions[id] = region`, or the game calls
+`GameHUDScreen:SetElementRegion(id, region)` at runtime (priority: runtime
+override → pack region → money region → config default). That's how you "put the
+money / skills / health anywhere you want" without touching the HUD code.
+
+Above characters, `UIOverheadController` attaches a themed `BillboardGui`
+nameplate + vitals bars to the Head. Bars and rows come from `OverheadConfig`,
+and the whole plate moves to a different **location preset** (`Above`, `High`,
+`Head`, `Front`, `Feet`) with one `SetLocation(character, preset)` call. It
+re-skins live with the theme and works for players, NPCs and mobs alike (the game
+feeds values, so it isn't tied to `Humanoid.Health`).
+
+## Nav rail (data-driven shortcut buttons)
+
+The floating shortcut buttons (open shop, theme editor, help) are configured in
+`NavConfig`: button size (per-button override too), spacing, edge offset, fill
+direction, and the button list (icon + action + variant). Sizes and placement are
+data, so the buttons resize and reposition like a normal game's "open shop"
+button without handler edits. The rail's side/vertical anchor still comes from
+the active pack for a per-pack feel.
 
 ## Sound packs
 
@@ -116,7 +170,23 @@ the whole UI updates live.
   it instantly, so the round-trip is fully closed.
 
 `ThemeSerializer.Serialize` / `.Deserialize` power both directions and are
-covered by the round-trip smoke test.
+covered by the round-trip smoke test. (The source viewer is a scrolling box, so
+long/wide modules are always fully reachable instead of running off-screen.)
+
+### Export as Script (hand off a whole part)
+
+Beyond the theme, the **📦 Script** button (`PackExporter`) exports a
+self-contained `.luau` module for the whole pack or any single part — `full`,
+`shop`, `hud`, `overheads`, `npc`, `tutorial`, `nav`, `notify`. Each export:
+
+- requires **nothing else** — it returns one `SPEC` table with every resolved
+  theme token, pack/layout choice, config value and string that part uses;
+- is topped with an **AI build brief** — a comment header stating the rblx_ui
+  architecture rules and exactly how to turn the SPEC into working UI.
+
+So you can paste one file into a fresh AI chat (or hand it to a developer) and it
+has everything needed to rebuild that part faithfully — no re-typing, no missing
+context. All eight parts are covered by the export smoke test.
 
 ## Controls (demo)
 

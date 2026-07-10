@@ -107,7 +107,7 @@ end
 -- entries consistent no matter the pack).
 -- ========================================================================
 
-function UICardComponent:_MakeImage(parent: Instance, size: UDim2): Frame
+function UICardComponent:_MakeImage(parent: Instance, size: UDim2, fillWidth: boolean?): Frame
 	local item = self._item
 	local holder = UIStyler.Frame("Image")
 	holder.Size = size
@@ -124,7 +124,10 @@ function UICardComponent:_MakeImage(parent: Instance, size: UDim2): Frame
 	-- (Row/TextFirst) are already 1:1, so we skip them to avoid double-constraining.
 	local aspect = (self._spec :: any).imageAspect
 	if aspect and aspect > 0 and (size.X.Scale ~= 0 or size.Y.Scale ~= 0) then
-		local dominant = size.X.Scale ~= 0 and Enum.DominantAxis.Height or Enum.DominantAxis.Width
+		-- fillWidth (CardTop): image spans the card width and its HEIGHT follows
+		-- the aspect, so square art fills the card instead of leaving side gaps.
+		-- Otherwise (Split): a scaled width, so trim HEIGHT to hold the ratio.
+		local dominant = fillWidth and Enum.DominantAxis.Width or Enum.DominantAxis.Height
 		UIStyler.AspectRatio(aspect, dominant).Parent = holder
 	end
 
@@ -269,6 +272,10 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
+	-- Fixed-height image row keeps every card in a pack the same height (the core
+	-- consistency guarantee). The aspect constraint trims the image to a square
+	-- within that row; packs are sized (column count) so the square fills the card
+	-- width nicely rather than leaving big side gaps.
 	next_(self:_MakeImage(col, UDim2.new(1, 0, 0, spec.imageHeight or 78)))
 	local tags = self:_MakeTags(col)
 	if tags then

@@ -314,14 +314,18 @@ end
 -- keep them in sync with the HUD values, so the overhead UI is visible in-play.
 -- A game would call these for every player/NPC/mob it wants a plate on.
 local function attachOwnOverhead(character: Model)
+	-- Wait for the Head so the billboard has something to adorn (the character
+	-- may exist before all parts have replicated).
+	character:WaitForChild("Head", 5)
 	overheadController:Attach(character, { name = player.DisplayName, level = HUDConfig.DefaultValues.level })
 	overheadController:SetValues(character, {
 		health = HUDConfig.DefaultValues.health,
 		mana = HUDConfig.DefaultValues.mana,
 	})
 end
+-- Handle the character whether it already exists or spawns later.
 if player.Character then
-	attachOwnOverhead(player.Character)
+	task.spawn(attachOwnOverhead, player.Character)
 end
 player.CharacterAdded:Connect(attachOwnOverhead)
 
