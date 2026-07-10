@@ -157,11 +157,15 @@ function UICardComponent:_MakePrice(parent: Instance): TextLabel
 	return price
 end
 
+-- Always returns a fixed-height row when the spec shows tags — even for an item
+-- with no tags — so the slot is reserved and every card in a pack keeps the
+-- same vertical rhythm (an item missing tags must not shift name/price/buy).
+-- Returns nil only when the pack doesn't use tags at all.
 function UICardComponent:_MakeTags(parent: Instance): Frame?
-	local item = self._item
-	if not self._spec.showTags or not item.tags or #(item.tags :: {}) == 0 then
+	if not self._spec.showTags then
 		return nil
 	end
+	local item = self._item
 	local tagRow = UIStyler.Frame("Tags")
 	tagRow.BackgroundTransparency = 1
 	tagRow.Size = UDim2.new(1, 0, 0, 22)
@@ -173,10 +177,12 @@ function UICardComponent:_MakeTags(parent: Instance): Frame?
 		Padding = UDim.new(0, 4),
 	}).Parent = tagRow
 	tagRow.Parent = parent
-	for i, tag in item.tags do
-		local badge = UIBadgeComponent.new()
-		badge:Create(tagRow, { text = tag, variant = tag, layoutOrder = i })
-		table.insert(self._badges, badge)
+	if item.tags then
+		for i, tag in item.tags do
+			local badge = UIBadgeComponent.new()
+			badge:Create(tagRow, { text = tag, variant = tag, layoutOrder = i })
+			table.insert(self._badges, badge)
+		end
 	end
 	return tagRow
 end
