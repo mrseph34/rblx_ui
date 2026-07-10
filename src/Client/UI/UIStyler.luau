@@ -113,6 +113,62 @@ function UIStyler.TextLabel(name: string): TextLabel
 	return label
 end
 
+-- Locks an element to a fixed width:height ratio. Used by image slots so the
+-- focal image is square (or any ratio) on every screen size and never stretches.
+-- dominant "Width" means height follows width; the layout still bounds it.
+function UIStyler.AspectRatio(ratio: number, dominant: Enum.DominantAxis?): UIAspectRatioConstraint
+	local constraint = Instance.new("UIAspectRatioConstraint")
+	constraint.AspectRatio = ratio
+	constraint.DominantAxis = dominant or Enum.DominantAxis.Width
+	constraint.AspectType = Enum.AspectType.FitWithinMaxSize
+	return constraint
+end
+
+-- A soft drop shadow behind a surface, made from a stretched radial image so it
+-- reads on any theme. Parent it as a sibling *behind* the surface (lower ZIndex).
+-- offsetY pushes it down for the "raised" look; transparency 1 hides it.
+function UIStyler.DropShadow(offsetY: number, transparency: number): ImageLabel
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "DropShadow"
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://5554236805" -- soft 9-slice glow
+	shadow.ScaleType = Enum.ScaleType.Slice
+	shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+	shadow.ImageColor3 = Color3.new(0, 0, 0)
+	shadow.ImageTransparency = transparency
+	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+	shadow.Position = UDim2.new(0.5, 0, 0.5, offsetY)
+	shadow.Size = UDim2.new(1, 24, 1, 24 + offsetY)
+	shadow.ZIndex = 0
+	return shadow
+end
+
+-- Inner bevel for the Raised3D style: a UIGradient-driven vertical light->dark
+-- overlay clipped to the surface, giving a top highlight and bottom shade so the
+-- surface reads as an extruded, physical button. transparency 0..1 tunes strength.
+function UIStyler.Bevel(highlightTransparency: number, shadowStrength: number): Frame
+	local bevel = Instance.new("Frame")
+	bevel.Name = "Bevel"
+	bevel.BackgroundColor3 = Color3.new(1, 1, 1)
+	bevel.BackgroundTransparency = 0
+	bevel.BorderSizePixel = 0
+	bevel.Size = UDim2.fromScale(1, 1)
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(1, Color3.new(0, 0, 0)),
+	})
+	gradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, highlightTransparency),
+		NumberSequenceKeypoint.new(0.5, 1),
+		NumberSequenceKeypoint.new(1, math.clamp(1 - shadowStrength, 0, 1)),
+	})
+	gradient.Parent = bevel
+	return bevel
+end
+
 -- Constrains TextScaled labels so scaled text never becomes comically large.
 function UIStyler.TextSizeConstraint(max: number, min: number?): UITextSizeConstraint
 	local constraint = Instance.new("UITextSizeConstraint")

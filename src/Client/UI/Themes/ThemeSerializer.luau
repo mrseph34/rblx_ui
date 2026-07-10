@@ -166,11 +166,26 @@ function ThemeSerializer.Serialize(theme: Types.UITheme): string
 		line(2, "PressScale", num(e.PressScale)),
 		line(2, "StrokeThickness", num(e.StrokeThickness)),
 		"\t},",
-		"}",
-		"",
-		string.format("return %s", varName),
-		"",
 	}
+
+	-- Shape is optional; emit it only when present so Flat themes stay minimal.
+	local shape = theme.Shape
+	if shape then
+		table.insert(lines, "")
+		table.insert(lines, "\tShape = {")
+		table.insert(lines, line(2, "RoundnessScale", num(shape.RoundnessScale)))
+		table.insert(lines, line(2, "Style", string.format("%q", shape.Style)))
+		table.insert(lines, line(2, "Depth", num(shape.Depth)))
+		table.insert(lines, line(2, "HighlightTransparency", num(shape.HighlightTransparency)))
+		table.insert(lines, line(2, "ShadowStrength", num(shape.ShadowStrength)))
+		table.insert(lines, line(2, "Bounce", num(shape.Bounce)))
+		table.insert(lines, "\t},")
+	end
+
+	table.insert(lines, "}")
+	table.insert(lines, "")
+	table.insert(lines, string.format("return %s", varName))
+	table.insert(lines, "")
 
 	return indentBlock(lines)
 end
@@ -330,6 +345,23 @@ function ThemeSerializer.Deserialize(source: string, base: Types.UITheme): (Type
 			StrokeThickness = parseNumber(source, "StrokeThickness", e.StrokeThickness),
 		},
 	}
+
+	-- Shape round-trips only if the source has a Shape block (Style key present);
+	-- otherwise carry the base theme's Shape so imports of Flat exports stay Flat.
+	if string.find(source, "Shape") and string.find(source, "Style") then
+		local styleRaw = grab(source, "Style")
+		local style = (styleRaw and (string.match(styleRaw, '^"(.*)"$') or string.match(styleRaw, "^'(.*)'$"))) or "Flat"
+		theme.Shape = {
+			RoundnessScale = parseNumber(source, "RoundnessScale", 1),
+			Style = style :: any,
+			Depth = parseNumber(source, "Depth", 0),
+			HighlightTransparency = parseNumber(source, "HighlightTransparency", 1),
+			ShadowStrength = parseNumber(source, "ShadowStrength", 0),
+			Bounce = parseNumber(source, "Bounce", 0),
+		}
+	else
+		theme.Shape = base.Shape
+	end
 
 	return theme, nil
 end

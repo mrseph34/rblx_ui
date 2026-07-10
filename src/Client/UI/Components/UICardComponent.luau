@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SharedTypes = require(ReplicatedStorage.Shared.Types)
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
+local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local EntryLayoutConfig = require(script.Parent.Parent.Config.EntryLayoutConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
@@ -53,6 +54,11 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	local root = self.Root
 	root.BackgroundTransparency = 1
 
+	-- Drop shadow behind the card (Raised3D only; hidden otherwise).
+	local shadow = UIStyler.DropShadow(5, 1)
+	shadow.Parent = root
+	self._shadow = shadow
+
 	-- Surface = fixed footprint's visual layer; hover/press scale this, not the
 	-- Root, so cards never spill into neighbours or reflow the grid/list.
 	local surface = UIStyler.Frame("Surface")
@@ -61,6 +67,7 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	surface.AnchorPoint = Vector2.new(0.5, 0.5)
 	surface.Position = UDim2.fromScale(0.5, 0.5)
 	surface.ClipsDescendants = true
+	surface.ZIndex = 2
 	surface.Parent = root
 	self._surface = surface
 	self:_UseScaleTarget(surface)
@@ -71,6 +78,14 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	self._stroke.Parent = surface
 	self._gradient = UIStyler.Gradient(90, 0.1)
 	self._gradient.Parent = surface
+
+	-- Inner bevel overlay for Raised3D (ZIndex 1 so arrangement content, added at
+	-- default ZIndex within the surface, still reads above it).
+	local bevel = UIStyler.Bevel(1, 0)
+	bevel.ZIndex = 1
+	bevel.Visible = false
+	bevel.Parent = surface
+	self._bevel = bevel
 
 	-- Dispatch to the arrangement. Each lays out shared elements differently.
 	local arrangement = spec.arrangement
@@ -100,6 +115,18 @@ function UICardComponent:_MakeImage(parent: Instance, size: UDim2): Frame
 	self._imageHolder = holder
 	self._imageCorner = UIStyler.Corner(12)
 	self._imageCorner.Parent = holder
+
+	-- Aspect ratio. Games use mostly square item art, so specs can request a
+	-- ratio (spec.imageAspect, ~1 for square) locked with a UIAspectRatioConstraint
+	-- so the image never stretches and looks identical on PC/mobile/any size.
+	-- Only meaningful where one axis is a fraction (CardTop/Split): there the
+	-- constraint trims the other axis to hold the ratio. Square offset images
+	-- (Row/TextFirst) are already 1:1, so we skip them to avoid double-constraining.
+	local aspect = (self._spec :: any).imageAspect
+	if aspect and aspect > 0 and (size.X.Scale ~= 0 or size.Y.Scale ~= 0) then
+		local dominant = size.X.Scale ~= 0 and Enum.DominantAxis.Height or Enum.DominantAxis.Width
+		UIStyler.AspectRatio(aspect, dominant).Parent = holder
+	end
 
 	if item.iconId ~= "" then
 		local image = Instance.new("ImageLabel")
@@ -318,11 +345,12 @@ function UICardComponent:_BuildSplit(surface: Frame, spec: EntryLayoutConfig.Ent
 
 	local imageW = spec.imageWidth or 0.4
 	local img = self:_MakeImage(row, UDim2.new(imageW, -6, 1, 0))
-	img.LayoutOrder = 1
+	-- mirror = image on the right, text on the left (SplitRight spec).
+	img.LayoutOrder = spec.mirror and 2 or 1
 
 	local right = stack("Right", 6)
 	right.Size = UDim2.new(1 - imageW, -6, 1, 0)
-	right.LayoutOrder = 2
+	right.LayoutOrder = spec.mirror and 1 or 2
 	right.Parent = row
 	local o = 0
 	local function next_(g: GuiObject) o += 1; g.LayoutOrder = o end
@@ -389,16 +417,35 @@ end
 
 function UICardComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
+	local shape = ThemeShape.Resolve(theme)
 	self:_SetColor(self._surface, "BackgroundColor3", c.SurfaceRaised)
-	self._corner.CornerRadius = UDim.new(0, theme.Radii.Large)
+	local radius = ThemeShape.Radius(theme, theme.Radii.Large)
+	self._corner.CornerRadius = UDim.new(0, radius)
 	if self._imageCorner then
-		self._imageCorner.CornerRadius = UDim.new(0, theme.Radii.Medium)
+		self._imageCorner.CornerRadius = UDim.new(0, ThemeShape.Radius(theme, theme.Radii.Medium))
 	end
 	self._stroke.Color = c.Stroke
 	self._stroke.Thickness = theme.Effects.StrokeThickness
 	self._stroke.Transparency = 0.35
 	self._gradient.Enabled = theme.Effects.UseGradients
 	self._gradient.Color = UIStyler.Gradient(90, theme.Effects.GradientIntensity).Color
+
+	-- Raised3D: bevel inside + drop shadow behind so cards read extruded too.
+	local raised = shape.Style == "Raised3D"
+	self._bevel.Visible = raised
+	if raised then
+		local ownGrad = self._bevel:FindFirstChildOfClass("UIGradient")
+		local ref = UIStyler.Bevel(shape.HighlightTransparency, shape.ShadowStrength)
+		local refGrad = ref:FindFirstChildOfClass("UIGradient")
+		if ownGrad and refGrad then
+			ownGrad.Transparency = refGrad.Transparency
+		end
+		ref:Destroy()
+		local bevelCorner = self._bevel:FindFirstChildOfClass("UICorner") or UIStyler.Corner(radius)
+		bevelCorner.CornerRadius = UDim.new(0, radius)
+		bevelCorner.Parent = self._bevel
+	end
+	self._shadow.ImageTransparency = raised and math.clamp(1 - shape.ShadowStrength * 0.8, 0, 1) or 1
 
 	self._name.FontFace = theme.Fonts.Subtitle
 	self._name.TextSize = theme.TextSizes.Subtitle

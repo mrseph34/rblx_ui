@@ -10,6 +10,7 @@
 
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
+local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 
@@ -56,7 +57,8 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	header.Size = UDim2.new(1, 0, 0, 44)
 	header.BackgroundTransparency = 0
 	header.ZIndex = 2
-	UIStyler.Corner(16).Parent = header
+	self._headerCorner = UIStyler.Corner(16)
+	self._headerCorner.Parent = header
 	UIStyler.PaddingXY(14, 0).Parent = header
 	header.Parent = root
 	self._header = header
@@ -105,11 +107,18 @@ function UIPanelComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	self:_SetColor(self.Root, "BackgroundColor3", c.Surface)
 	self:_SetColor(self._header, "BackgroundColor3", c.SurfaceRaised)
-	self._corner.CornerRadius = UDim.new(0, theme.Radii.Large)
+	local radius = ThemeShape.Radius(theme, theme.Radii.Large)
+	self._corner.CornerRadius = UDim.new(0, radius)
+	self._headerCorner.CornerRadius = UDim.new(0, radius)
 	self._stroke.Color = c.Stroke
 	self._stroke.Thickness = theme.Effects.StrokeThickness
 	self._stroke.Transparency = 0.3
-	self._shadow.ImageTransparency = theme.Effects.ShadowTransparency
+	-- Raised3D deepens the panel shadow a touch for more lift.
+	local shadowT = theme.Effects.ShadowTransparency
+	if ThemeShape.IsRaised(theme) then
+		shadowT = math.clamp(shadowT - 0.15, 0, 1)
+	end
+	self._shadow.ImageTransparency = shadowT
 	self._shadow.ImageColor3 = c.Overlay
 
 	self._title.FontFace = theme.Fonts.Title

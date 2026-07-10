@@ -112,8 +112,22 @@ function ShopScreen:_BuildContent()
 	scroll.CanvasSize = UDim2.new()
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.ScrollBarThickness = 6
+	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroll.ClipsDescendants = true
 	scroll.Parent = panel.Body
 	self._scroll = scroll
+
+	-- Inner padding so the first row/column and the last row don't touch the
+	-- scroll edges (where the hover "pop" would otherwise clip), so the last row
+	-- is never cut, and so the automatic canvas height includes a bottom margin.
+	-- Applied once; per-render we rebuild only the layout object, not this.
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 8)
+	pad.PaddingBottom = UDim.new(0, 14)
+	pad.PaddingLeft = UDim.new(0, 6)
+	pad.PaddingRight = UDim.new(0, 12)
+	pad.Parent = scroll
+	self._scrollPad = pad
 
 	self:_RenderItems()
 end

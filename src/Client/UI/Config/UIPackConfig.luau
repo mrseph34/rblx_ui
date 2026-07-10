@@ -80,6 +80,74 @@ UIPackConfig.Packs = {
 		Tutorial = { ShowStepList = true },
 		Modal = { WidthScale = 0.5 },
 	},
+
+	-- ---- New layout packs -------------------------------------------------
+
+	-- Tight grid of small square icon tiles. Wall-of-items storefront.
+	{
+		Id = "IconGrid",
+		DisplayName = "Icon Grid",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 184, EntryLayout = "IconTile", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Top" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.42 },
+	},
+
+	-- Two big square showcase cards per row. Premium, art-forward.
+	{
+		Id = "SquareShowcase",
+		DisplayName = "Square Showcase",
+		Shop = { Container = "Grid", Columns = 2, CardHeight = 336, EntryLayout = "SquareShowcase", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1.05, MoneyRegion = "TopCenter", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.5 },
+	},
+
+	-- Roomy detail rows with a larger square thumbnail. Inventory / quest log.
+	{
+		Id = "Inventory",
+		DisplayName = "Inventory List",
+		Shop = { Container = "List", Columns = 1, CardHeight = 92, EntryLayout = "DetailRow", ShowCategoryBar = true },
+		HUD = { Compact = true, ShowObjectives = false, Scale = 0.95, MoneyRegion = "TopLeft", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Top" },
+		Tutorial = { ShowStepList = false },
+		Modal = { WidthScale = 0.4 },
+	},
+
+	-- Mirror split: text left, square image right. Spotlight catalogue.
+	{
+		Id = "Spotlight",
+		DisplayName = "Spotlight (Mirror Split)",
+		Shop = { Container = "Grid", Columns = 2, CardHeight = 214, EntryLayout = "SplitRight", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Right" },
+		Nav = { Side = "Right", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.46 },
+	},
+
+	-- Tall portrait cards, three across. Character/skin/gacha select.
+	{
+		Id = "Roster",
+		DisplayName = "Roster (Portrait)",
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 300, EntryLayout = "Portrait", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.46 },
+	},
+
+	-- Compact settings/menu list: small icon, name, tiny action. Text-heavy menus.
+	{
+		Id = "Menu",
+		DisplayName = "Menu / Settings",
+		Shop = { Container = "List", Columns = 1, CardHeight = 60, EntryLayout = "MenuRow", ShowCategoryBar = false },
+		HUD = { Compact = true, ShowObjectives = false, Scale = 0.9, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Top" },
+		Tutorial = { ShowStepList = false },
+		Modal = { WidthScale = 0.5 },
+	},
 } :: { Types.UIPack }
 
 function UIPackConfig.GetById(id: string): Types.UIPack?

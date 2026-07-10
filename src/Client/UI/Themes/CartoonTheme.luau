@@ -74,6 +74,16 @@ local CartoonTheme: Types.UITheme = {
 		PressScale = 0.92,
 		StrokeThickness = 3,
 	},
+
+	-- Cartoon leans Bubbly: extra-round corners and a springy hover pop.
+	Shape = {
+		RoundnessScale = 1.8,
+		Style = "Bubbly",
+		Depth = 0,
+		HighlightTransparency = 1,
+		ShadowStrength = 0,
+		Bounce = 0.05,
+	},
 }
 
 return CartoonTheme

@@ -74,6 +74,16 @@ local SciFiTheme: Types.UITheme = {
 		PressScale = 0.97,
 		StrokeThickness = 1,
 	},
+
+	-- SciFi reads as crisp, slightly extruded panels: boxier corners, subtle 3D.
+	Shape = {
+		RoundnessScale = 0.6,
+		Style = "Raised3D",
+		Depth = 3,
+		HighlightTransparency = 0.85,
+		ShadowStrength = 0.35,
+		Bounce = 0,
+	},
 }
 
 return SciFiTheme

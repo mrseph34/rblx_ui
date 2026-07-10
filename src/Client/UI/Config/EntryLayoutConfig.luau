@@ -31,17 +31,24 @@ export type EntrySpec = {
 	imageHeight: number?,
 	imageSize: number?,
 	imageWidth: number?,
+	-- Locks the focal image to width:height = imageAspect (1 = square). Games use
+	-- mostly square art, so most specs set ~1. 0/nil = fill the reserved size
+	-- (used by wide banners that intentionally want a cinematic rectangle).
+	imageAspect: number?,
 	showTags: boolean,
 	showDescription: boolean,
 	-- "Full" wide button, "Compact" small right-aligned, "IconRight" tiny.
 	buyStyle: "Full" | "Compact" | "IconRight",
 	nameAlign: Enum.TextXAlignment,
+	-- Split only: put the image on the RIGHT and the text column on the left.
+	mirror: boolean?,
 }
 
 EntryLayoutConfig.Specs = {
 	StandardCard = {
 		arrangement = "CardTop",
-		imageHeight = 78,
+		imageHeight = 118,
+		imageAspect = 1, -- square art, the realistic default
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
@@ -49,7 +56,8 @@ EntryLayoutConfig.Specs = {
 	},
 	ImageFocal = {
 		arrangement = "CardTop",
-		imageHeight = 130,
+		imageHeight = 150,
+		imageAspect = 1,
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
@@ -58,6 +66,7 @@ EntryLayoutConfig.Specs = {
 	ListRow = {
 		arrangement = "Row",
 		imageSize = 52,
+		imageAspect = 1,
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Compact",
@@ -65,7 +74,8 @@ EntryLayoutConfig.Specs = {
 	},
 	TextHeavy = {
 		arrangement = "TextFirst",
-		imageSize = 44,
+		imageSize = 48,
+		imageAspect = 1,
 		showTags = true,
 		showDescription = true,
 		buyStyle = "Full",
@@ -73,7 +83,8 @@ EntryLayoutConfig.Specs = {
 	},
 	SplitLeft = {
 		arrangement = "Split",
-		imageWidth = 0.38,
+		imageWidth = 0.42,
+		imageAspect = 1, -- square image column, not a tall strip
 		showTags = true,
 		showDescription = true,
 		buyStyle = "Full",
@@ -82,9 +93,74 @@ EntryLayoutConfig.Specs = {
 	HeroBanner = {
 		arrangement = "Banner",
 		imageWidth = 0.42,
+		imageAspect = 0, -- cinematic wide image on purpose
 		showTags = true,
 		showDescription = true,
 		buyStyle = "Full",
+		nameAlign = Enum.TextXAlignment.Left,
+	},
+
+	-- ---- New layout specs -------------------------------------------------
+
+	-- Small square tiles, centred, minimal text — an icon grid / storefront wall.
+	IconTile = {
+		arrangement = "CardTop",
+		imageHeight = 96,
+		imageAspect = 1,
+		showTags = false,
+		showDescription = false,
+		buyStyle = "Compact",
+		nameAlign = Enum.TextXAlignment.Center,
+	},
+	-- Big square hero card: large square image, centred name/price, full buy.
+	SquareShowcase = {
+		arrangement = "CardTop",
+		imageHeight = 200,
+		imageAspect = 1,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Full",
+		nameAlign = Enum.TextXAlignment.Center,
+	},
+	-- Dense list row with description — inventory / quest-log feel.
+	DetailRow = {
+		arrangement = "Row",
+		imageSize = 64,
+		imageAspect = 1,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Compact",
+		nameAlign = Enum.TextXAlignment.Left,
+	},
+	-- Image RIGHT, text left (mirror of Split) — magazine/spotlight feel.
+	SplitRight = {
+		arrangement = "Split",
+		imageWidth = 0.42,
+		imageAspect = 1,
+		showTags = true,
+		showDescription = true,
+		buyStyle = "Full",
+		nameAlign = Enum.TextXAlignment.Left,
+		mirror = true,
+	},
+	-- Tall portrait card: 3:4 image, gacha/character-select feel.
+	Portrait = {
+		arrangement = "CardTop",
+		imageHeight = 176,
+		imageAspect = 0.75, -- 3:4 portrait
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Full",
+		nameAlign = Enum.TextXAlignment.Center,
+	},
+	-- Compact icon+name chip row, buy as a tiny icon — settings/menu list feel.
+	MenuRow = {
+		arrangement = "Row",
+		imageSize = 40,
+		imageAspect = 1,
+		showTags = false,
+		showDescription = false,
+		buyStyle = "IconRight",
 		nameAlign = Enum.TextXAlignment.Left,
 	},
 } :: { [string]: EntrySpec }

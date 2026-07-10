@@ -76,6 +76,26 @@ export type UIThemeEffects = {
 	StrokeThickness: number,
 }
 
+-- Shape: the "feel" of surfaces independent of colour/font. Decides how round
+-- things are and whether buttons/cards read as Flat, Bubbly (pill-round, springy)
+-- or Raised3D (bevel + drop shadow that depresses on press). OPTIONAL on a theme
+-- so older theme files keep working; ThemeShape.Resolve fills in Flat defaults.
+export type UIThemeShapeStyle = "Flat" | "Bubbly" | "Raised3D"
+
+export type UIThemeShape = {
+	-- Multiplies every corner radius. 1 = as-authored, >1 rounder, <1 boxier.
+	-- Bubbly styles push this high; the styler still clamps to a full pill.
+	RoundnessScale: number,
+	Style: UIThemeShapeStyle,
+	-- Raised3D: how many px the bevel/shadow drops the surface, and how bright the
+	-- top highlight / how dark the bottom shade read (0..1). Ignored by Flat.
+	Depth: number,
+	HighlightTransparency: number, -- 0..1, top inner-bevel brightness
+	ShadowStrength: number, -- 0..1, bottom drop-shadow darkness (1 = strongest)
+	-- Bubbly: extra hover/press springiness added on top of Effects scales.
+	Bounce: number,
+}
+
 export type UITheme = {
 	Id: string,
 	DisplayName: string,
@@ -86,6 +106,9 @@ export type UITheme = {
 	Spacing: UIThemeSpacing,
 	Animations: UIThemeAnimations,
 	Effects: UIThemeEffects,
+	-- Optional; ThemeShape.Resolve(theme) returns a full shape with Flat defaults
+	-- when a theme omits this, so every theme is shape-safe without editing it.
+	Shape: UIThemeShape?,
 }
 
 -- ========================================================================

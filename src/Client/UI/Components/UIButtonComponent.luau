@@ -9,6 +9,7 @@
 
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
+local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 
@@ -28,6 +29,12 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 		self._baseSize = root.Size
 	end
 
+	-- Drop shadow behind the surface (Raised3D only; hidden otherwise). A Root
+	-- child so it scales/pops with the button but sits under the fill.
+	local shadow = UIStyler.DropShadow(4, 1)
+	shadow.Parent = root
+	self._shadow = shadow
+
 	-- Surface holds the fill + all visuals and is what hover/press scale. The
 	-- Root is a fixed, transparent footprint that stays put in any layout, so
 	-- the hover "pop" never reflows neighbours or spills out of a grid cell.
@@ -36,6 +43,8 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	surface.Size = UDim2.fromScale(1, 1)
 	surface.AnchorPoint = Vector2.new(0.5, 0.5)
 	surface.Position = UDim2.fromScale(0.5, 0.5)
+	surface.ClipsDescendants = true
+	surface.ZIndex = 2
 	surface.Parent = root
 	self._surface = surface
 	self:_UseScaleTarget(surface)
@@ -47,11 +56,20 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	self._gradient = UIStyler.Gradient(90, 0.12)
 	self._gradient.Parent = surface
 
+	-- Inner bevel overlay for the Raised3D style (light top / dark bottom).
+	-- Enabled/tuned in _Style; sits above the fill+gradient, below the content.
+	local bevel = UIStyler.Bevel(1, 0)
+	bevel.ZIndex = 2
+	bevel.Visible = false
+	bevel.Parent = surface
+	self._bevel = bevel
+
 	-- Content holds the icon + label under its own layout, separate from the
 	-- Hit button so the full-size hit target never joins the content layout.
 	local content = UIStyler.Frame("Content")
 	content.BackgroundTransparency = 1
 	content.Size = UDim2.fromScale(1, 1)
+	content.ZIndex = 3
 	local layout = UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -143,13 +161,40 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 		textColor = c.TextSecondary
 	end
 
+	local shape = ThemeShape.Resolve(theme)
+
 	self:_SetColor(self._surface, "BackgroundColor3", fill)
-	self._corner.CornerRadius = UDim.new(0, theme.Radii.Medium)
+	-- Bubbly style rounds toward a pill; otherwise scale the Medium radius.
+	local radius = shape.Style == "Bubbly"
+		and math.min(self.Root.AbsoluteSize.Y / 2, theme.Radii.Pill)
+		or ThemeShape.Radius(theme, theme.Radii.Medium)
+	self._corner.CornerRadius = UDim.new(0, radius)
 	self._stroke.Color = filled and c.Stroke or c.Primary
 	self._stroke.Thickness = e.StrokeThickness
 	self._stroke.Transparency = filled and 0.4 or 0
 	self._gradient.Enabled = e.UseGradients and filled
 	self._gradient.Color = UIStyler.Gradient(90, e.GradientIntensity).Color
+
+	-- Raised3D: show the inner bevel + drop shadow so the button reads extruded.
+	local raised = shape.Style == "Raised3D" and filled
+	self._bevel.Visible = raised
+	if raised then
+		local beveled = UIStyler.Bevel(shape.HighlightTransparency, shape.ShadowStrength)
+		local grad = beveled:FindFirstChildOfClass("UIGradient")
+		local ownGrad = self._bevel:FindFirstChildOfClass("UIGradient")
+		if grad and ownGrad then
+			ownGrad.Transparency = grad.Transparency
+		end
+		beveled:Destroy()
+		-- Match the bevel's own rounding to the surface so it clips cleanly.
+		local bevelCorner = self._bevel:FindFirstChildOfClass("UICorner") or UIStyler.Corner(radius)
+		bevelCorner.CornerRadius = UDim.new(0, radius)
+		bevelCorner.Parent = self._bevel
+	end
+	self._shadow.ImageTransparency = raised
+		and math.clamp(1 - shape.ShadowStrength * 0.9, 0, 1)
+		or 1
+	self._shadow.Position = UDim2.new(0.5, 0, 0.5, raised and (shape.Depth + 2) or 4)
 
 	self._label.FontFace = theme.Fonts.Button
 	self._label.TextSize = theme.TextSizes.Button

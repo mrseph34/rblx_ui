@@ -18,6 +18,7 @@
 
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
+local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local UISignal = require(script.Parent.Parent.UISignal)
 
 local UIComponentBase = {}
@@ -171,6 +172,8 @@ function UIComponentBase:PlayAnimation(name: string)
 	local anims = theme.Animations
 	local effects = theme.Effects
 	local scale = self:_EnsureScale()
+	-- Bubbly styles blend in extra bounce; others resolve to plain HoverScale.
+	local hoverScale = ThemeShape.HoverScale(theme)
 
 	if name == "Appear" then
 		-- Scale-pop only. We deliberately do NOT animate descendant transparency:
@@ -182,21 +185,41 @@ function UIComponentBase:PlayAnimation(name: string)
 	elseif name == "Disappear" then
 		self:_Tween(scale, anims.Disappear, { Scale = 0.9 })
 	elseif name == "HoverOn" then
-		self:_Tween(scale, anims.Hover, { Scale = effects.HoverScale })
+		self:_Tween(scale, anims.Hover, { Scale = hoverScale })
 	elseif name == "HoverOff" then
 		self:_Tween(scale, anims.Hover, { Scale = 1 })
+		self:_RaisedPressDepth(0)
 	elseif name == "Press" then
 		self:_Tween(scale, anims.Press, { Scale = effects.PressScale })
+		-- Raised3D presses "into" the surface: nudge the scale target down.
+		self:_RaisedPressDepth(ThemeShape.Resolve(theme).Depth)
 	elseif name == "Release" then
-		self:_Tween(scale, anims.Hover, { Scale = effects.HoverScale })
+		self:_Tween(scale, anims.Hover, { Scale = hoverScale })
+		self:_RaisedPressDepth(0)
 	elseif name == "Pulse" then
-		local pulse = self:_Tween(scale, anims.Emphasis, { Scale = effects.HoverScale + 0.06 })
+		local pulse = self:_Tween(scale, anims.Emphasis, { Scale = hoverScale + 0.06 })
 		pulse.Completed:Once(function()
 			if self.Root.Parent then
 				self:_Tween(scale, anims.Emphasis, { Scale = 1 })
 			end
 		end)
 	end
+end
+
+-- For Raised3D components, shift the scale target down by `depth` px on press so
+-- the button visibly depresses toward its shadow, then back to 0 on release.
+-- No-op when there's no depth (Flat/Bubbly), and only when a surface is used.
+function UIComponentBase:_RaisedPressDepth(depth: number)
+	local target = self._scaleTarget
+	if not target or not self.Theme then
+		return
+	end
+	if ThemeShape.Resolve(self.Theme).Style ~= "Raised3D" then
+		return
+	end
+	self:_Tween(target, self.Theme.Animations.Press, {
+		Position = UDim2.new(0.5, 0, 0.5, depth),
+	})
 end
 
 -- Scale a UDim2 about its center by multiplying its offset+scale magnitudes.
