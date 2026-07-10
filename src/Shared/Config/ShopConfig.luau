@@ -14,7 +14,7 @@ ShopConfig.StartingBalances = {
 } :: Types.CurrencyBalances
 
 ShopConfig.Currencies = {
-	Coins = { id = "Coins", nameKey = "currency.coins", icon = "🪙", colorToken = "Accent", order = 1 },
+	Coins = { id = "Coins", nameKey = "currency.coins", icon = "💰", colorToken = "Accent", order = 1 },
 	Gems = { id = "Gems", nameKey = "currency.gems", icon = "💎", colorToken = "Secondary", order = 2 },
 } :: { [string]: Types.CurrencyDef }
 

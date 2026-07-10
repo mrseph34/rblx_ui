@@ -11,7 +11,7 @@ local HUDConfig = {}
 -- Regions map to anchored containers the HUD screen creates.
 -- "TopLeft" | "TopCenter" | "TopRight" | "BottomLeft" | "BottomCenter"
 HUDConfig.Elements = {
-	{ id = "coins", format = "Number", region = "TopRight", order = 1, labelKey = "currency.coins", icon = "🪙", colorToken = "Accent" },
+	{ id = "coins", format = "Number", region = "TopRight", order = 1, labelKey = "currency.coins", icon = "💰", colorToken = "Accent" },
 	{ id = "gems", format = "Number", region = "TopRight", order = 2, labelKey = "currency.gems", icon = "💎", colorToken = "Secondary" },
 	{ id = "wave", format = "Number", region = "TopCenter", order = 1, labelKey = "hud.wave", icon = "🌊", colorToken = "Primary" },
 	{ id = "timer", format = "Time", region = "TopCenter", order = 2, labelKey = "hud.timer", icon = "⏱️", colorToken = "TextPrimary" },

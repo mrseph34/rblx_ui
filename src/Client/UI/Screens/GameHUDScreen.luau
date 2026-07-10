@@ -205,7 +205,7 @@ function GameHUDScreen:_RenderObjectives(objectives: any)
 		row.TextXAlignment = Enum.TextXAlignment.Left
 		row.Text = string.format(
 			"%s %s",
-			objective.done and "✅" or "▫️",
+			objective.done and "✅" or "⬜",
 			TextConfig.Resolve(objective.textKey or objective.text)
 		)
 		row.FontFace = theme.Fonts.Body
