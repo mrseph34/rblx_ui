@@ -55,7 +55,10 @@ function ShopScreen:_BuildContent()
 	self._panel = panel
 	panel:Create(self.Root, {
 		titleKey = "shop.title",
-		size = UDim2.fromScale(0.72, 0.9),
+		-- Narrower than before (was 0.72 wide — a "super wide" panel that wasted
+		-- horizontal space); taller relative to its width so it reads as a normal
+		-- shop window, not a landscape banner.
+		size = UDim2.fromScale(0.5, 0.86),
 		onClose = function()
 			self.ScreenController:HideScreen("shop")
 		end,

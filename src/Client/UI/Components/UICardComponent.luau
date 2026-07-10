@@ -294,7 +294,13 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 	self._buy = buy
 	local size
 	if spec.buyStyle == "Compact" then
-		size = UDim2.new(0, 92, 0, 34)
+		-- Capped to the parent's real resolved width — a fixed 92px button could
+		-- end up WIDER than the whole card on a dense grid pack (many columns on
+		-- a narrow panel), overflowing past the card's edge. Row arrangements'
+		-- right-hand column is always >=92px wide, so this is a no-op there.
+		local availableW = parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
+		local w = availableW > 0 and math.min(92, availableW) or 92
+		size = UDim2.new(0, w, 0, 34)
 	elseif spec.buyStyle == "IconRight" then
 		size = UDim2.new(0, 40, 0, 34)
 	elseif spec.buyStyle == "Pill" then

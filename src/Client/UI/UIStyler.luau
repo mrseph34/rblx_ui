@@ -87,7 +87,11 @@ function UIStyler.GridLayout(cellSize: UDim2, padding: UDim2): UIGridLayout
 	layout.CellSize = cellSize
 	layout.CellPadding = padding
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	-- Left, not Center: a full row is unaffected either way (it already spans
+	-- edge-to-edge), but an INCOMPLETE last row (fewer items than columns) would
+	-- otherwise centre its leftover items mid-row instead of continuing the
+	-- grid's normal left-to-right flow.
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	return layout
 end
 

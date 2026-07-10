@@ -80,6 +80,10 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	content.Parent = surface
 
 	local icon = UIStyler.TextLabel("Icon")
+	-- Placeholder size; _Style computes the real size from the button's actual
+	-- AbsoluteSize once it's resolvable (an AspectRatio constraint here would
+	-- collapse to 0x0 — Size.X starts at 0 with no offset, and FitWithinMaxSize
+	-- fits the ratio inside THAT zero-width box, not the button's real size).
 	icon.Size = UDim2.fromOffset(24, 24)
 	icon.TextScaled = true
 	icon.LayoutOrder = 1
@@ -209,6 +213,15 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 	self._label.FontFace = theme.Fonts.Button
 	self._label.TextSize = theme.TextSizes.Button
 	self._label.TextColor3 = textColor
+	-- Icon scales with the button's real height instead of a fixed small size —
+	-- a flat 24px icon was barely legible on a big 56-64px nav button (read as
+	-- "just a colored square" with no visible icon at a glance). Clamped so it
+	-- never gets comically large/tiny on unusual button sizes.
+	local buttonH = self.Root.AbsoluteSize.Y
+	if buttonH > 0 then
+		local iconSize = math.clamp(buttonH * 0.55, 16, 40)
+		self._icon.Size = UDim2.fromOffset(iconSize, iconSize)
+	end
 	self._icon.TextColor3 = textColor
 	self._button.Active = enabled
 	self._button.AutoButtonColor = false

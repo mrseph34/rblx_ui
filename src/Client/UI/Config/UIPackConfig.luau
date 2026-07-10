@@ -19,7 +19,10 @@ UIPackConfig.Packs = {
 	{
 		Id = "Standard",
 		DisplayName = "Standard",
-		Shop = { Container = "Grid", Columns = 4, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
+		-- The default pack, so it gets extra density: the panel is narrower now,
+		-- and 4 columns of squares in it would look sparse. 5 keeps cards a good
+		-- size while filling more of the panel at once instead of wasting space.
+		Shop = { Container = "Grid", Columns = 5, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -63,7 +66,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Split",
 		DisplayName = "Split View",
-		Shop = { Container = "Grid", Columns = 2, CardHeight = 206, EntryLayout = "SplitLeft", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 206, EntryLayout = "SplitLeft", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopCenter", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -87,7 +90,9 @@ UIPackConfig.Packs = {
 	{
 		Id = "IconGrid",
 		DisplayName = "Icon Grid",
-		Shop = { Container = "Grid", Columns = 6, CardHeight = 236, EntryLayout = "IconTile", ShowCategoryBar = true },
+		-- The panel is narrower now, so 6 columns made cards uncomfortably tiny —
+		-- 5 still comfortably clears the "at least 4" density bar.
+		Shop = { Container = "Grid", Columns = 5, CardHeight = 236, EntryLayout = "IconTile", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Top" },
 		Tutorial = { ShowStepList = true },
@@ -121,7 +126,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Spotlight",
 		DisplayName = "Spotlight (Mirror Split)",
-		Shop = { Container = "Grid", Columns = 2, CardHeight = 214, EntryLayout = "SplitRight", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 214, EntryLayout = "SplitRight", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Right" },
 		Nav = { Side = "Right", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
