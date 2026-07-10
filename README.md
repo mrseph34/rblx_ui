@@ -29,7 +29,9 @@ StarterPlayerScripts/ClientHandler  (the ONE client LocalScript — boots everyt
     Config
       TextConfig                localization seam (textKey -> string)
       UIThemeConfig             theme registry (+ default id)
-      UIPackConfig              layout packs (grid/list shop, compact/large HUD, ...)
+      UIPackConfig              6 layout packs (container + entry-layout + money/nav placement)
+      EntryLayoutConfig         entry arrangement specs (CardTop/Row/Split/TextFirst/Banner)
+      UISoundConfig             sound packs (Clean/Arcade/Muted) mapping events -> sounds
       HUDConfig                 declarative HUD element list
       TutorialConfig            step-based onboarding data
       InputConfig               cross-platform action bindings
@@ -50,6 +52,7 @@ StarterPlayerScripts/ClientHandler  (the ONE client LocalScript — boots everyt
       UIThemeController         theme/pack registry + live switcher (+ runtime themes)
       UIScreenController        screen registry, modal slot, tutorial highlight targets
       UIInputController         action dispatcher (keyboard + gamepad)
+      UISoundController         pooled per-event UI sounds; swappable sound packs
 
     Screens                     (all extend UIScreenBase; one ScreenGui each)
       UIScreenBase
@@ -65,8 +68,36 @@ component tweens with the theme's `ThemeSwap` easing. That is why the entire UI
 re-skins with no per-screen wiring.
 
 - **Themes** control *how it looks* (colors, fonts, radii, motion, effects).
-- **Packs** control *how it's arranged* (shop grid vs list, HUD compact vs large).
-  They're orthogonal — mix any theme with any pack.
+- **Packs** control *how it's arranged* — the entry focal point, grid vs list,
+  and where the currency + nav rail sit. They're orthogonal: any theme × any
+  pack, always consistent.
+
+## Layout packs & the one-renderer rule
+
+The six packs (Standard, Image Showcase, Compact/List, Detailed/Text, Split,
+Hero Banner) look very different, yet a shop entry is **always** built by one
+renderer — `UICardComponent`. A pack points its shop at an `EntryLayoutConfig`
+spec (`StandardCard`, `ImageFocal`, `ListRow`, `TextHeavy`, `SplitLeft`,
+`HeroBanner`); the renderer builds the same elements (image, name, description,
+price, tag pills, buy button) via shared `_Make*` helpers and only the
+*arrangement* changes. That is the consistency guarantee: variety comes from
+swapping specs, never from bespoke per-pack card code, so two entries in a pack
+are structurally identical and a theme paints them the same.
+
+Hover/press scale an **inner surface** (a `UIScale` on a child), never the
+layout-participating root — so a card pops in place without reflowing its
+neighbours or spilling out of its cell/scroll area.
+
+Add a new look = add a spec in `EntryLayoutConfig` + point a pack at it. No
+renderer or screen changes.
+
+## Sound packs
+
+`UISoundController` plays abstract events (Hover/Click/Open/Close/Success/Error)
+from the active `UISoundConfig` pack. Sounds are Roblox built-ins
+(`rbxasset://sounds/*`) so the template makes noise with zero uploaded assets;
+packs (`Clean`, `Arcade`, `Muted`) vary sound/pitch/volume. Buttons play
+hover/click automatically via the component base; screens play success/error.
 
 ## The Export / Import feature
 
