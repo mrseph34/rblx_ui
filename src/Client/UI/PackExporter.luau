@@ -24,6 +24,7 @@ local HUDConfig = require(script.Parent.Config.HUDConfig)
 local NavConfig = require(script.Parent.Config.NavConfig)
 local OverheadConfig = require(script.Parent.Config.OverheadConfig)
 local NPCDialogConfig = require(script.Parent.Config.NPCDialogConfig)
+local SettingsConfig = require(script.Parent.Config.SettingsConfig)
 local TextConfig = require(script.Parent.Config.TextConfig)
 
 local PackExporter = {}
@@ -38,6 +39,8 @@ PackExporter.Parts = {
 	{ id = "tutorial", label = "🎓 Tutorial" },
 	{ id = "nav", label = "🧭 Nav Rail" },
 	{ id = "notify", label = "🔔 Notifications" },
+	{ id = "settings", label = "⚙️ Settings Menu" },
+	{ id = "chat", label = "🗨️ Chat (bubble + bar)" },
 }
 
 -- ---- Luau literal writers ---------------------------------------------
@@ -229,6 +232,18 @@ local function buildPartSpec(part: string, theme: any, pack: any): any
 		return {
 			part = "notify",
 			note = "Top-center banner (variants Info/Success/Achievement/LevelUp tint the badge+accent) that slides down, holds `duration`, slides up; plus corner toasts for smaller feedback.",
+		}
+	elseif part == "settings" then
+		return {
+			part = "settings",
+			sections = SettingsConfig.Sections,
+			defaults = SettingsConfig.Defaults(),
+			note = "Themed options panel: titled sections, each a scroll of consistent rows. Each row is a toggle (sliding knob), slider (labelled track + value) or dropdown (current value + drop list). Build all rows with ONE shared component per kind so they stay uniform.",
+		}
+	elseif part == "chat" then
+		return {
+			part = "chat",
+			note = "TWO forms sharing a typewriter reveal (utf8-safe): (1) an overhead BillboardGui speech bubble above the Head that types, holds `duration`, then fades; (2) a bottom-of-screen speech BAR with optional speaker name that types a line/queue and auto-advances. Both fully themed; click skips to full line.",
 		}
 	end
 	-- full

@@ -105,10 +105,12 @@ entries in a pack are structurally identical and a theme paints them the same.
 Optional elements (e.g. tags) still **reserve their slot** so a row with none
 doesn't shift the rest.
 
-**Image aspect ratio:** specs carry `imageAspect` (mostly `1`, i.e. square — the
-realistic default for item art) locked with a `UIAspectRatioConstraint`, so
-images never stretch and look identical on PC / mobile / any screen size. A wide
-banner opts out with `imageAspect = 0`.
+**Image sizing:** grid/card layouts use a **full-width hero image** at a fixed
+height — it fills the card edge-to-edge, so there's never an empty gap beside a
+shrunken square. Row and split layouts use a square thumbnail (locked with a
+`UIAspectRatioConstraint` so it never stretches on any screen), and a portrait
+spec (`imageAspect < 1`) renders a tall image **centred** in a full-width row so
+it never hugs one side. All card heights are sized so the Buy button always fits.
 
 Hover/press scale an **inner surface** (a `UIScale` on a child), never the
 layout-participating root — so a card pops in place without reflowing its
@@ -135,6 +137,30 @@ and the whole plate moves to a different **location preset** (`Above`, `High`,
 `Head`, `Front`, `Feet`) with one `SetLocation(character, preset)` call. It
 re-skins live with the theme and works for players, NPCs and mobs alike (the game
 feeds values, so it isn't tied to `Humanoid.Health`).
+
+## Talking: NPC dialog, chat bubble, chat bar
+
+Three themed ways to show speech, all with a utf8-safe typewriter reveal:
+
+- **`NPCDialogScreen`** — a bottom-anchored panel with a portrait, speaker name
+  and choice buttons on the final line. For scripted conversations
+  (`NPCDialogConfig` sequences).
+- **`UIChatBubbleController`** — an **overhead** `BillboardGui` speech bubble that
+  pops above a character's head, types, holds, then fades. For barks / emotes /
+  ambient chatter: `chat:Say(character, "Hello!")`.
+- **`ChatBarScreen`** — a slim **bottom-of-screen** speech bar (optional speaker)
+  that types a line or a queue and auto-advances. For narration / subtitles /
+  radio chatter.
+
+## Settings menu
+
+`SettingsScreen` renders `SettingsConfig` into a themed panel: titled sections,
+each a scroll of consistent rows built from shared components — a toggle (sliding
+knob), a slider (labelled track + value) or a dropdown (`UIDropdownComponent`,
+current value + drop list). Values live in a state table and fire `onChange` so a
+game can persist them. Adding a setting is a data edit in `SettingsConfig`; the
+screen renders whatever it's handed, so every row stays uniform. This is the
+text-heavy "options menu" the shop layout can't cover.
 
 ## Nav rail (data-driven shortcut buttons)
 
@@ -176,17 +202,23 @@ long/wide modules are always fully reachable instead of running off-screen.)
 ### Export as Script (hand off a whole part)
 
 Beyond the theme, the **📦 Script** button (`PackExporter`) exports a
-self-contained `.luau` module for the whole pack or any single part — `full`,
-`shop`, `hud`, `overheads`, `npc`, `tutorial`, `nav`, `notify`. Each export:
+`.luau` module for the whole pack or any single part — `full`, `shop`, `hud`,
+`overheads`, `npc`, `tutorial`, `nav`, `notify`, `settings`, `chat`. Each export:
 
-- requires **nothing else** — it returns one `SPEC` table with every resolved
-  theme token, pack/layout choice, config value and string that part uses;
-- is topped with an **AI build brief** — a comment header stating the rblx_ui
-  architecture rules and exactly how to turn the SPEC into working UI.
+- returns one `SPEC` table with every resolved theme token, pack/layout choice,
+  config value and string that part uses (the **design**, not the renderer code);
+- is topped with a **"GET THE REAL CODE" header** pointing at this repo
+  (`src/Client/UI`) so a receiving AI reads the actual source for an exact copy,
+  plus an **AI build brief** with the architecture rules for rebuilding from the
+  SPEC alone.
 
-So you can paste one file into a fresh AI chat (or hand it to a developer) and it
-has everything needed to rebuild that part faithfully — no re-typing, no missing
-context. All eight parts are covered by the export smoke test.
+So you can paste one file into a fresh AI chat (or hand it to a developer): with
+the repo it makes an exact copy, and even without it a faithful rebuild from the
+SPEC. All ten parts are covered by the export smoke test (each one compiles).
+
+> Note: the in-game export ships the **design SPEC**, not the ~3700 lines of
+> renderer code (a running game can't read module source). For the real code,
+> point the other AI at this repo — that's what the header does.
 
 ## Controls (demo)
 
