@@ -18,6 +18,7 @@ local Controllers = UI.Controllers
 -- Config / shared.
 local DevConfig = require(UI.Config.DevConfig)
 local HUDConfig = require(UI.Config.HUDConfig)
+local NavConfig = require(UI.Config.NavConfig)
 local TutorialConfig = require(UI.Config.TutorialConfig)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local Remotes = require(ReplicatedStorage.Shared.Net.Remotes)
@@ -33,6 +34,7 @@ local UIThemeController = require(Controllers.UIThemeController)
 local UIScreenController = require(Controllers.UIScreenController)
 local UIInputController = require(Controllers.UIInputController)
 local UISoundController = require(Controllers.UISoundController)
+local UIOverheadController = require(Controllers.UIOverheadController)
 
 -- Screens.
 local GameHUDScreen = require(Screens.GameHUDScreen)
@@ -50,6 +52,7 @@ local themeController = UIThemeController.new()
 local screenController = UIScreenController.new(themeController)
 local inputController = UIInputController.new()
 local soundController = UISoundController.new()
+local overheadController = UIOverheadController.new(themeController)
 
 -- Inject controllers into the component base: theme = live re-skinning; sound =
 -- hover/click SFX. Both are nil-safe so components work without them.
@@ -115,6 +118,21 @@ end
 
 -- ---- floating nav rail (dev/demo) -------------------------------------
 
+-- Maps a NavConfig button `action` to what it does. Adding a nav button is a
+-- data edit in NavConfig plus (if it's a new action) one row here.
+local function navAction(action: string)
+	if action == "ToggleShop" then
+		screenController:ToggleScreen("shop", { balances = shop._balances })
+	elseif action == "ToggleThemeEditor" then
+		screenController:ToggleScreen("themeSelector")
+	elseif action == "ShowTutorial" then
+		screenController:ShowScreen("tutorial", {
+			steps = TutorialConfig.Steps,
+			onComplete = function() end,
+		})
+	end
+end
+
 local function buildNavRail()
 	if not DevConfig.ShowNavRail then
 		return
@@ -127,54 +145,46 @@ local function buildNavRail()
 	gui.Parent = player:WaitForChild("PlayerGui")
 
 	-- Position the rail per the active pack (side + vertical anchor), so packs
-	-- can move the side buttons for a different feel.
+	-- can move the side buttons for a different feel; geometry comes from NavConfig.
 	local nav = themeController:GetPack().Nav
+	local horizontal = NavConfig.FillDirection == "Horizontal"
 	local onRight = nav.Side == "Right"
 	local vAnchor = nav.Vertical == "Top" and 0 or (nav.Vertical == "Bottom" and 1 or 0.5)
 	local vPos = nav.Vertical == "Top" and 0.14 or (nav.Vertical == "Bottom" and 0.86 or 0.5)
+	local edge = NavConfig.EdgeOffset
 
 	local rail = UIStyler.Frame("Rail")
 	rail.BackgroundTransparency = 1
 	rail.AnchorPoint = Vector2.new(onRight and 1 or 0, vAnchor)
-	rail.Position = UDim2.new(onRight and 1 or 0, onRight and -12 or 12, vPos, 0)
-	rail.Size = UDim2.fromOffset(64, 220)
+	rail.Position = UDim2.new(onRight and 1 or 0, onRight and -edge or edge, vPos, 0)
+	rail.Size = UDim2.fromOffset(NavConfig.ButtonSize.X + 16, 300)
+	rail.AutomaticSize = Enum.AutomaticSize.XY
 	UIStyler.ListLayout({
-		Padding = UDim.new(0, 10),
+		FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
+		Padding = UDim.new(0, NavConfig.Spacing),
 		VerticalAlignment = vAnchor == 1 and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top,
 	}).Parent = rail
 	rail.Parent = gui
 
-	local function railButton(icon: string, order: number, onClick: () -> (), targetId: string?)
+	local order = 0
+	for _, def in NavConfig.Buttons do
+		if def.authorizedOnly and not DevConfig.IsAuthorized(player.UserId) then
+			continue
+		end
+		order += 1
+		local size = def.size or NavConfig.ButtonSize
 		local button = UIButtonComponent.new()
 		button:Create(rail, {
-			icon = icon,
-			variant = "Primary",
-			size = UDim2.fromOffset(56, 56),
+			icon = def.icon,
+			variant = def.variant or "Primary",
+			size = UDim2.fromOffset(size.X, size.Y),
 			layoutOrder = order,
-			onClick = onClick,
+			onClick = function()
+				navAction(def.action)
+			end,
 		})
-		if targetId then
-			screenController:RegisterHighlightTarget(targetId, button.Root)
-		end
-		return button
+		screenController:RegisterHighlightTarget(def.id, button.Root)
 	end
-
-	railButton("🛒", 1, function()
-		screenController:ToggleScreen("shop", { balances = shop._balances })
-	end, "nav.shop")
-
-	if DevConfig.IsAuthorized(player.UserId) then
-		railButton("🎨", 2, function()
-			screenController:ToggleScreen("themeSelector")
-		end, "nav.theme")
-	end
-
-	railButton("❓", 3, function()
-		screenController:ShowScreen("tutorial", {
-			steps = TutorialConfig.Steps,
-			onComplete = function() end,
-		})
-	end)
 end
 
 -- ---- input actions ----------------------------------------------------
@@ -289,8 +299,31 @@ if game:GetService("RunService"):IsStudio() then
 		})
 		return true
 	end)
+	bind("SetOverheadLocation", function(locationId: string)
+		if player.Character then
+			overheadController:SetLocation(player.Character, locationId)
+		end
+		return true
+	end)
 	folder.Parent = ReplicatedStorage
 end
+
+-- ---- overhead billboard (demo on the local player) -------------------
+
+-- Attach a themed nameplate + vitals bars above the local character's head and
+-- keep them in sync with the HUD values, so the overhead UI is visible in-play.
+-- A game would call these for every player/NPC/mob it wants a plate on.
+local function attachOwnOverhead(character: Model)
+	overheadController:Attach(character, { name = player.DisplayName, level = HUDConfig.DefaultValues.level })
+	overheadController:SetValues(character, {
+		health = HUDConfig.DefaultValues.health,
+		mana = HUDConfig.DefaultValues.mana,
+	})
+end
+if player.Character then
+	attachOwnOverhead(player.Character)
+end
+player.CharacterAdded:Connect(attachOwnOverhead)
 
 -- Live-ticking timer to show HUD updates working.
 task.spawn(function()

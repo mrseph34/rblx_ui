@@ -58,6 +58,8 @@ TextConfig.Strings = {
 	-- HUD
 	["hud.level"] = "Level",
 	["hud.health"] = "Health",
+	["hud.mana"] = "Mana",
+	["hud.stamina"] = "Stamina",
 	["hud.timer"] = "Time",
 	["hud.objectives"] = "Objectives",
 	["hud.wave"] = "Wave",

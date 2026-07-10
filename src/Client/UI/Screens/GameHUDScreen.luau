@@ -131,11 +131,11 @@ function GameHUDScreen:_BuildContent()
 		end
 	end
 
-	-- Objectives panel (bottom-left), populated on demand.
+	-- Objectives panel (lower-left, above the vitals stack so they don't overlap).
 	local objectives = UIStyler.Frame("Objectives")
 	objectives.BackgroundTransparency = 1
 	objectives.AnchorPoint = Vector2.new(0, 1)
-	objectives.Position = UDim2.new(0, 16, 1, -60)
+	objectives.Position = UDim2.new(0, 16, 1, -168)
 	objectives.Size = UDim2.fromOffset(260, 120)
 	objectives.AutomaticSize = Enum.AutomaticSize.Y
 	UIStyler.ListLayout({ Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Left }).Parent = objectives
