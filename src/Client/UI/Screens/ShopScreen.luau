@@ -50,7 +50,7 @@ function ShopScreen:_BuildContent()
 	self._panel = panel
 	panel:Create(self.Root, {
 		titleKey = "shop.title",
-		size = UDim2.fromScale(0.7, 0.78),
+		size = UDim2.fromScale(0.72, 0.9),
 		onClose = function()
 			self.ScreenController:HideScreen("shop")
 		end,

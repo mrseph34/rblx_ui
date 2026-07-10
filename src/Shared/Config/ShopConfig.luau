@@ -25,10 +25,19 @@ ShopConfig.Categories = {
 } :: { Types.ShopCategory }
 
 ShopConfig.Items = {
-	-- Featured
+	-- Featured (a fuller set so grids fill several rows and scrolling is exercised)
 	{ id = "starter_bundle", nameKey = "item.starter_bundle.name", descriptionKey = "item.starter_bundle.desc", iconId = "", price = 99, currencyType = "Coins", category = "featured", tags = { "Sale" } },
 	{ id = "mega_bundle", nameKey = "item.mega_bundle.name", descriptionKey = "item.mega_bundle.desc", iconId = "", price = 120, currencyType = "Gems", category = "featured", tags = { "Popular", "Limited" } },
 	{ id = "mystery_crate", nameKey = "item.mystery_crate.name", descriptionKey = "item.mystery_crate.desc", iconId = "", price = 500, currencyType = "Coins", category = "featured", tags = { "New" } },
+	{ id = "value_pack", nameKey = "item.mega_bundle.name", descriptionKey = "item.mega_bundle.desc", iconId = "", price = 260, currencyType = "Coins", category = "featured", tags = { "Popular" } },
+	{ id = "daily_deal", nameKey = "item.starter_bundle.name", descriptionKey = "item.starter_bundle.desc", iconId = "", price = 60, currencyType = "Coins", category = "featured", tags = { "Sale", "Limited" } },
+	{ id = "legend_crate", nameKey = "item.mystery_crate.name", descriptionKey = "item.mystery_crate.desc", iconId = "", price = 900, currencyType = "Gems", category = "featured", tags = { "Rare" } },
+	{ id = "coin_pouch", nameKey = "item.starter_bundle.name", descriptionKey = "item.starter_bundle.desc", iconId = "", price = 40, currencyType = "Coins", category = "featured" },
+	{ id = "gem_chest", nameKey = "item.mega_bundle.name", descriptionKey = "item.mega_bundle.desc", iconId = "", price = 75, currencyType = "Gems", category = "featured", tags = { "New" } },
+	{ id = "season_pass", nameKey = "item.mega_bundle.name", descriptionKey = "item.mega_bundle.desc", iconId = "", price = 480, currencyType = "Coins", category = "featured", tags = { "Popular", "New" } },
+	{ id = "lucky_box", nameKey = "item.mystery_crate.name", descriptionKey = "item.mystery_crate.desc", iconId = "", price = 130, currencyType = "Coins", category = "featured", tags = { "Sale" } },
+	{ id = "vip_bundle", nameKey = "item.mega_bundle.name", descriptionKey = "item.mega_bundle.desc", iconId = "", price = 640, currencyType = "Gems", category = "featured", tags = { "Rare", "Limited" } },
+	{ id = "welcome_gift", nameKey = "item.starter_bundle.name", descriptionKey = "item.starter_bundle.desc", iconId = "", price = 20, currencyType = "Coins", category = "featured", tags = { "New" } },
 
 	-- Boosts
 	{ id = "speed_cola", nameKey = "item.speed_cola.name", descriptionKey = "item.speed_cola.desc", iconId = "", price = 150, currencyType = "Coins", category = "boosts", tags = { "New" } },
