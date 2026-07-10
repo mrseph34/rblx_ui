@@ -32,6 +32,7 @@ local UIStyler = require(UI.UIStyler)
 local UIThemeController = require(Controllers.UIThemeController)
 local UIScreenController = require(Controllers.UIScreenController)
 local UIInputController = require(Controllers.UIInputController)
+local UISoundController = require(Controllers.UISoundController)
 
 -- Screens.
 local GameHUDScreen = require(Screens.GameHUDScreen)
@@ -47,10 +48,25 @@ local player = Players.LocalPlayer
 local themeController = UIThemeController.new()
 local screenController = UIScreenController.new(themeController)
 local inputController = UIInputController.new()
+local soundController = UISoundController.new()
 
--- Inject the theme controller into the component base so every component that
--- gets built auto-registers for live theme updates.
+-- Inject controllers into the component base: theme = live re-skinning; sound =
+-- hover/click SFX. Both are nil-safe so components work without them.
 UIComponentBase.SetThemeController(themeController)
+UIComponentBase.SetSoundController(soundController)
+require(Screens.UIScreenBase).SetSoundController(soundController)
+
+-- Screen open/close SFX, wired centrally so no screen needs sound code.
+screenController.ScreenShown:Connect(function(id: string)
+	if id ~= "hud" then
+		soundController:Play("Open")
+	end
+end)
+screenController.ScreenHidden:Connect(function(id: string)
+	if id ~= "hud" then
+		soundController:Play("Close")
+	end
+end)
 
 -- ---- register screens -------------------------------------------------
 
@@ -107,12 +123,22 @@ local function buildNavRail()
 	gui.DisplayOrder = 8
 	gui.Parent = player:WaitForChild("PlayerGui")
 
+	-- Position the rail per the active pack (side + vertical anchor), so packs
+	-- can move the side buttons for a different feel.
+	local nav = themeController:GetPack().Nav
+	local onRight = nav.Side == "Right"
+	local vAnchor = nav.Vertical == "Top" and 0 or (nav.Vertical == "Bottom" and 1 or 0.5)
+	local vPos = nav.Vertical == "Top" and 0.14 or (nav.Vertical == "Bottom" and 0.86 or 0.5)
+
 	local rail = UIStyler.Frame("Rail")
 	rail.BackgroundTransparency = 1
-	rail.AnchorPoint = Vector2.new(0, 0.5)
-	rail.Position = UDim2.new(0, 12, 0.5, 0)
+	rail.AnchorPoint = Vector2.new(onRight and 1 or 0, vAnchor)
+	rail.Position = UDim2.new(onRight and 1 or 0, onRight and -12 or 12, vPos, 0)
 	rail.Size = UDim2.fromOffset(64, 220)
-	UIStyler.ListLayout({ Padding = UDim.new(0, 10) }).Parent = rail
+	UIStyler.ListLayout({
+		Padding = UDim.new(0, 10),
+		VerticalAlignment = vAnchor == 1 and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top,
+	}).Parent = rail
 	rail.Parent = gui
 
 	local function railButton(icon: string, order: number, onClick: () -> (), targetId: string?)
@@ -183,6 +209,68 @@ screenController:ShowScreen("hud", {
 })
 
 buildNavRail()
+
+-- Studio-only debug seam. Exposed via BindableFunctions in ReplicatedStorage
+-- (not _G, which is not shared with externally-injected code) so the MCP
+-- screenshot harness (tools/ui-shots.lua) can drive theme/pack/screen switches
+-- at runtime. Never present in a live game (guarded by IsStudio).
+if game:GetService("RunService"):IsStudio() then
+	local function rebuildNav()
+		local existing = player.PlayerGui:FindFirstChild("NavRail")
+		if existing then
+			existing:Destroy()
+		end
+		buildNavRail()
+	end
+	local function applyPack(packId: string)
+		themeController:SetPack(packId)
+		rebuildNav()
+		hud:Rebuild()
+		if screenController:IsVisible("shop") then
+			screenController:GetScreen("shop"):_RenderItems()
+		end
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = "UIDebug"
+	local function bind(name: string, fn: (...any) -> ...any)
+		local bindable = Instance.new("BindableFunction")
+		bindable.Name = name
+		bindable.OnInvoke = fn
+		bindable.Parent = folder
+	end
+	bind("ApplyPack", function(packId: string)
+		applyPack(packId)
+		return true
+	end)
+	bind("SetTheme", function(themeId: string)
+		themeController:SetTheme(themeId)
+		return true
+	end)
+	bind("ShowScreen", function(id: string)
+		if id == "shop" then
+			screenController:ShowScreen("shop", { balances = shop._balances })
+		else
+			screenController:ShowScreen(id)
+		end
+		return true
+	end)
+	bind("HideScreen", function(id: string)
+		screenController:HideScreen(id)
+		return true
+	end)
+	bind("SelectCategory", function(categoryId: string)
+		if screenController:IsVisible("shop") then
+			screenController:GetScreen("shop"):_SelectCategory(categoryId)
+		end
+		return true
+	end)
+	bind("SetSoundPack", function(packId: string)
+		soundController:SetPack(packId)
+		return true
+	end)
+	folder.Parent = ReplicatedStorage
+end
 
 -- Live-ticking timer to show HUD updates working.
 task.spawn(function()

@@ -13,6 +13,7 @@ local SharedTypes = require(ReplicatedStorage.Shared.Types)
 
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
+local EntryLayoutConfig = require(script.Parent.Parent.Config.EntryLayoutConfig)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
@@ -145,7 +146,9 @@ function ShopScreen:_RenderItems()
 
 	local pack = self.ThemeController:GetPack()
 	local shopLayout = pack.Shop
-	if shopLayout.Layout == "Grid" then
+	local spec = EntryLayoutConfig.Get(shopLayout.EntryLayout)
+
+	if shopLayout.Container == "Grid" then
 		local cell = UIStyler.GridLayout(
 			UDim2.new(1 / shopLayout.Columns, -10, 0, shopLayout.CardHeight),
 			UDim2.fromOffset(10, 10)
@@ -159,9 +162,12 @@ function ShopScreen:_RenderItems()
 	for i, item in items do
 		local currency = ShopConfig.Currencies[item.currencyType]
 		local card = UICardComponent.new()
-		local size = shopLayout.Layout == "List" and UDim2.new(1, 0, 0, shopLayout.CardHeight) or nil
+		-- List rows get an explicit full-width size; grid cells are sized by the
+		-- grid layout, so leave size nil there.
+		local size = shopLayout.Container == "List" and UDim2.new(1, 0, 0, shopLayout.CardHeight) or nil
 		card:Create(self._scroll, {
 			item = item,
+			spec = spec,
 			currencyIcon = currency and currency.icon or "",
 			affordable = ShopConfig.CanAfford(self._balances, item),
 			layoutOrder = i,

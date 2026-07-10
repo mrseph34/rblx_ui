@@ -26,19 +26,19 @@ ShopConfig.Categories = {
 
 ShopConfig.Items = {
 	-- Featured
-	{ id = "starter_bundle", nameKey = "item.starter_bundle.name", iconId = "", price = 99, currencyType = "Coins", category = "featured", tags = { "Sale" } },
-	{ id = "mega_bundle", nameKey = "item.mega_bundle.name", iconId = "", price = 120, currencyType = "Gems", category = "featured", tags = { "Popular", "Limited" } },
-	{ id = "mystery_crate", nameKey = "item.mystery_crate.name", iconId = "", price = 500, currencyType = "Coins", category = "featured", tags = { "New" } },
+	{ id = "starter_bundle", nameKey = "item.starter_bundle.name", descriptionKey = "item.starter_bundle.desc", iconId = "", price = 99, currencyType = "Coins", category = "featured", tags = { "Sale" } },
+	{ id = "mega_bundle", nameKey = "item.mega_bundle.name", descriptionKey = "item.mega_bundle.desc", iconId = "", price = 120, currencyType = "Gems", category = "featured", tags = { "Popular", "Limited" } },
+	{ id = "mystery_crate", nameKey = "item.mystery_crate.name", descriptionKey = "item.mystery_crate.desc", iconId = "", price = 500, currencyType = "Coins", category = "featured", tags = { "New" } },
 
 	-- Boosts
-	{ id = "speed_cola", nameKey = "item.speed_cola.name", iconId = "", price = 150, currencyType = "Coins", category = "boosts", tags = { "New" } },
-	{ id = "shield_generator", nameKey = "item.shield_generator.name", iconId = "", price = 320, currencyType = "Coins", category = "boosts", tags = { "Popular" } },
-	{ id = "double_xp", nameKey = "item.double_xp.name", iconId = "", price = 25, currencyType = "Gems", category = "boosts", tags = { "Limited" } },
+	{ id = "speed_cola", nameKey = "item.speed_cola.name", descriptionKey = "item.speed_cola.desc", iconId = "", price = 150, currencyType = "Coins", category = "boosts", tags = { "New" } },
+	{ id = "shield_generator", nameKey = "item.shield_generator.name", descriptionKey = "item.shield_generator.desc", iconId = "", price = 320, currencyType = "Coins", category = "boosts", tags = { "Popular" } },
+	{ id = "double_xp", nameKey = "item.double_xp.name", descriptionKey = "item.double_xp.desc", iconId = "", price = 25, currencyType = "Gems", category = "boosts", tags = { "Limited" } },
 
 	-- Cosmetics
-	{ id = "golden_crown", nameKey = "item.golden_crown.name", iconId = "", price = 90, currencyType = "Gems", category = "cosmetics", tags = { "Rare" } },
-	{ id = "pixel_shades", nameKey = "item.pixel_shades.name", iconId = "", price = 220, currencyType = "Coins", category = "cosmetics" },
-	{ id = "rainbow_trail", nameKey = "item.rainbow_trail.name", iconId = "", price = 45, currencyType = "Gems", category = "cosmetics", tags = { "New", "Rare" } },
+	{ id = "golden_crown", nameKey = "item.golden_crown.name", descriptionKey = "item.golden_crown.desc", iconId = "", price = 90, currencyType = "Gems", category = "cosmetics", tags = { "Rare" } },
+	{ id = "pixel_shades", nameKey = "item.pixel_shades.name", descriptionKey = "item.pixel_shades.desc", iconId = "", price = 220, currencyType = "Coins", category = "cosmetics" },
+	{ id = "rainbow_trail", nameKey = "item.rainbow_trail.name", descriptionKey = "item.rainbow_trail.desc", iconId = "", price = 45, currencyType = "Gems", category = "cosmetics", tags = { "New", "Rare" } },
 } :: { Types.ShopItem }
 
 function ShopConfig.GetItemById(itemId: string): Types.ShopItem?

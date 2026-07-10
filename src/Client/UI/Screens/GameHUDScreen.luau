@@ -33,11 +33,57 @@ function GameHUDScreen.new()
 	return setmetatable(self, GameHUDScreen)
 end
 
+-- Currency elements relocate to the active pack's MoneyRegion; everything else
+-- keeps its HUDConfig region. This is what lets each pack put the money in a
+-- different spot without editing HUDConfig.
+local MONEY_IDS = { coins = true, gems = true }
+
+function GameHUDScreen:_EffectiveElementsForRegion(region: string)
+	local out = {}
+	for _, element in HUDConfig.GetElementsForRegion(region) do
+		if not MONEY_IDS[element.id] then
+			table.insert(out, element)
+		end
+	end
+	if region == self._moneyRegion then
+		for _, id in { "coins", "gems" } do
+			for _, element in HUDConfig.Elements do
+				if element.id == id then
+					table.insert(out, element)
+				end
+			end
+		end
+	end
+	return out
+end
+
+-- Tear down and rebuild HUD content from the current pack (used when the pack
+-- changes at runtime, e.g. the Theme Editor's pack picker / test harness).
+function GameHUDScreen:Rebuild()
+	if not self._built then
+		return
+	end
+	for _, badge in self._toasts do
+		badge:Destroy()
+	end
+	for _, child in self.Root:GetChildren() do
+		child:Destroy()
+	end
+	self._elementViews = {}
+	self._bars = {}
+	self._objectives = {}
+	self._toasts = {}
+	self:_BuildContent()
+	self:_RefreshValues()
+end
+
 function GameHUDScreen:_BuildContent()
 	local scale = Instance.new("UIScale")
 	scale.Parent = self.Root
 	self._scale = scale
 
+	self._moneyRegion = self.ThemeController:GetPack().HUD.MoneyRegion
+	self._moneyIconSide = self.ThemeController:GetPack().HUD.MoneyIconSide
 	for region, layout in REGION_LAYOUT do
 		local container = UIStyler.Frame(region)
 		container.BackgroundTransparency = 1
@@ -56,7 +102,7 @@ function GameHUDScreen:_BuildContent()
 			self.ScreenController:RegisterHighlightTarget("hud.topRight", container)
 		end
 
-		for _, element in HUDConfig.GetElementsForRegion(region) do
+		for _, element in self:_EffectiveElementsForRegion(region) do
 			self:_BuildElement(container, element)
 		end
 	end
@@ -137,6 +183,11 @@ end
 
 function GameHUDScreen:PushToast(data: any)
 	self:_EnsureBuilt()
+	if data.variant == "Success" then
+		self:_PlaySound("Success")
+	elseif data.variant == "Error" then
+		self:_PlaySound("Error")
+	end
 	local toast = UIToastComponent.new()
 	toast:Create(self._toastStack, {
 		textKey = data.textKey,
@@ -181,7 +232,13 @@ function GameHUDScreen:_RefreshValues()
 			local element = view.element
 			local value = self._values[id] or 0
 			local display = element.format == "Time" and HUDConfig.FormatTime(value) or tostring(math.floor(value))
-			view.label.Text = string.format("%s %s", element.icon or "", display)
+			-- Currency chips honour the pack's icon side; other chips keep icon-left.
+			local icon = element.icon or ""
+			if MONEY_IDS[element.id] and self._moneyIconSide == "Right" then
+				view.label.Text = string.format("%s %s", display, icon)
+			else
+				view.label.Text = string.format("%s %s", icon, display)
+			end
 			view.label.FontFace = theme.Fonts.Numeric
 			view.label.TextSize = theme.TextSizes.Body
 			view.label.TextColor3 = (theme.Colors :: any)[element.colorToken] or theme.Colors.TextPrimary

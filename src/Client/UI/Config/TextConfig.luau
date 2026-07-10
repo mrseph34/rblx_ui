@@ -37,6 +37,17 @@ TextConfig.Strings = {
 	["item.pixel_shades.name"] = "Pixel Shades",
 	["item.rainbow_trail.name"] = "Rainbow Trail",
 
+	-- Item descriptions (used by text-heavy / split layout packs)
+	["item.starter_bundle.desc"] = "A hand-picked kit to kickstart your run: coins, a boost, and a cosmetic.",
+	["item.mega_bundle.desc"] = "Everything in the Starter Bundle, doubled — the best value for serious players.",
+	["item.mystery_crate.desc"] = "Contains one random item. Could be common, could be legendary. Feeling lucky?",
+	["item.speed_cola.desc"] = "Reload and act faster for the next 10 minutes. Stacks with other boosts.",
+	["item.shield_generator.desc"] = "Absorbs the next three hits you take. Recharges between waves.",
+	["item.double_xp.desc"] = "Earn twice the XP for one hour. Timer keeps running while you play.",
+	["item.golden_crown.desc"] = "A gleaming crown worn on your head. Purely cosmetic, endlessly regal.",
+	["item.pixel_shades.desc"] = "Retro pixel sunglasses. Look cool, stay cool.",
+	["item.rainbow_trail.desc"] = "Leave a shimmering rainbow trail wherever you walk.",
+
 	-- Tags
 	["tag.new"] = "NEW",
 	["tag.sale"] = "SALE",

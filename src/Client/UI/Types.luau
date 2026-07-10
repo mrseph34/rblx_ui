@@ -93,16 +93,30 @@ export type UITheme = {
 -- ========================================================================
 
 export type UIPackShop = {
-	Layout: "Grid" | "List",
+	-- How entries flow in the scroll frame.
+	Container: "Grid" | "List",
 	Columns: number,
 	CardHeight: number,
+	-- EntryLayoutConfig spec id — decides the per-card focal/arrangement.
+	EntryLayout: string,
 	ShowCategoryBar: boolean,
 }
+
+export type Region = "TopLeft" | "TopCenter" | "TopRight" | "BottomLeft" | "BottomCenter" | "BottomRight"
 
 export type UIPackHUD = {
 	Compact: boolean,
 	ShowObjectives: boolean,
 	Scale: number,
+	-- Where the currency chips sit, and which side their icon is on. Moving
+	-- these per pack is what gives each pack a different "feel".
+	MoneyRegion: Region,
+	MoneyIconSide: "Left" | "Right",
+}
+
+export type UIPackNav = {
+	Side: "Left" | "Right",
+	Vertical: "Top" | "Center" | "Bottom",
 }
 
 export type UIPackTutorial = {
@@ -118,6 +132,7 @@ export type UIPack = {
 	DisplayName: string,
 	Shop: UIPackShop,
 	HUD: UIPackHUD,
+	Nav: UIPackNav,
 	Tutorial: UIPackTutorial,
 	Modal: UIPackModal,
 }
