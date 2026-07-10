@@ -263,7 +263,11 @@ end
 function ShopScreen:Update(data: any)
 	if data.balances then
 		self._balances = data.balances
-		self:_RenderItems()
+		-- Balances can arrive (currency pushes, boot snapshot) before the shop
+		-- has ever been opened/built; just cache them until first show.
+		if self._built then
+			self:_RenderItems()
+		end
 	end
 end
 
