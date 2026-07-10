@@ -112,6 +112,10 @@ export type UIPackHUD = {
 	-- these per pack is what gives each pack a different "feel".
 	MoneyRegion: Region,
 	MoneyIconSide: "Left" | "Right",
+	-- Optional per-element region overrides (elementId -> region). Lets a pack —
+	-- or runtime code via GameHUDScreen:SetElementRegion — move ANY HUD element
+	-- (timer, level, health, a skills bar, ...) anywhere, not just the money.
+	Regions: { [string]: Region }?,
 }
 
 export type UIPackNav = {

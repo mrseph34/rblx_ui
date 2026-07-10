@@ -10,6 +10,7 @@ local HUDConfig = require(script.Parent.Parent.Config.HUDConfig)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIProgressBarComponent = require(script.Parent.Parent.Components.UIProgressBarComponent)
 local UIToastComponent = require(script.Parent.Parent.Components.UIToastComponent)
+local UINotificationComponent = require(script.Parent.Parent.Components.UINotificationComponent)
 
 local GameHUDScreen = setmetatable({}, { __index = UIScreenBase })
 GameHUDScreen.__index = GameHUDScreen
@@ -21,6 +22,8 @@ local REGION_LAYOUT = {
 	TopRight = { anchor = Vector2.new(1, 0), pos = UDim2.new(1, -16, 0, 16), dir = "V", align = "Right" },
 	BottomLeft = { anchor = Vector2.new(0, 1), pos = UDim2.new(0, 16, 1, -16), dir = "V", align = "Left" },
 	BottomCenter = { anchor = Vector2.new(0.5, 1), pos = UDim2.new(0.5, 0, 1, -16), dir = "V", align = "Center" },
+	-- Offset left of the toast stack so a relocated element doesn't collide.
+	BottomRight = { anchor = Vector2.new(1, 1), pos = UDim2.new(1, -16, 1, -80), dir = "V", align = "Right" },
 }
 
 function GameHUDScreen.new()
@@ -34,27 +37,46 @@ function GameHUDScreen.new()
 end
 
 -- Currency elements relocate to the active pack's MoneyRegion; everything else
--- keeps its HUDConfig region. This is what lets each pack put the money in a
+-- keeps its HUDConfig region — UNLESS a per-element override (pack.HUD.Regions
+-- or a runtime SetElementRegion call) says otherwise. This is what lets each
+-- pack, or the game at runtime, put the money / skills / any HUD element in a
 -- different spot without editing HUDConfig.
 local MONEY_IDS = { coins = true, gems = true }
 
+-- The region an element should actually render in, honouring (in priority):
+-- explicit override > money region (for currency) > its HUDConfig region.
+function GameHUDScreen:_EffectiveRegion(element: any): string
+	if self._regionOverrides and self._regionOverrides[element.id] then
+		return self._regionOverrides[element.id]
+	end
+	if self._packRegions and self._packRegions[element.id] then
+		return self._packRegions[element.id]
+	end
+	if MONEY_IDS[element.id] then
+		return self._moneyRegion
+	end
+	return element.region
+end
+
 function GameHUDScreen:_EffectiveElementsForRegion(region: string)
 	local out = {}
-	for _, element in HUDConfig.GetElementsForRegion(region) do
-		if not MONEY_IDS[element.id] then
+	for _, element in HUDConfig.Elements do
+		if self:_EffectiveRegion(element) == region then
 			table.insert(out, element)
 		end
 	end
-	if region == self._moneyRegion then
-		for _, id in { "coins", "gems" } do
-			for _, element in HUDConfig.Elements do
-				if element.id == id then
-					table.insert(out, element)
-				end
-			end
-		end
-	end
+	table.sort(out, function(a, b)
+		return a.order < b.order
+	end)
 	return out
+end
+
+-- Runtime reposition: move a HUD element to a region and rebuild. Persisted in
+-- _regionOverrides so it survives pack changes until explicitly cleared.
+function GameHUDScreen:SetElementRegion(elementId: string, region: string)
+	self._regionOverrides = self._regionOverrides or {}
+	self._regionOverrides[elementId] = region
+	self:Rebuild()
 end
 
 -- Tear down and rebuild HUD content from the current pack (used when the pack
@@ -82,8 +104,10 @@ function GameHUDScreen:_BuildContent()
 	scale.Parent = self.Root
 	self._scale = scale
 
-	self._moneyRegion = self.ThemeController:GetPack().HUD.MoneyRegion
-	self._moneyIconSide = self.ThemeController:GetPack().HUD.MoneyIconSide
+	local packHUD = self.ThemeController:GetPack().HUD
+	self._moneyRegion = packHUD.MoneyRegion
+	self._moneyIconSide = packHUD.MoneyIconSide
+	self._packRegions = packHUD.Regions
 	for region, layout in REGION_LAYOUT do
 		local container = UIStyler.Frame(region)
 		container.BackgroundTransparency = 1
@@ -132,7 +156,45 @@ function GameHUDScreen:_BuildContent()
 	toastStack.Parent = self.Root
 	self._toastStack = toastStack
 
+	-- Banner slot (top-center, below the top HUD row) for prominent
+	-- level-up / achievement notifications.
+	local bannerSlot = UIStyler.Frame("Banner")
+	bannerSlot.BackgroundTransparency = 1
+	bannerSlot.AnchorPoint = Vector2.new(0.5, 0)
+	bannerSlot.Position = UDim2.new(0.5, 0, 0, 128)
+	bannerSlot.Size = UDim2.fromOffset(360, 76)
+	bannerSlot.Parent = self.Root
+	self._bannerSlot = bannerSlot
+
 	self:_ApplyPackScale()
+end
+
+-- Prominent top-center banner (level-up, achievement, unlock).
+function GameHUDScreen:PushBanner(data: any)
+	self:_EnsureBuilt()
+	self:_PlaySound(data.variant == "Info" and "Open" or "Success")
+	if self._banner then
+		self._banner:Destroy()
+	end
+	local banner = UINotificationComponent.new()
+	self._banner = banner
+	banner:Create(self._bannerSlot, {
+		titleKey = data.titleKey,
+		title = data.title,
+		bodyKey = data.bodyKey,
+		body = data.body,
+		icon = data.icon,
+		variant = data.variant,
+		duration = data.duration,
+		position = UDim2.fromScale(0.5, 0.5),
+		anchorPoint = Vector2.new(0.5, 0.5),
+		onDone = function()
+			if self._banner == banner then
+				self._banner = nil
+			end
+		end,
+	})
+	banner:Play()
 end
 
 function GameHUDScreen:_BuildElement(container: Frame, element: any)

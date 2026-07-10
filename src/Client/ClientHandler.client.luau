@@ -40,6 +40,7 @@ local ShopScreen = require(Screens.ShopScreen)
 local ModalScreen = require(Screens.ModalScreen)
 local TutorialScreen = require(Screens.TutorialScreen)
 local ThemeSelectorScreen = require(Screens.ThemeSelectorScreen)
+local NPCDialogScreen = require(Screens.NPCDialogScreen)
 
 local player = Players.LocalPlayer
 
@@ -75,12 +76,14 @@ local shop = ShopScreen.new()
 local modal = ModalScreen.new()
 local tutorial = TutorialScreen.new()
 local themeSelector = ThemeSelectorScreen.new()
+local npcDialog = NPCDialogScreen.new()
 
 screenController:RegisterScreen("hud", hud)
 screenController:RegisterScreen("shop", shop)
 screenController:RegisterScreen("modal", modal)
 screenController:RegisterScreen("tutorial", tutorial)
 screenController:RegisterScreen("themeSelector", themeSelector)
+screenController:RegisterScreen("npcDialog", npcDialog)
 screenController:SetModalScreen("modal")
 
 -- ---- purchase wiring (client -> server) -------------------------------
@@ -267,6 +270,23 @@ if game:GetService("RunService"):IsStudio() then
 	end)
 	bind("SetSoundPack", function(packId: string)
 		soundController:SetPack(packId)
+		return true
+	end)
+	bind("SetElementRegion", function(elementId: string, region: string)
+		hud:SetElementRegion(elementId, region)
+		return true
+	end)
+	bind("ShowDialog", function()
+		screenController:ShowScreen("npcDialog", { sequenceId = "welcome_merchant" })
+		return true
+	end)
+	bind("ShowBanner", function(variant: string)
+		hud:PushBanner({
+			titleKey = variant == "Achievement" and "notify.achievement.title" or "notify.levelup.title",
+			bodyKey = variant == "Achievement" and "notify.achievement.body" or "notify.levelup.body",
+			variant = variant or "LevelUp",
+			duration = 4,
+		})
 		return true
 	end)
 	folder.Parent = ReplicatedStorage
