@@ -20,6 +20,7 @@ local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local ThemeSerializer = require(script.Parent.Parent.Themes.ThemeSerializer)
+local PackExporter = require(script.Parent.Parent.PackExporter)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
@@ -170,23 +171,30 @@ function ThemeSelectorScreen:_BuildContent()
 	}).Parent = actionBar
 	actionBar.Parent = right
 
-	-- Scale-sized so three buttons always fit the column with no overflow.
+	-- Scale-sized so all four buttons always fit the column with no overflow.
 	self._exportButton = UIButtonComponent.new()
 	self._exportButton:Create(actionBar, {
 		textKey = "theme.export", icon = "📤", variant = "Primary",
-		size = UDim2.new(0.33, -6, 1, 0), layoutOrder = 1,
+		size = UDim2.new(0.25, -6, 1, 0), layoutOrder = 1,
 		onClick = function() self:_Export() end,
+	})
+	-- Export a self-contained pack/part module for handoff to another AI or dev.
+	self._exportScriptButton = UIButtonComponent.new()
+	self._exportScriptButton:Create(actionBar, {
+		textKey = "theme.export_script", icon = "📦", variant = "Accent",
+		size = UDim2.new(0.25, -6, 1, 0), layoutOrder = 2,
+		onClick = function() self:_ExportScript() end,
 	})
 	self._importButton = UIButtonComponent.new()
 	self._importButton:Create(actionBar, {
 		textKey = "theme.import", icon = "📥", variant = "Secondary",
-		size = UDim2.new(0.33, -6, 1, 0), layoutOrder = 2,
+		size = UDim2.new(0.25, -6, 1, 0), layoutOrder = 3,
 		onClick = function() self:_Import() end,
 	})
 	self._resetButton = UIButtonComponent.new()
 	self._resetButton:Create(actionBar, {
 		textKey = "theme.reset", variant = "Ghost",
-		size = UDim2.new(0.33, -6, 1, 0), layoutOrder = 3,
+		size = UDim2.new(0.25, -6, 1, 0), layoutOrder = 4,
 		onClick = function() self:_LoadWorking(self.ThemeController:GetTheme(), true) end,
 	})
 
@@ -308,6 +316,115 @@ function ThemeSelectorScreen:_Export()
 	self._exportBox:CaptureFocus()
 end
 
+-- Export-as-Script: pick which part of the pack to export, then emit a
+-- self-contained module for it into the source viewer (copied to clipboard too).
+function ThemeSelectorScreen:_ExportScript()
+	self:_EnsurePartPicker()
+	self._partPicker.Visible = true
+end
+
+function ThemeSelectorScreen:_EmitPart(partId: string)
+	self:_EnsureOverlays()
+	local theme = self._working or self.ThemeController:GetTheme()
+	local pack = self.ThemeController:GetPack()
+	local source = PackExporter.Export(partId, theme, pack)
+	self._exportBox.Text = source
+	if self._partPicker then
+		self._partPicker.Visible = false
+	end
+	self._exportOverlay.Visible = true
+
+	local copied = false
+	local setclip = (rawget(getfenv(0), "setclipboard") or rawget(getfenv(0), "toclipboard")) :: any
+	if typeof(setclip) == "function" then
+		copied = pcall(setclip, source)
+	end
+	self._exportHint.Text = copied
+		and "Copied! Paste this whole module to another AI or into a new ModuleScript."
+		or "Select all and copy this module — it's fully self-contained."
+	self._exportBox:CaptureFocus()
+end
+
+-- Lazily build the part-picker overlay (a themed grid of part buttons).
+function ThemeSelectorScreen:_EnsurePartPicker()
+	if self._partPicker then
+		return
+	end
+	local theme = self:GetTheme()
+	local overlay = UIStyler.Frame("PartPicker")
+	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	overlay.BackgroundTransparency = 0.4
+	overlay.Visible = false
+	overlay.ZIndex = 60
+	overlay.Parent = self.Root
+
+	local card = UIStyler.Frame("Card")
+	card.Size = UDim2.fromScale(0.42, 0.56)
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.fromScale(0.5, 0.5)
+	card.BackgroundColor3 = theme.Colors.Surface
+	card.ZIndex = 61
+	UIStyler.Corner(12).Parent = card
+	UIStyler.Padding(14).Parent = card
+	card.Parent = overlay
+
+	local title = UIStyler.TextLabel("Title")
+	title.Size = UDim2.new(1, -36, 0, 28)
+	title.Text = "📦 Export as Script — pick a part"
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.FontFace = theme.Fonts.Title
+	title.TextSize = theme.TextSizes.Subtitle
+	title.TextColor3 = theme.Colors.TextPrimary
+	title.ZIndex = 62
+	title.Parent = card
+
+	local list = Instance.new("ScrollingFrame")
+	list.Size = UDim2.new(1, 0, 1, -40)
+	list.Position = UDim2.fromOffset(0, 36)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.CanvasSize = UDim2.new()
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollBarThickness = 6
+	list.ZIndex = 62
+	UIStyler.ListLayout({ Padding = UDim.new(0, 6) }).Parent = list
+	list.Parent = card
+
+	self._partButtons = {}
+	for i, part in PackExporter.Parts do
+		local button = UIButtonComponent.new()
+		button:Create(list, {
+			text = part.label,
+			variant = part.id == "full" and "Primary" or "Ghost",
+			size = UDim2.new(1, -6, 0, 40),
+			layoutOrder = i,
+			onClick = function()
+				self:_EmitPart(part.id)
+			end,
+		})
+		table.insert(self._partButtons, button)
+	end
+
+	local close = Instance.new("TextButton")
+	close.Name = "Close"
+	close.Size = UDim2.fromOffset(28, 28)
+	close.AnchorPoint = Vector2.new(1, 0)
+	close.Position = UDim2.fromScale(1, 0)
+	close.Text = "✖"
+	close.TextScaled = true
+	close.BackgroundColor3 = theme.Colors.Error
+	close.TextColor3 = theme.Colors.TextOnPrimary
+	close.ZIndex = 63
+	UIStyler.Corner(1000).Parent = close
+	UIStyler.Padding(6).Parent = close
+	close.Activated:Connect(function()
+		overlay.Visible = false
+	end)
+	close.Parent = card
+
+	self._partPicker = overlay
+end
+
 function ThemeSelectorScreen:_Import()
 	self:_EnsureOverlays()
 	self._importOverlay.Visible = true
@@ -372,13 +489,34 @@ function ThemeSelectorScreen:_BuildOverlay(titleKey: string, icon: string, isImp
 	title.ZIndex = 52
 	title.Parent = card
 
+	-- The source viewer scrolls both ways: exported theme/pack modules are long
+	-- and wide, and previously the raw TextBox ran off the card edges with no way
+	-- to reach the rest. A ScrollingFrame wraps an auto-sizing TextBox so the full
+	-- text is always reachable (drag to scroll) instead of clipped off-screen.
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "SourceScroll"
+	scroll.Size = UDim2.new(1, 0, 1, -74)
+	scroll.Position = UDim2.fromOffset(0, 30)
+	scroll.BackgroundColor3 = theme.Colors.Background
+	scroll.BorderSizePixel = 0
+	scroll.CanvasSize = UDim2.new()
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.XY
+	scroll.ScrollBarThickness = 8
+	scroll.ScrollingDirection = Enum.ScrollingDirection.XY
+	scroll.ClipsDescendants = true
+	scroll.ZIndex = 52
+	UIStyler.Corner(8).Parent = scroll
+	UIStyler.Padding(8).Parent = scroll
+	scroll.Parent = card
+
 	local box = Instance.new("TextBox")
 	box.Name = "Source"
-	box.Size = UDim2.new(1, 0, 1, -74)
-	box.Position = UDim2.fromOffset(0, 30)
-	box.BackgroundColor3 = theme.Colors.Background
+	-- Auto-size to content so the scroll frame's canvas grows to fit the module.
+	box.Size = UDim2.fromScale(1, 0)
+	box.AutomaticSize = Enum.AutomaticSize.XY
+	box.BackgroundTransparency = 1
 	box.TextColor3 = theme.Colors.TextPrimary
-	box.PlaceholderText = isImport and "Paste an exported theme module here…" or ""
+	box.PlaceholderText = isImport and "Paste an exported module here…" or ""
 	box.FontFace = Font.fromEnum(Enum.Font.Code)
 	box.TextSize = 12
 	box.TextXAlignment = Enum.TextXAlignment.Left
@@ -388,9 +526,7 @@ function ThemeSelectorScreen:_BuildOverlay(titleKey: string, icon: string, isImp
 	box.TextEditable = isImport
 	box.TextWrapped = false
 	box.ZIndex = 52
-	UIStyler.Corner(8).Parent = box
-	UIStyler.Padding(8).Parent = box
-	box.Parent = card
+	box.Parent = scroll
 
 	local hint = UIStyler.TextLabel("Hint")
 	hint.Size = UDim2.new(1, -140, 0, 32)
