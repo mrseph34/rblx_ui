@@ -17,6 +17,18 @@ local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local UIScreenBase = {}
 UIScreenBase.__index = UIScreenBase
 
+-- Optional sound controller injected at boot; screens play Success/Error etc.
+local soundController: any = nil
+function UIScreenBase.SetSoundController(controller: any)
+	soundController = controller
+end
+
+function UIScreenBase:_PlaySound(event: string)
+	if soundController then
+		soundController:Play(event)
+	end
+end
+
 function UIScreenBase.new(name: string, displayOrder: number?)
 	local self = setmetatable({}, UIScreenBase)
 	self.Name = name
