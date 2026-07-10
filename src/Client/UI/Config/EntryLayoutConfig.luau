@@ -47,10 +47,14 @@ export type EntrySpec = {
 	showDescription: boolean,
 	-- "Full" wide button, "Compact" small right-aligned, "IconRight" tiny,
 	-- "Pill" a smaller centred rounded button with extra breathing room BELOW the
-	-- image box (visually separate from it, not flush against it), "Quantity"
-	-- shows an owned-count badge bottom-right INSTEAD of a buy button (inventory
-	-- view — nothing to purchase, just what you have).
-	buyStyle: "Full" | "Compact" | "IconRight" | "Pill" | "Quantity",
+	-- image box (still inside the same card surface), "Quantity" shows an
+	-- owned-count badge INSTEAD of a buy button (inventory view — nothing to
+	-- purchase, just what you have). CardTop only, and both escape the card's
+	-- clipped surface entirely (built as a sibling, not clipped by it):
+	-- "OutsideBelow" floats the button fully below the box, not touching it.
+	-- "Straddle" centres the button ON the box's bottom edge — half overlapping
+	-- inside, half hanging out below.
+	buyStyle: "Full" | "Compact" | "IconRight" | "Pill" | "Quantity" | "OutsideBelow" | "Straddle",
 	nameAlign: Enum.TextXAlignment,
 	-- Split only: put the image on the RIGHT and the text column on the left.
 	mirror: boolean?,
@@ -95,9 +99,10 @@ EntryLayoutConfig.Specs = {
 	},
 	-- Taller-than-square art (fills the card width, so a smaller aspect makes it
 	-- noticeably longer) — the "not everything has to be a perfect square" pack.
+	-- 0.8 reads as clearly non-square without turning into a lanky strip.
 	TallCard = {
 		arrangement = "CardTop",
-		imageAspect = 0.62,
+		imageAspect = 0.8,
 		imageFillWidth = true,
 		showTags = true,
 		showDescription = false,
@@ -127,6 +132,40 @@ EntryLayoutConfig.Specs = {
 		showDescription = false,
 		buyStyle = "Quantity",
 		nameAlign = Enum.TextXAlignment.Left,
+	},
+	-- Inventory GRID view: the card IS the square image, full-bleed, with just an
+	-- owned-count badge overlaid in the bottom-right corner (and tags top-left).
+	-- No name/price clutter — for browsing a grid of what you own.
+	QuantityTile = {
+		arrangement = "Overlay",
+		imageAspect = 1,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Quantity",
+		nameAlign = Enum.TextXAlignment.Left,
+	},
+	-- Square image in a clean box; the buy button floats FULLY OUTSIDE/below the
+	-- box (not overlapping it at all) — a bigger visual break from the image than
+	-- the Pill style, which still sits inside the same rounded surface.
+	OutsideCard = {
+		arrangement = "CardTop",
+		imageHeight = 150,
+		imageAspect = 1,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "OutsideBelow",
+		nameAlign = Enum.TextXAlignment.Center,
+	},
+	-- Square image in a clean box; the buy button straddles the box's bottom
+	-- edge — half overlapping inside the box, half hanging out below it.
+	StraddleCard = {
+		arrangement = "CardTop",
+		imageHeight = 150,
+		imageAspect = 1,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Straddle",
+		nameAlign = Enum.TextXAlignment.Center,
 	},
 	ListRow = {
 		arrangement = "Row",

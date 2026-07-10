@@ -210,9 +210,23 @@ function ShopScreen:_RebuildLayout()
 				-- Exact height of everything below the image (matches the renderer:
 				-- surface pad 20 + tags 18 + name 22 + price 20 + spacer + buy +
 				-- ~30 for the 6px ListLayout gaps). Kept accurate so Buy never clips.
-				local buyH = spec.buyStyle == "Pill" and 32 or 38
-				local spacerH = spec.buyStyle == "Pill" and 12 or 2
-				local textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + spacerH + buyH + 30
+				local external = spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle"
+				local textBlock
+				if external then
+					-- The buy button lives OUTSIDE the surface entirely (see
+					-- UICardComponent._BuildExternalBuy) — the internal column ends
+					-- with a small 4px pad instead of a buy row, and the reserved
+					-- space for the external button is added on top, outside the
+					-- surface's own content height.
+					local items = 3 + (spec.showTags and 1 or 0) -- image, [tags], name, price, pad
+					local gaps = (items) * 6 -- +1 for the trailing pad's own gap
+					local reserve = spec.buyStyle == "Straddle" and 20 or 48
+					textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + 4 + gaps + reserve
+				else
+					local buyH = spec.buyStyle == "Pill" and 32 or 38
+					local spacerH = spec.buyStyle == "Pill" and 12 or 2
+					textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + spacerH + buyH + 30
+				end
 				if spec.imageFillWidth then
 					-- Image fills the card content width edge-to-edge (no side margin).
 					-- The card is exactly as tall as image + text needs — no target-ratio
@@ -232,6 +246,28 @@ function ShopScreen:_RebuildLayout()
 					cardHeight = math.floor(imgH + textBlock)
 				end
 			end
+		elseif spec.arrangement == "Split" or spec.arrangement == "Banner" then
+			-- Split/Banner: the image just fills whatever height it's given, but the
+			-- TEXT column's own stacked content (name/tags/desc/price/buy) is what
+			-- actually determines how tall the card needs to be. A mismatched fixed
+			-- CardHeight here is exactly what left dead space below the Buy button
+			-- while the image side filled edge-to-edge — computed to match the
+			-- renderer exactly (_BuildSplit) so there's never a gap either way.
+			self._cardImageSizePx = nil
+			local rows = 2 -- name + buy always present
+			local rowsH = 24 + 38
+			if spec.showTags then
+				rows += 1
+				rowsH += 18
+			end
+			if spec.showDescription then
+				rows += 1
+				rowsH += 44
+			end
+			rows += 2 -- price + spacer, always present
+			rowsH += 20 + 2
+			local gaps = (rows - 1) * 6
+			cardHeight = math.floor(20 + rowsH + gaps) -- 20 = surface top+bottom padding
 		else
 			self._cardImageSizePx = nil
 		end

@@ -155,7 +155,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "TallShowcase",
 		DisplayName = "Tall Showcase",
-		Shop = { Container = "Grid", Columns = 3, CardHeight = 400, EntryLayout = "TallCard", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 400, EntryLayout = "TallCard", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -197,6 +197,42 @@ UIPackConfig.Packs = {
 		Nav = { Side = "Left", Vertical = "Top" },
 		Tutorial = { ShowStepList = false },
 		Modal = { WidthScale = 0.4 },
+	},
+
+	-- Inventory GRID: the card IS the square image, full-bleed, with just an
+	-- owned-count badge in the bottom-right corner — nothing else in the way.
+	{
+		Id = "MyItemsGrid",
+		DisplayName = "My Items (Grid)",
+		Shop = { Container = "Grid", Columns = 5, CardHeight = 236, EntryLayout = "QuantityTile", ShowCategoryBar = true },
+		HUD = { Compact = true, ShowObjectives = false, Scale = 0.95, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Top" },
+		Tutorial = { ShowStepList = false },
+		Modal = { WidthScale = 0.42 },
+	},
+
+	-- Square image in a clean box; the buy button floats fully OUTSIDE/below it
+	-- — a bigger visual break than the Pill style (which still lives in the box).
+	{
+		Id = "OutsideBox",
+		DisplayName = "Outside Box",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 300, EntryLayout = "OutsideCard", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.44 },
+	},
+
+	-- Square image in a clean box; the buy button straddles the box's bottom
+	-- edge — half overlapping inside, half hanging out below it.
+	{
+		Id = "StraddleBox",
+		DisplayName = "Straddle Box",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 290, EntryLayout = "StraddleCard", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.44 },
 	},
 } :: { Types.UIPack }
 

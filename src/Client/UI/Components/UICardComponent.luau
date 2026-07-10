@@ -63,13 +63,32 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	shadow.Parent = root
 	self._shadow = shadow
 
+	-- "OutsideBelow"/"Straddle" buy styles put the button OUTSIDE the card's
+	-- clipped surface — floating fully or partly below its rounded bottom edge.
+	-- For those, shrink the surface to leave room at the bottom of Root and
+	-- top-anchor it there; the real button is built as a Root-level sibling
+	-- AFTER the arrangement runs (see the bottom of this function), so it is
+	-- never clipped by the surface's ClipsDescendants.
+	local externalBuy = spec.arrangement == "CardTop"
+		and (spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle")
+	-- OutsideBelow reserves a full button + gap; Straddle only reserves HALF a
+	-- button's height (the other half overlaps the surface on top of it).
+	local externalReserve = externalBuy and (spec.buyStyle == "Straddle" and 20 or 48) or 0
+	self._externalReserve = externalReserve
+
 	-- Surface = fixed footprint's visual layer; hover/press scale this, not the
 	-- Root, so cards never spill into neighbours or reflow the grid/list.
 	local surface = UIStyler.Frame("Surface")
 	surface.BackgroundTransparency = 0
-	surface.Size = UDim2.fromScale(1, 1)
-	surface.AnchorPoint = Vector2.new(0.5, 0.5)
-	surface.Position = UDim2.fromScale(0.5, 0.5)
+	if externalBuy then
+		surface.Size = UDim2.new(1, 0, 1, -externalReserve)
+		surface.AnchorPoint = Vector2.new(0.5, 0)
+		surface.Position = UDim2.new(0.5, 0, 0, 0)
+	else
+		surface.Size = UDim2.fromScale(1, 1)
+		surface.AnchorPoint = Vector2.new(0.5, 0.5)
+		surface.Position = UDim2.fromScale(0.5, 0.5)
+	end
 	surface.ClipsDescendants = true
 	surface.ZIndex = 2
 	surface.Parent = root
@@ -106,6 +125,46 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	else
 		self:_BuildCardTop(surface, spec)
 	end
+
+	if externalBuy then
+		self:_BuildExternalBuy(root, spec)
+	end
+end
+
+-- Builds the real buy button as a Root-level SIBLING of the (clipped) surface,
+-- so it is never cut off by ClipsDescendants — used by "OutsideBelow" (fully
+-- below the box, not touching it) and "Straddle" (centred ON the box's bottom
+-- edge, half overlapping inside, half hanging out below).
+function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.EntrySpec)
+	local props = self.Props
+	local buy = UIButtonComponent.new()
+	self._buy = buy
+	local straddle = spec.buyStyle == "Straddle"
+	-- Default: as wide as the box itself (matches the card, edge to edge) — a
+	-- per-spec buttonSize can override this later if a narrower/fixed width is
+	-- ever wanted, but the out-of-the-box default spans the full card width.
+	local buttonH = straddle and 40 or 38
+	local size = UDim2.new(1, 0, 0, buttonH)
+	buy:Create(root, {
+		textKey = props.owned and "shop.owned" or "shop.buy",
+		variant = props.owned and "Ghost" or (props.affordable ~= false and "Success" or "Ghost"),
+		enabled = not props.owned and props.affordable ~= false,
+		size = size,
+		anchorPoint = Vector2.new(0.5, straddle and 0.5 or 1),
+		-- Straddle: centred exactly on the surface's bottom edge (root height
+		-- minus the half-button reserve). OutsideBelow: flush with Root's own
+		-- bottom edge, safely inside the full-button-plus-gap reserve.
+		position = straddle and UDim2.new(0.5, 0, 1, -self._externalReserve) or UDim2.new(0.5, 0, 1, 0),
+		onClick = function()
+			if props.onBuy then
+				props.onBuy(self._item)
+			end
+			self:PlayAnimation("Pulse")
+		end,
+	})
+	-- Sits above the surface so the overlapping half of a Straddle button reads
+	-- as "on top of" the box, not tucked behind it.
+	buy.Root.ZIndex = 6
 end
 
 -- ========================================================================
@@ -351,6 +410,18 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	next_(self:_MakeName(col, 22))
 	local price = self:_MakePrice(col)
 	next_(price)
+	-- "OutsideBelow"/"Straddle": the real button is built externally (see
+	-- _Build/_BuildExternalBuy) as a sibling of the surface, so it's never
+	-- clipped — just close out the column with a little bottom padding here so
+	-- price doesn't touch the surface's clipped edge.
+	if spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle" then
+		local pad = UIStyler.Frame("BottomPad")
+		pad.BackgroundTransparency = 1
+		pad.Size = UDim2.new(1, 0, 0, 4)
+		pad.LayoutOrder = 900
+		pad.Parent = col
+		return
+	end
 	-- Spacer pushes buy to the bottom.
 	local spacer = UIStyler.Frame("Spacer")
 	spacer.BackgroundTransparency = 1
@@ -382,29 +453,59 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	local img = self:_MakeImage(surface, UDim2.fromScale(1, 1), true)
 	img.ZIndex = 2
 
+	-- Inventory tile: buyStyle "Quantity" means there's nothing to sell, so skip
+	-- the whole price/scrim treatment entirely — just the square image with an
+	-- owned-count badge overlaid in the bottom-right corner (and tags top-left,
+	-- if the spec wants them). "The image AS the square, stuff inside of it."
+	if spec.buyStyle == "Quantity" then
+		if spec.showTags then
+			local tags = self:_MakeTags(surface)
+			if tags then
+				tags.AnchorPoint = Vector2.new(0, 0)
+				tags.Position = UDim2.fromOffset(8, 8)
+				tags.Size = UDim2.new(1, -16, 0, 20)
+				tags.ZIndex = 5
+				for _, d in tags:GetDescendants() do
+					if d:IsA("GuiObject") then
+						d.ZIndex = 5
+					end
+				end
+			end
+		end
+		local qty = self:_MakeQuantityBadge(surface)
+		qty.AnchorPoint = Vector2.new(1, 1)
+		qty.Position = UDim2.new(1, -8, 1, -8)
+		qty.ZIndex = 5
+		return
+	end
+
 	local useFlat = spec.overlayBg == "Flat"
 
 	if not useFlat then
 		-- Bottom scrim: a dark gradient fading from transparent (top) to opaque
 		-- (bottom) so overlaid text reads over bright art without hiding the image.
+		-- The frame spans the FULL card (not just the bottom fraction) so its
+		-- rounded corners align EXACTLY with the card's own corners — sizing it
+		-- smaller (with its own separate rounding) was what caused a visible seam/
+		-- cutoff where the scrim's own top corners curved against the image at an
+		-- arbitrary point partway down. Only the gradient decides where it darkens.
 		local scrim = UIStyler.Frame("Scrim")
 		scrim.BackgroundColor3 = Color3.new(0, 0, 0)
 		scrim.BackgroundTransparency = 0
-		scrim.AnchorPoint = Vector2.new(0.5, 1)
-		scrim.Position = UDim2.fromScale(0.5, 1)
-		scrim.Size = UDim2.new(1, 0, 0.55, 0)
+		scrim.Size = UDim2.fromScale(1, 1)
 		scrim.ZIndex = 3
 		local scrimGrad = Instance.new("UIGradient")
 		scrimGrad.Rotation = 90
 		scrimGrad.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.5, 0.35),
-			NumberSequenceKeypoint.new(1, 0.15),
+			NumberSequenceKeypoint.new(0.45, 1),
+			NumberSequenceKeypoint.new(0.7, 0.45),
+			NumberSequenceKeypoint.new(1, 0.1),
 		})
 		scrimGrad.Parent = scrim
 		scrim.Parent = surface
 		self._scrim = scrim
-		-- Match the card corner so the scrim doesn't poke past rounded edges.
+		-- Match the card corner so the scrim's rounding is identical to the card's.
 		local scrimCorner = UIStyler.Corner(16)
 		scrimCorner.Parent = scrim
 		self._scrimCorner = scrimCorner
@@ -602,7 +703,16 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	local radius = ThemeShape.Radius(theme, theme.Radii.Large)
 	self._corner.CornerRadius = UDim.new(0, radius)
 	if self._imageCorner then
-		self._imageCorner.CornerRadius = UDim.new(0, ThemeShape.Radius(theme, theme.Radii.Medium))
+		-- Overlay's image spans the ENTIRE card (fillWidth, fromScale(1,1)), so
+		-- its corners must match the card's own Large radius exactly — using the
+		-- smaller Medium radius (correct for a padded thumbnail elsewhere) left the
+		-- image's sharper corners visibly peeking past the scrim's more-rounded
+		-- corner, which read as a hard "cutoff" right at each corner.
+		local isFullBleed = self._spec.arrangement == "Overlay"
+		self._imageCorner.CornerRadius = UDim.new(
+			0,
+			isFullBleed and radius or ThemeShape.Radius(theme, theme.Radii.Medium)
+		)
 	end
 	self._stroke.Color = c.Stroke
 	self._stroke.Thickness = theme.Effects.StrokeThickness
@@ -629,14 +739,21 @@ function UICardComponent:_Style(theme: Types.UITheme)
 
 	-- Overlay cards put text over the image, so name/price are forced WHITE (over
 	-- the dark bottom scrim) for readability regardless of the theme's text colour.
+	-- A Quantity-badge Overlay tile (inventory grid) skips name/price entirely
+	-- (nothing to identify/price when it's just "how many do I own"), so both
+	-- are nil-guarded here.
 	local overlay = self._spec.arrangement == "Overlay"
-	self._name.FontFace = theme.Fonts.Subtitle
-	self._name.TextSize = theme.TextSizes.Subtitle
-	self._name.TextColor3 = overlay and Color3.new(1, 1, 1) or c.TextPrimary
+	if self._name then
+		self._name.FontFace = theme.Fonts.Subtitle
+		self._name.TextSize = theme.TextSizes.Subtitle
+		self._name.TextColor3 = overlay and Color3.new(1, 1, 1) or c.TextPrimary
+	end
 
-	self._price.FontFace = theme.Fonts.Numeric
-	self._price.TextSize = theme.TextSizes.Body
-	self._price.TextColor3 = c.Accent
+	if self._price then
+		self._price.FontFace = theme.Fonts.Numeric
+		self._price.TextSize = theme.TextSizes.Body
+		self._price.TextColor3 = c.Accent
+	end
 
 	if self._desc then
 		self._desc.FontFace = theme.Fonts.Body
