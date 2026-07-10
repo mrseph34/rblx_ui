@@ -67,8 +67,11 @@ function writeValue(value: any, indent: number): string
 		return writeColor(value)
 	elseif t == "Vector3" then
 		return writeVector3(value)
+	elseif t == "Vector2" then
+		return string.format("Vector2.new(%s, %s)", tostring(value.X), tostring(value.Y))
 	elseif t == "EnumItem" then
-		return "Enum." .. tostring(value)
+		-- tostring already yields "Enum.TextXAlignment.Left" — do NOT prefix again.
+		return tostring(value)
 	elseif t == "table" then
 		local pad = string.rep("\t", indent)
 		local padIn = string.rep("\t", indent + 1)
