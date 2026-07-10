@@ -107,15 +107,43 @@ end
 
 -- ---- header / brief ----------------------------------------------------
 
+-- The canonical source repo for the full pack. The in-game export can only ship
+-- a design SPEC (a running game cannot read module source), so this points the
+-- consuming AI at the real code. Update this string if the repo moves.
+PackExporter.SourceRepo = "https://github.com/mrseph34/rblx_ui"
+
+-- Prepended above every export so whoever receives the file knows the REAL code
+-- exists and where — the SPEC below is the design, the repo is the source.
+local function sourceHeader(): string
+	return string.format(
+		[[
+-- ============================================================================
+-- GET THE REAL CODE FIRST
+-- ============================================================================
+-- The `SPEC` table below is the DESIGN of this pack (every colour, font, layout,
+-- HUD/nav/overhead config and string) — it is NOT the renderer code. To recreate
+-- the pack faithfully, read the actual source modules here:
+--
+--     %s   (folder: src/Client/UI)
+--
+-- If that link 404s the repo is private — ask the owner to make it public or to
+-- paste the `src/Client/UI` folder. With the real source you get an exact copy;
+-- with only this SPEC you get a faithful rebuild guided by the brief below.
+-- ============================================================================
+]],
+		PackExporter.SourceRepo
+	)
+end
+
 local ARCHITECTURE_BRIEF = [[
 -- ============================================================================
 -- rblx_ui EXPORTED PACK — AI BUILD BRIEF
 -- ============================================================================
--- This module is SELF-CONTAINED: it requires nothing else and returns a single
--- `SPEC` table describing one part of a script-driven, theme-able Roblox UI pack.
--- Everything below (colours, fonts, sizes, layout choices, config, strings) is
--- fully resolved from the live pack, so it is the complete source of truth for
--- rebuilding this part's look and behaviour.
+-- This module returns a single `SPEC` table describing one part of a
+-- script-driven, theme-able Roblox UI pack. Everything below (colours, fonts,
+-- sizes, layout choices, config, strings) is fully resolved from the live pack,
+-- so it is the complete source of truth for this part's look and behaviour.
+-- (For the actual renderer code, see the repo named in the header above.)
 --
 -- IF YOU ARE AN AI ASKED TO BUILD UI FROM THIS FILE, follow these rules:
 --  1. Architecture: ONE ServerHandler + ONE ClientHandler; everything else is
@@ -232,6 +260,7 @@ function PackExporter.Export(part: string, theme: any, pack: any): string
 
 	local lines = {
 		"--!strict",
+		sourceHeader(),
 		ARCHITECTURE_BRIEF,
 		string.format("-- Part: %s   Theme: %s   Pack: %s", part, theme.DisplayName, pack.DisplayName),
 		"",
