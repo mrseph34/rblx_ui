@@ -272,27 +272,32 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
-	-- Image row: a SQUARE image by default (the AAA-standard item-art shape),
-	-- CENTRED in a full-width row so any leftover space is even on both sides —
-	-- never a lonely square hugging one edge, and never a stretched wide banner.
-	-- spec.imageAspect changes the shape when wanted (0.75 = portrait, 1.6 = wide);
-	-- height is always spec.imageHeight, width = height * aspect. The fixed row
-	-- height keeps every card in the pack identical (the consistency guarantee).
-	local h = spec.imageHeight or 96
+	-- Image FILLS THE CARD WIDTH and holds its aspect ratio — so the card wraps the
+	-- image with NO empty side space (the AAA grid-card look). Square by default
+	-- (aspect 1 => height == width); spec.imageAspect reshapes it (0.75 portrait =>
+	-- taller, >1 wide => shorter). ShopScreen passes imageSizePx = the exact cell
+	-- content width so we can size the image concretely (a UIAspectRatioConstraint
+	-- with a 0-height base collapses to 0, so we compute the pixels instead).
 	local aspect = (spec :: any).imageAspect
 	if not aspect or aspect <= 0 then
 		aspect = 1 -- square default
 	end
+	local imgW = (self.Props :: any).imageSizePx or (spec.imageHeight or 120)
+	local imgH = math.ceil(imgW / aspect)
+	-- Reserve the row height, then let the image FILL the width and lock its own
+	-- aspect so it's exactly square (or spec ratio) regardless of tiny cell-width
+	-- rounding — the constraint keys off the real rendered width, not our estimate.
 	local wrap = UIStyler.Frame("ImageWrap")
 	wrap.BackgroundTransparency = 1
-	wrap.Size = UDim2.new(1, 0, 0, h)
+	wrap.Size = UDim2.new(1, 0, 0, imgH)
+	wrap.ClipsDescendants = true
 	wrap.Parent = col
 	next_(wrap)
-	-- Concrete size + fillWidth=true skips the aspect constraint (both axes are
-	-- already exact; the constraint with two concrete axes collapsed to 0x0).
-	local img = self:_MakeImage(wrap, UDim2.fromOffset(math.floor(h * aspect), h), true)
+	local img = self:_MakeImage(wrap, UDim2.new(1, 0, 1, 0), true)
 	img.AnchorPoint = Vector2.new(0.5, 0)
 	img.Position = UDim2.fromScale(0.5, 0)
+	-- Width is authoritative (fills the card); height follows to hold the ratio.
+	UIStyler.AspectRatio(aspect, Enum.DominantAxis.Width).Parent = img
 	local tags = self:_MakeTags(col)
 	if tags then
 		next_(tags)

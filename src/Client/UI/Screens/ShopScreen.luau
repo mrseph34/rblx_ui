@@ -129,6 +129,17 @@ function ShopScreen:_BuildContent()
 	pad.Parent = scroll
 	self._scrollPad = pad
 
+	-- Re-render when the scroll frame's width first becomes known / changes, so the
+	-- CardTop grid height (which is derived from the real cell width) is correct.
+	-- Guarded by _lastScrollW so a no-op resize doesn't loop.
+	scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		local w = scroll.AbsoluteSize.X
+		if w > 0 and math.abs(w - (self._lastScrollW or 0)) > 1 then
+			self._lastScrollW = w
+			self:_RenderItems()
+		end
+	end)
+
 	self:_RenderItems()
 end
 
@@ -163,9 +174,41 @@ function ShopScreen:_RenderItems()
 	local spec = EntryLayoutConfig.Get(shopLayout.EntryLayout)
 
 	if shopLayout.Container == "Grid" then
+		local cols = shopLayout.Columns
+		local cellPad = 10
+		local cardHeight = shopLayout.CardHeight
+		-- For CardTop specs (image-on-top), the image FILLS the card width and holds
+		-- its aspect, so the card must be exactly tall enough for that image + the
+		-- text block — no fixed height, no empty side space. We compute the real
+		-- pixel cell width to derive that height. Other grid arrangements (Split)
+		-- keep their configured CardHeight.
+		if spec.arrangement == "CardTop" then
+			local scrollW = self._scroll.AbsoluteSize.X
+			if scrollW <= 0 then
+				scrollW = 700 -- pre-measure fallback; corrected on the next render
+			end
+			local cellW = (scrollW - cellPad * (cols - 1)) / cols
+			local aspect = spec.imageAspect
+			if not aspect or aspect <= 0 then
+				aspect = 1
+			end
+			local imgW = cellW - 20 -- image fills the card content width (10px pad each side)
+			local imgH = imgW / aspect
+			-- Cache the pixel image width so each card sizes its image concretely.
+			self._cardImageSizePx = math.floor(imgW)
+			local textBlock = 20 -- card top+bottom padding
+				+ (spec.showTags and 24 or 0)
+				+ 24 -- name
+				+ 22 -- price
+				+ 42 -- buy
+				+ 20 -- inter-row spacing
+			cardHeight = math.floor(imgH + textBlock)
+		else
+			self._cardImageSizePx = nil
+		end
 		local cell = UIStyler.GridLayout(
-			UDim2.new(1 / shopLayout.Columns, -10, 0, shopLayout.CardHeight),
-			UDim2.fromOffset(10, 10)
+			UDim2.new(1 / cols, -cellPad, 0, cardHeight),
+			UDim2.fromOffset(cellPad, cellPad)
 		)
 		cell.Parent = self._scroll
 	else
@@ -186,6 +229,8 @@ function ShopScreen:_RenderItems()
 			affordable = ShopConfig.CanAfford(self._balances, item),
 			layoutOrder = i,
 			size = size,
+			-- Exact image pixel width so a CardTop image fills the card with no gap.
+			imageSizePx = self._cardImageSizePx,
 			onBuy = function(boughtItem)
 				self:_PromptPurchase(boughtItem)
 			end,
