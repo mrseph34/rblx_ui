@@ -1,0 +1,23 @@
+{
+  "name": "rblx_ui",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/Shared"
+      }
+    },
+    "ServerScriptService": {
+      "ServerHandler": {
+        "$path": "src/Server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "ClientHandler": {
+          "$path": "src/Client"
+        }
+      }
+    }
+  }
+}
