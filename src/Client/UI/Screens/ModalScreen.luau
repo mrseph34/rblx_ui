@@ -43,6 +43,8 @@ function ModalScreen:_BuildContent()
 	body.Position = UDim2.fromOffset(16, 8)
 	body.TextWrapped = true
 	body.TextYAlignment = Enum.TextYAlignment.Top
+	-- Dialogs may pass styled bodies (colored item lists, bold totals).
+	body.RichText = true
 	body.Parent = panel.Body
 	self._body = body
 
