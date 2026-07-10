@@ -149,6 +149,55 @@ UIPackConfig.Packs = {
 		Tutorial = { ShowStepList = false },
 		Modal = { WidthScale = 0.5 },
 	},
+
+	-- Taller-than-square art (not everything is a perfect square) — the image
+	-- still fills the card width edge-to-edge, it's just less square about it.
+	{
+		Id = "TallShowcase",
+		DisplayName = "Tall Showcase",
+		Shop = { Container = "Grid", Columns = 3, CardHeight = 400, EntryLayout = "TallCard", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.44 },
+	},
+
+	-- Square image in a tidy box with a separate, smaller PILL buy button
+	-- floating below it (never flush against the image) — a different feel from
+	-- the flush full-width Buy every other square pack uses.
+	{
+		Id = "StandardPro",
+		DisplayName = "Standard Pro",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 300, EntryLayout = "StandardPro", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.44 },
+	},
+
+	-- Same premium image showcase, but no scrim/shadow — a small translucent
+	-- flat panel sits behind just the text, keeping the rest of the art clean.
+	{
+		Id = "ImageShowcaseFlat",
+		DisplayName = "Image Showcase (Flat)",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 338, EntryLayout = "ImageFocalFlat", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1.05, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.5 },
+	},
+
+	-- Inventory view: rows show an OWNED-COUNT badge bottom-right instead of a
+	-- Buy button — for browsing what you have, not what you can purchase.
+	{
+		Id = "MyItems",
+		DisplayName = "My Items (Inventory)",
+		Shop = { Container = "List", Columns = 1, CardHeight = 80, EntryLayout = "QuantityRow", ShowCategoryBar = true },
+		HUD = { Compact = true, ShowObjectives = false, Scale = 0.95, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Top" },
+		Tutorial = { ShowStepList = false },
+		Modal = { WidthScale = 0.4 },
+	},
 } :: { Types.UIPack }
 
 function UIPackConfig.GetById(id: string): Types.UIPack?

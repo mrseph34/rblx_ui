@@ -127,7 +127,15 @@ end
 -- A soft drop shadow behind a surface, made from a stretched radial image so it
 -- reads on any theme. Parent it as a sibling *behind* the surface (lower ZIndex).
 -- offsetY pushes it down for the "raised" look; transparency 1 hides it.
-function UIStyler.DropShadow(offsetY: number, transparency: number): ImageLabel
+--
+-- growPx controls how far the shadow bleeds past the surface's own edges
+-- (default 24, fine for isolated elements like buttons/panels with room to
+-- spare). Anything that tiles edge-to-edge in a tight grid — shop cards with
+-- only ~10px between them — MUST pass a smaller growPx, or the shadow bleeds
+-- into the neighbouring cell and gets abruptly sliced off by that card's own
+-- opaque surface sitting on top of it (a visible, unprofessional hard cutoff).
+function UIStyler.DropShadow(offsetY: number, transparency: number, growPx: number?): ImageLabel
+	local grow = growPx or 24
 	local shadow = Instance.new("ImageLabel")
 	shadow.Name = "DropShadow"
 	shadow.BackgroundTransparency = 1
@@ -138,7 +146,7 @@ function UIStyler.DropShadow(offsetY: number, transparency: number): ImageLabel
 	shadow.ImageTransparency = transparency
 	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
 	shadow.Position = UDim2.new(0.5, 0, 0.5, offsetY)
-	shadow.Size = UDim2.new(1, 24, 1, 24 + offsetY)
+	shadow.Size = UDim2.new(1, grow, 1, grow + offsetY)
 	shadow.ZIndex = 0
 	return shadow
 end

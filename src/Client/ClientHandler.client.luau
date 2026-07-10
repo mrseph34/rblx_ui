@@ -160,7 +160,11 @@ local function buildNavRail()
 	local horizontal = NavConfig.FillDirection == "Horizontal"
 	local onRight = nav.Side == "Right"
 	local vAnchor = nav.Vertical == "Top" and 0 or (nav.Vertical == "Bottom" and 1 or 0.5)
-	local vPos = nav.Vertical == "Top" and 0.14 or (nav.Vertical == "Bottom" and 0.86 or 0.5)
+	-- "Center" sits a bit above true dead-centre (0.4, not 0.5): the HUD's
+	-- bottom-left region (health/mana/stamina) hugs the true screen bottom, and a
+	-- perfectly-centred rail's lower half reached down far enough to collide with
+	-- it. This clears that collision while still reading as "centered".
+	local vPos = nav.Vertical == "Top" and 0.14 or (nav.Vertical == "Bottom" and 0.86 or 0.4)
 	local edge = NavConfig.EdgeOffset
 
 	local rail = UIStyler.Frame("Rail")
@@ -250,7 +254,8 @@ if game:GetService("RunService"):IsStudio() then
 		rebuildNav()
 		hud:Rebuild()
 		if screenController:IsVisible("shop") then
-			screenController:GetScreen("shop"):_RenderItems()
+			-- Pack swap changes the layout shape (columns/spec), not just data.
+			screenController:GetScreen("shop"):_RebuildLayout()
 		end
 	end
 

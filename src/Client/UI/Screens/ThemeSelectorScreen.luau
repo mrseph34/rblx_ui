@@ -134,7 +134,8 @@ function ThemeSelectorScreen:_BuildContent()
 			onClick = function()
 				self.ThemeController:SetPack(pack.Id)
 				if self.ScreenController:IsVisible("shop") then
-					self.ScreenController:GetScreen("shop"):_RenderItems()
+					-- Pack swap changes the layout shape (columns/spec), not just data.
+					self.ScreenController:GetScreen("shop"):_RebuildLayout()
 				end
 			end,
 		})

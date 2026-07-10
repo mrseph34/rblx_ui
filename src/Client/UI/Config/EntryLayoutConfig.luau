@@ -37,20 +37,35 @@ export type EntrySpec = {
 	-- 1 (or nil/0) = square, the AAA default; 0.75 = portrait; >1 = wide. Change
 	-- this per spec to reshape the art slot without touching the renderer.
 	imageAspect: number?,
+	-- CardTop only. true = image fills the full card content width edge-to-edge
+	-- (no side margin; the card is exactly as tall as it needs to be — can end up
+	-- a bit long, and that's fine). false/nil = image is a centred square/rect
+	-- capped to keep the whole card near a compact ~1:1.2 ratio (small even side
+	-- margins). Two legitimate looks, picked per spec.
+	imageFillWidth: boolean?,
 	showTags: boolean,
 	showDescription: boolean,
-	-- "Full" wide button, "Compact" small right-aligned, "IconRight" tiny.
-	buyStyle: "Full" | "Compact" | "IconRight",
+	-- "Full" wide button, "Compact" small right-aligned, "IconRight" tiny,
+	-- "Pill" a smaller centred rounded button with extra breathing room BELOW the
+	-- image box (visually separate from it, not flush against it), "Quantity"
+	-- shows an owned-count badge bottom-right INSTEAD of a buy button (inventory
+	-- view — nothing to purchase, just what you have).
+	buyStyle: "Full" | "Compact" | "IconRight" | "Pill" | "Quantity",
 	nameAlign: Enum.TextXAlignment,
 	-- Split only: put the image on the RIGHT and the text column on the left.
 	mirror: boolean?,
+	-- Overlay only: "Scrim" (default) = dark gradient fading up from the bottom
+	-- edge behind the text. "Flat" = no gradient/shadow at all — just a small
+	-- rounded, semi-transparent flat-colour panel sitting directly behind the
+	-- text block, so the rest of the image stays completely clean.
+	overlayBg: ("Scrim" | "Flat")?,
 }
 
 EntryLayoutConfig.Specs = {
 	StandardCard = {
 		arrangement = "CardTop",
-		imageHeight = 140,
 		imageAspect = 1, -- square art, the realistic default
+		imageFillWidth = true, -- fills the card edge-to-edge, no side margin
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
@@ -61,9 +76,56 @@ EntryLayoutConfig.Specs = {
 	ImageFocal = {
 		arrangement = "Overlay",
 		imageAspect = 1,
+		overlayBg = "Scrim",
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Compact",
+		nameAlign = Enum.TextXAlignment.Left,
+	},
+	-- Same showcase, but no scrim/shadow at all — a small translucent flat panel
+	-- sits behind just the text so the rest of the art stays completely clean.
+	ImageFocalFlat = {
+		arrangement = "Overlay",
+		imageAspect = 1,
+		overlayBg = "Flat",
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Compact",
+		nameAlign = Enum.TextXAlignment.Left,
+	},
+	-- Taller-than-square art (fills the card width, so a smaller aspect makes it
+	-- noticeably longer) — the "not everything has to be a perfect square" pack.
+	TallCard = {
+		arrangement = "CardTop",
+		imageAspect = 0.62,
+		imageFillWidth = true,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Full",
+		nameAlign = Enum.TextXAlignment.Left,
+	},
+	-- Square image in its own tidy box, then a smaller PILL buy button sitting
+	-- below it with real breathing room — never flush against the image, and a
+	-- distinctly different (smaller, rounder) shape than the full-width button.
+	StandardPro = {
+		arrangement = "CardTop",
+		imageHeight = 150,
+		imageAspect = 1,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Pill",
+		nameAlign = Enum.TextXAlignment.Center,
+	},
+	-- Inventory view: a row with a square thumbnail and an OWNED-COUNT badge in
+	-- the bottom-right instead of a buy button — for showing what you have, not
+	-- what you can purchase.
+	QuantityRow = {
+		arrangement = "Row",
+		imageSize = 56,
+		imageAspect = 1,
+		showTags = false,
+		showDescription = false,
+		buyStyle = "Quantity",
 		nameAlign = Enum.TextXAlignment.Left,
 	},
 	ListRow = {

@@ -54,8 +54,12 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	local root = self.Root
 	root.BackgroundTransparency = 1
 
-	-- Drop shadow behind the card (Raised3D only; hidden otherwise).
-	local shadow = UIStyler.DropShadow(5, 1)
+	-- Drop shadow behind the card (Raised3D only; hidden otherwise). Cards tile
+	-- with only ~10px between them, so this uses a SMALL bleed (growPx=8,
+	-- offsetY=2) that fades out safely inside that gap — a bigger bleed gets
+	-- sliced off by the neighbouring card's opaque surface, which looks like a
+	-- broken hard cutoff instead of a soft shadow.
+	local shadow = UIStyler.DropShadow(2, 1, 8)
 	shadow.Parent = root
 	self._shadow = shadow
 
@@ -222,6 +226,11 @@ end
 function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 	local props = self.Props
 	local spec = self._spec
+	-- Quantity: an inventory view has nothing to purchase — show an owned-count
+	-- badge in the same slot instead of a buy button.
+	if spec.buyStyle == "Quantity" then
+		return self:_MakeQuantityBadge(parent)
+	end
 	local buy = UIButtonComponent.new()
 	self._buy = buy
 	local size
@@ -229,6 +238,10 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 		size = UDim2.new(0, 92, 0, 34)
 	elseif spec.buyStyle == "IconRight" then
 		size = UDim2.new(0, 40, 0, 34)
+	elseif spec.buyStyle == "Pill" then
+		-- Smaller, rounder, centred — deliberately NOT flush with the image box
+		-- above it (the caller adds real spacing before this).
+		size = UDim2.new(0, 116, 0, 32)
 	else
 		size = UDim2.new(1, 0, 0, 38)
 	end
@@ -244,7 +257,45 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 			self:PlayAnimation("Pulse")
 		end,
 	})
+	if spec.buyStyle == "Pill" then
+		-- Pill buttons are always fully round regardless of the theme's roundness.
+		local corner = buy.Root:FindFirstChild("Surface") and buy.Root.Surface:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(1, 0)
+		end
+	end
 	return buy.Root
+end
+
+-- Themed "×N owned" chip for inventory-style rows (QuantityRow / buyStyle
+-- "Quantity"). Not a button — nothing to purchase here, just what's owned.
+-- Quantity is deterministic per item (stable across re-renders) unless the game
+-- supplies a real one via props.quantity.
+function UICardComponent:_MakeQuantityBadge(parent: Instance): Frame
+	local chip = UIStyler.Frame("Quantity")
+	chip.Size = UDim2.fromOffset(0, 30)
+	chip.AutomaticSize = Enum.AutomaticSize.X
+	self._qtyCorner = UIStyler.Corner(1000)
+	self._qtyCorner.Parent = chip
+	UIStyler.PaddingXY(12, 4).Parent = chip
+	local label = UIStyler.TextLabel("Count")
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.Size = UDim2.fromScale(0, 1)
+	label.Parent = chip
+	self._qtyLabel = label
+	chip.Parent = parent
+
+	local quantity = (self.Props :: any).quantity
+	if not quantity then
+		-- Stable per-item fallback so the same item always shows the same count.
+		local hash = 0
+		for i = 1, #self._item.id do
+			hash = (hash * 31 + string.byte(self._item.id, i)) % 12
+		end
+		quantity = hash + 1
+	end
+	label.Text = "×" .. tostring(quantity)
+	return chip
 end
 
 -- Small helper: a transparent vertical stack container.
@@ -308,44 +359,70 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	spacer.Parent = col
 	local layout = col:FindFirstChildOfClass("UIListLayout")
 	if layout then
-		spacer.Size = UDim2.new(1, 0, 0, 2)
+		-- Pill buttons get real breathing room so they read as a separate element
+		-- below the image box, not flush against the price row like a normal buy.
+		spacer.Size = UDim2.new(1, 0, 0, spec.buyStyle == "Pill" and 12 or 2)
 	end
 	local buy = self:_MakeBuy(col)
 	buy.LayoutOrder = 999
+	-- (Pill buttons are meant for a CENTRED spec — nameAlign = Center — so the
+	-- column's own HorizontalAlignment already centres a narrower button like this.)
 end
 
--- Full-bleed image with the text OVERLAID on it (name/price/tags/buy), over a
--- dark bottom scrim so the text is readable over any art. The whole card is the
--- image — no text block below — so it's compact (card == image square) and looks
--- premium. Tags sit top-left, name+price bottom-left over the scrim, buy bottom.
+-- Full-bleed image with the text OVERLAID on it (name/price/tags/buy). Two
+-- readability treatments, picked by spec.overlayBg:
+--   "Scrim" (default) — a dark gradient fading up from the bottom edge, behind
+--                        the whole text band.
+--   "Flat"             — no gradient/shadow at all: a small rounded, translucent
+--                        flat-colour panel sits directly behind JUST the text,
+--                        so the rest of the image stays completely clean.
+-- Either way the card IS the image (no text block below) — compact and premium.
 function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
 	-- Image fills the entire card.
 	local img = self:_MakeImage(surface, UDim2.fromScale(1, 1), true)
 	img.ZIndex = 2
 
-	-- Bottom scrim: a dark gradient fading from transparent (top) to opaque
-	-- (bottom) so overlaid text reads over bright art without hiding the image.
-	local scrim = UIStyler.Frame("Scrim")
-	scrim.BackgroundColor3 = Color3.new(0, 0, 0)
-	scrim.BackgroundTransparency = 0
-	scrim.AnchorPoint = Vector2.new(0.5, 1)
-	scrim.Position = UDim2.fromScale(0.5, 1)
-	scrim.Size = UDim2.new(1, 0, 0.55, 0)
-	scrim.ZIndex = 3
-	local scrimGrad = Instance.new("UIGradient")
-	scrimGrad.Rotation = 90
-	scrimGrad.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.5, 0.35),
-		NumberSequenceKeypoint.new(1, 0.15),
-	})
-	scrimGrad.Parent = scrim
-	scrim.Parent = surface
-	self._scrim = scrim
-	-- Match the card corner so the scrim doesn't poke past rounded edges.
-	local scrimCorner = UIStyler.Corner(16)
-	scrimCorner.Parent = scrim
-	self._scrimCorner = scrimCorner
+	local useFlat = spec.overlayBg == "Flat"
+
+	if not useFlat then
+		-- Bottom scrim: a dark gradient fading from transparent (top) to opaque
+		-- (bottom) so overlaid text reads over bright art without hiding the image.
+		local scrim = UIStyler.Frame("Scrim")
+		scrim.BackgroundColor3 = Color3.new(0, 0, 0)
+		scrim.BackgroundTransparency = 0
+		scrim.AnchorPoint = Vector2.new(0.5, 1)
+		scrim.Position = UDim2.fromScale(0.5, 1)
+		scrim.Size = UDim2.new(1, 0, 0.55, 0)
+		scrim.ZIndex = 3
+		local scrimGrad = Instance.new("UIGradient")
+		scrimGrad.Rotation = 90
+		scrimGrad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0.35),
+			NumberSequenceKeypoint.new(1, 0.15),
+		})
+		scrimGrad.Parent = scrim
+		scrim.Parent = surface
+		self._scrim = scrim
+		-- Match the card corner so the scrim doesn't poke past rounded edges.
+		local scrimCorner = UIStyler.Corner(16)
+		scrimCorner.Parent = scrim
+		self._scrimCorner = scrimCorner
+	else
+		-- Flat: a small rounded panel sized to just the text block (not the whole
+		-- card width), a few px larger than the Info frame it sits behind so there's
+		-- a clean margin. Coloured + made translucent in _Style.
+		local flatBg = UIStyler.Frame("FlatBg")
+		flatBg.AnchorPoint = Vector2.new(0, 1)
+		flatBg.Position = UDim2.new(0, 4, 1, -4)
+		flatBg.Size = UDim2.new(1, -8, 0, 56)
+		flatBg.ZIndex = 4
+		flatBg.Parent = surface
+		self._flatBg = flatBg
+		local flatCorner = UIStyler.Corner(10)
+		flatCorner.Parent = flatBg
+		self._flatBgCorner = flatCorner
+	end
 
 	-- Tags top-left over the image.
 	if spec.showTags then
@@ -571,6 +648,47 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	if self._scrimCorner then
 		self._scrimCorner.CornerRadius = UDim.new(0, radius)
 	end
+	-- Overlay Flat: a themed, SOMEWHAT TRANSPARENT panel behind just the text
+	-- (no gradient, no shadow) — reads cleanly over any art without darkening it.
+	if self._flatBg then
+		self._flatBg.BackgroundColor3 = c.Background
+		self._flatBg.BackgroundTransparency = 0.32
+		self._flatBgCorner.CornerRadius = UDim.new(0, math.min(radius, 10))
+	end
+
+	-- Quantity badge (inventory rows): a quiet, secondary-coloured pill — it's
+	-- informational, not an action, so it doesn't compete with name/price.
+	if self._qtyLabel then
+		self._qtyCorner.CornerRadius = UDim.new(1, 0)
+		local qtyChip = self._qtyLabel.Parent :: Frame
+		self:_SetColor(qtyChip, "BackgroundColor3", c.SurfaceRaised)
+		self._qtyLabel.FontFace = theme.Fonts.Numeric
+		self._qtyLabel.TextSize = theme.TextSizes.Small
+		self._qtyLabel.TextColor3 = c.TextSecondary
+	end
+end
+
+-- Patch the parts of a card that change without a purchase (affordability,
+-- owned state, live balance-driven price re-renders) WITHOUT destroying and
+-- rebuilding the whole card. This is what lets the shop update in place instead
+-- of flickering/rebuilding every entry whenever currency changes — the same
+-- kind of reload a real game would visibly suffer from on every value tick.
+function UICardComponent:Update(props: { affordable: boolean?, owned: boolean? })
+	if props.affordable ~= nil then
+		self.Props.affordable = props.affordable
+	end
+	if props.owned ~= nil then
+		self.Props.owned = props.owned
+	end
+	if not self._buy then
+		return
+	end
+	local owned = self.Props.owned
+	local affordable = self.Props.affordable
+	self._buy.Props.textKey = owned and "shop.owned" or "shop.buy"
+	self._buy.Props.variant = owned and "Ghost" or (affordable ~= false and "Success" or "Ghost")
+	self._buy:SetContent(self._buy.Props)
+	self._buy:SetEnabled(not owned and affordable ~= false)
 end
 
 function UICardComponent:Destroy()

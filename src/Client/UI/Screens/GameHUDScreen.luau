@@ -16,14 +16,21 @@ local GameHUDScreen = setmetatable({}, { __index = UIScreenBase })
 GameHUDScreen.__index = GameHUDScreen
 
 -- Region id -> (anchor, position, list direction/alignment) on screen.
+-- valign matters for bottom regions: the container's box is a fixed-ish size
+-- (AutomaticSize doesn't reliably shrink a bottom-anchored, list-laid-out frame
+-- in every case), so with the ListLayout's default Top alignment its CONTENT can
+-- end up sitting near the top of that box — visibly far from the true bottom
+-- edge the region is supposed to hug (this is exactly why health/mana/stamina
+-- were floating mid-screen instead of low, colliding with the nav rail).
+-- VerticalAlignment.Bottom makes content hug the box's bottom edge regardless.
 local REGION_LAYOUT = {
-	TopLeft = { anchor = Vector2.new(0, 0), pos = UDim2.new(0, 16, 0, 16), dir = "V", align = "Left" },
-	TopCenter = { anchor = Vector2.new(0.5, 0), pos = UDim2.new(0.5, 0, 0, 16), dir = "V", align = "Center" },
-	TopRight = { anchor = Vector2.new(1, 0), pos = UDim2.new(1, -16, 0, 16), dir = "V", align = "Right" },
-	BottomLeft = { anchor = Vector2.new(0, 1), pos = UDim2.new(0, 16, 1, -16), dir = "V", align = "Left" },
-	BottomCenter = { anchor = Vector2.new(0.5, 1), pos = UDim2.new(0.5, 0, 1, -16), dir = "V", align = "Center" },
+	TopLeft = { anchor = Vector2.new(0, 0), pos = UDim2.new(0, 16, 0, 16), dir = "V", align = "Left", valign = "Top" },
+	TopCenter = { anchor = Vector2.new(0.5, 0), pos = UDim2.new(0.5, 0, 0, 16), dir = "V", align = "Center", valign = "Top" },
+	TopRight = { anchor = Vector2.new(1, 0), pos = UDim2.new(1, -16, 0, 16), dir = "V", align = "Right", valign = "Top" },
+	BottomLeft = { anchor = Vector2.new(0, 1), pos = UDim2.new(0, 16, 1, -16), dir = "V", align = "Left", valign = "Bottom" },
+	BottomCenter = { anchor = Vector2.new(0.5, 1), pos = UDim2.new(0.5, 0, 1, -16), dir = "V", align = "Center", valign = "Bottom" },
 	-- Offset left of the toast stack so a relocated element doesn't collide.
-	BottomRight = { anchor = Vector2.new(1, 1), pos = UDim2.new(1, -16, 1, -80), dir = "V", align = "Right" },
+	BottomRight = { anchor = Vector2.new(1, 1), pos = UDim2.new(1, -16, 1, -80), dir = "V", align = "Right", valign = "Bottom" },
 }
 
 function GameHUDScreen.new()
@@ -118,6 +125,10 @@ function GameHUDScreen:_BuildContent()
 		UIStyler.ListLayout({
 			Padding = UDim.new(0, 6),
 			HorizontalAlignment = Enum.HorizontalAlignment[layout.align],
+			-- Belt-and-suspenders with AutomaticSize: if the box doesn't shrink to
+			-- exactly fit its content, Bottom/Top alignment still pins the content
+			-- to the correct edge instead of leaving it stranded mid-box.
+			VerticalAlignment = Enum.VerticalAlignment[layout.valign],
 		}).Parent = container
 		container.Parent = self.Root
 		self._elementViews[region] = container

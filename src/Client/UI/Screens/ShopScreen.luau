@@ -26,7 +26,12 @@ function ShopScreen.new()
 	local self = UIScreenBase.new("ShopScreen", 5)
 	self._categoryId = "featured"
 	self._balances = table.clone(ShopConfig.StartingBalances)
-	self._cards = {}
+	-- Cards keyed by item id so re-renders can UPDATE existing cards instead of
+	-- destroying/rebuilding the whole grid every time a balance or category
+	-- changes (a full reload on every value tick is the kind of thing that would
+	-- visibly flicker in a live game).
+	self._cardsById = {} :: { [string]: any }
+	self._cardOrder = {} :: { string }
 	self._categoryButtons = {}
 	self._currencyLabels = {}
 	-- Injected by ClientHandler: (item) -> Types.PurchaseResult
@@ -136,11 +141,11 @@ function ShopScreen:_BuildContent()
 		local w = scroll.AbsoluteSize.X
 		if w > 0 and math.abs(w - (self._lastScrollW or 0)) > 1 then
 			self._lastScrollW = w
-			self:_RenderItems()
+			self:_RebuildLayout()
 		end
 	end)
 
-	self:_RenderItems()
+	self:_RebuildLayout()
 end
 
 function ShopScreen:_SelectCategory(categoryId: string)
@@ -152,17 +157,18 @@ function ShopScreen:_SelectCategory(categoryId: string)
 		button.Props.variant = id == categoryId and "Primary" or "Ghost"
 		button:ApplyTheme(self:GetTheme())
 	end
-	self:_RenderItems()
+	-- The category swaps which items show, so the grid/list geometry (a shape
+	-- change) is recomputed; _RebuildLayout diffs cards, it does not destroy them.
+	self:_RebuildLayout()
 end
 
--- Rebuild the item container from config using the active pack's layout.
-function ShopScreen:_RenderItems()
-	for _, card in self._cards do
-		card:Destroy()
-	end
-	table.clear(self._cards)
-
-	-- Clear any previous layout object.
+-- Compute the grid/list geometry for the active pack + spec (column layout,
+-- per-arrangement card height, image pixel size), THEN sync cards into it. Call
+-- this when the SHAPE changes (pack swap, category swap, scroll width first
+-- known) — never on a plain data update like a balance tick.
+function ShopScreen:_RebuildLayout()
+	-- Clear any previous layout object (UIGridLayout/UIListLayout), but leave
+	-- existing card Instances alone — _SyncItems reuses or destroys them by id.
 	for _, child in self._scroll:GetChildren() do
 		if child:IsA("UIGridLayout") or child:IsA("UIListLayout") then
 			child:Destroy()
@@ -172,16 +178,18 @@ function ShopScreen:_RenderItems()
 	local pack = self.ThemeController:GetPack()
 	local shopLayout = pack.Shop
 	local spec = EntryLayoutConfig.Get(shopLayout.EntryLayout)
+	self._activeSpec = spec
+	self._activeShopLayout = shopLayout
 
 	if shopLayout.Container == "Grid" then
 		local cols = shopLayout.Columns
 		local cellPad = 10
 		local cardHeight = shopLayout.CardHeight
-		-- For CardTop specs (image-on-top), the image FILLS the card width and holds
-		-- its aspect, so the card must be exactly tall enough for that image + the
-		-- text block — no fixed height, no empty side space. We compute the real
-		-- pixel cell width to derive that height. Other grid arrangements (Split)
-		-- keep their configured CardHeight.
+		-- For CardTop/Overlay specs (image-on-top), the image FILLS the card width
+		-- and holds its aspect, so the card must be exactly tall enough for that
+		-- image + the text block — no fixed height, no empty side space. We compute
+		-- the real pixel cell width to derive that height. Other grid arrangements
+		-- (Split) keep their configured CardHeight.
 		if spec.arrangement == "CardTop" or spec.arrangement == "Overlay" then
 			local scrollW = self._scroll.AbsoluteSize.X
 			if scrollW <= 0 then
@@ -198,24 +206,31 @@ function ShopScreen:_RenderItems()
 				self._cardImageSizePx = math.floor(cellW)
 				cardHeight = math.floor(cellW / aspect)
 			else
-				-- CardTop: square image over a text strip. To keep the whole card
-				-- COMPACT and roughly square (AAA tiles aren't long strips), the card
-				-- targets a pleasant ~1:1.25 ratio and the image gets the leftover
-				-- height as a CENTRED square. On wide cards the square is a touch
-				-- narrower than the card (small even margins, never a lonely edge);
-				-- it never produces a lanky 1:2 card.
+				-- CardTop: square (or spec aspect) image over a text strip below.
 				-- Exact height of everything below the image (matches the renderer:
-				-- surface pad 20 + tags 18 + name 22 + price 20 + spacer 2 + buy 38 +
+				-- surface pad 20 + tags 18 + name 22 + price 20 + spacer + buy +
 				-- ~30 for the 6px ListLayout gaps). Kept accurate so Buy never clips.
-				local textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + 2 + 38 + 30
-				-- Keep the card compact & roughly square (AAA tiles, not long strips):
-				-- aim ~1:1.2, and give the image the remaining height as a big centred
-				-- square — clamped so it's never a tiny thumbnail nor a lanky card.
-				local targetCardH = cellW * 1.2
-				local imgH = math.clamp(targetCardH - textBlock, cellW * 0.62, cellW - 12)
-				-- Square (or spec aspect): width = height * aspect, centred in the card.
-				self._cardImageSizePx = math.floor(imgH * aspect)
-				cardHeight = math.floor(imgH + textBlock)
+				local buyH = spec.buyStyle == "Pill" and 32 or 38
+				local spacerH = spec.buyStyle == "Pill" and 12 or 2
+				local textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + spacerH + buyH + 30
+				if spec.imageFillWidth then
+					-- Image fills the card content width edge-to-edge (no side margin).
+					-- The card is exactly as tall as image + text needs — no target-ratio
+					-- clamp, so it can end up a bit long, and that's the intended look.
+					local imgW = cellW - 20
+					local imgH = imgW / aspect
+					self._cardImageSizePx = math.floor(imgW)
+					cardHeight = math.floor(imgH + textBlock)
+				else
+					-- Compact look: the card targets a pleasant ~1:1.2 ratio and the
+					-- image gets the leftover height as a CENTRED square/rect. On wide
+					-- cards the box is a touch narrower than the card (small even
+					-- margins, never a lonely edge); it never produces a lanky 1:2 card.
+					local targetCardH = cellW * 1.2
+					local imgH = math.clamp(targetCardH - textBlock, cellW * 0.62, cellW - 12)
+					self._cardImageSizePx = math.floor(imgH * aspect)
+					cardHeight = math.floor(imgH + textBlock)
+				end
 			end
 		else
 			self._cardImageSizePx = nil
@@ -226,32 +241,79 @@ function ShopScreen:_RenderItems()
 		)
 		cell.Parent = self._scroll
 	else
+		self._cardImageSizePx = nil
 		UIStyler.ListLayout({ Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center }).Parent = self._scroll
 	end
 
-	local items = ShopConfig.GetItemsForCategory(self._categoryId)
-	for i, item in items do
-		local currency = ShopConfig.Currencies[item.currencyType]
-		local card = UICardComponent.new()
-		-- List rows get an explicit full-width size; grid cells are sized by the
-		-- grid layout, so leave size nil there.
-		local size = shopLayout.Container == "List" and UDim2.new(1, 0, 0, shopLayout.CardHeight) or nil
-		card:Create(self._scroll, {
-			item = item,
-			spec = spec,
-			currencyIcon = currency and currency.icon or "",
-			affordable = ShopConfig.CanAfford(self._balances, item),
-			layoutOrder = i,
-			size = size,
-			-- Exact image pixel width so a CardTop image fills the card with no gap.
-			imageSizePx = self._cardImageSizePx,
-			onBuy = function(boughtItem)
-				self:_PromptPurchase(boughtItem)
-			end,
-		})
-		card:PlayAnimation("Appear")
-		table.insert(self._cards, card)
+	-- The layout shape (spec/columns) determines each card's Create-time props
+	-- (spec, size, imageSizePx), so a shape change destroys and rebuilds every
+	-- card — but a plain data change (balances, category re-select with the same
+	-- items) never reaches this function and just calls _SyncItems below.
+	for _, card in self._cardsById do
+		card:Destroy()
 	end
+	table.clear(self._cardsById)
+	table.clear(self._cardOrder)
+
+	self:_SyncItems()
+end
+
+-- Reconcile self._cardsById against the current category's items: create cards
+-- for new ids, destroy cards for ids no longer present, and UPDATE existing
+-- cards' affordability/owned in place. This is what lets a balance change or a
+-- purchase refresh the shop WITHOUT tearing down and rebuilding every entry —
+-- the full-reload-on-every-tick pattern is bad in any live game.
+function ShopScreen:_SyncItems()
+	local shopLayout = self._activeShopLayout
+	local spec = self._activeSpec
+	if not shopLayout or not spec then
+		return
+	end
+
+	local items = ShopConfig.GetItemsForCategory(self._categoryId)
+	local seen = {}
+
+	for i, item in items do
+		seen[item.id] = true
+		local currency = ShopConfig.Currencies[item.currencyType]
+		local affordable = ShopConfig.CanAfford(self._balances, item)
+		local existing = self._cardsById[item.id]
+		if existing then
+			-- Same item, same layout shape: just patch the parts that can change.
+			existing:Update({ affordable = affordable })
+			existing.Root.LayoutOrder = i
+		else
+			local card = UICardComponent.new()
+			-- List rows get an explicit full-width size; grid cells are sized by the
+			-- grid layout, so leave size nil there.
+			local size = shopLayout.Container == "List" and UDim2.new(1, 0, 0, shopLayout.CardHeight) or nil
+			card:Create(self._scroll, {
+				item = item,
+				spec = spec,
+				currencyIcon = currency and currency.icon or "",
+				affordable = affordable,
+				layoutOrder = i,
+				size = size,
+				-- Exact image pixel width so a CardTop image fills the card with no gap.
+				imageSizePx = self._cardImageSizePx,
+				onBuy = function(boughtItem)
+					self:_PromptPurchase(boughtItem)
+				end,
+			})
+			card:PlayAnimation("Appear")
+			self._cardsById[item.id] = card
+		end
+	end
+
+	-- Drop cards for items that vanished (category filter changed the set, or an
+	-- item was removed from config at runtime).
+	for id, card in self._cardsById do
+		if not seen[id] then
+			card:Destroy()
+			self._cardsById[id] = nil
+		end
+	end
+
 	self:_RefreshCurrencies()
 end
 
@@ -294,7 +356,9 @@ function ShopScreen:_DoPurchase(item: SharedTypes.ShopItem)
 			hud:Update({ values = result.balances })
 		end
 	end
-	self:_RenderItems()
+	-- A purchase only changes affordability/owned, never the layout shape, so
+	-- sync cards in place rather than rebuilding the whole grid.
+	self:_SyncItems()
 end
 
 function ShopScreen:_RefreshCurrencies()
@@ -312,10 +376,16 @@ function ShopScreen:_OnShow(data: any?)
 	if data and data.balances then
 		self._balances = data.balances
 	end
-	if data and data.categoryId then
+	if data and data.categoryId and data.categoryId ~= self._categoryId then
 		self._categoryId = data.categoryId
+		-- Category changed while hidden: the item set (shape) changed too.
+		self:_RebuildLayout()
+	else
+		-- Re-opening the shop: the pack could have changed while it was hidden
+		-- (e.g. the Theme Editor's pack picker), so re-derive the layout shape.
+		-- Cheap and infrequent (screen open), unlike a per-tick balance update.
+		self:_RebuildLayout()
 	end
-	self:_RenderItems()
 	self._panel:PlayAnimation("Appear")
 end
 
@@ -323,9 +393,10 @@ function ShopScreen:Update(data: any)
 	if data.balances then
 		self._balances = data.balances
 		-- Balances can arrive (currency pushes, boot snapshot) before the shop
-		-- has ever been opened/built; just cache them until first show.
+		-- has ever been opened/built; just cache them until first show. Once
+		-- built, this is a pure data change — sync cards in place, never rebuild.
 		if self._built then
-			self:_RenderItems()
+			self:_SyncItems()
 		end
 	end
 end
