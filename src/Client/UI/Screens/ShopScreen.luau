@@ -198,19 +198,23 @@ function ShopScreen:_RenderItems()
 				self._cardImageSizePx = math.floor(cellW)
 				cardHeight = math.floor(cellW / aspect)
 			else
-				-- CardTop: square image fills width + a text strip below. This height
-				-- MUST fit image + every row + the 6px ListLayout gaps + card padding
-				-- or the Buy button overflows the bottom (measured to match renderer).
-				local imgW = cellW - 20 -- image fills content width (10px pad each side)
-				local imgH = imgW / aspect
-				self._cardImageSizePx = math.floor(imgW)
-				local textBlock = 20 -- surface top+bottom padding
-					+ (spec.showTags and 18 or 0) -- tag row
-					+ 22 -- name
-					+ 20 -- price
-					+ 2 -- spacer
-					+ 38 -- buy (Full)
-					+ 36 -- 6 stacked items x ~6px gaps + safety
+				-- CardTop: square image over a text strip. To keep the whole card
+				-- COMPACT and roughly square (AAA tiles aren't long strips), the card
+				-- targets a pleasant ~1:1.25 ratio and the image gets the leftover
+				-- height as a CENTRED square. On wide cards the square is a touch
+				-- narrower than the card (small even margins, never a lonely edge);
+				-- it never produces a lanky 1:2 card.
+				-- Exact height of everything below the image (matches the renderer:
+				-- surface pad 20 + tags 18 + name 22 + price 20 + spacer 2 + buy 38 +
+				-- ~30 for the 6px ListLayout gaps). Kept accurate so Buy never clips.
+				local textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + 2 + 38 + 30
+				-- Keep the card compact & roughly square (AAA tiles, not long strips):
+				-- aim ~1:1.2, and give the image the remaining height as a big centred
+				-- square — clamped so it's never a tiny thumbnail nor a lanky card.
+				local targetCardH = cellW * 1.2
+				local imgH = math.clamp(targetCardH - textBlock, cellW * 0.62, cellW - 12)
+				-- Square (or spec aspect): width = height * aspect, centred in the card.
+				self._cardImageSizePx = math.floor(imgH * aspect)
 				cardHeight = math.floor(imgH + textBlock)
 			end
 		else

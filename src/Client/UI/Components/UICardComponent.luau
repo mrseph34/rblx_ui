@@ -274,32 +274,25 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
-	-- Image FILLS THE CARD WIDTH and holds its aspect ratio — so the card wraps the
-	-- image with NO empty side space (the AAA grid-card look). Square by default
-	-- (aspect 1 => height == width); spec.imageAspect reshapes it (0.75 portrait =>
-	-- taller, >1 wide => shorter). ShopScreen passes imageSizePx = the exact cell
-	-- content width so we can size the image concretely (a UIAspectRatioConstraint
-	-- with a 0-height base collapses to 0, so we compute the pixels instead).
+	-- Image is a CENTRED square (or spec aspect) whose size ShopScreen computed to
+	-- keep the whole card compact & roughly square (AAA tiles, not long strips).
+	-- imageSizePx = the square's SIDE (width); height = side / aspect. It's centred
+	-- in a full-width row, so on wide cards there are small even margins — never a
+	-- lonely square hugging one edge, never a lanky card.
 	local aspect = (spec :: any).imageAspect
 	if not aspect or aspect <= 0 then
 		aspect = 1 -- square default
 	end
 	local imgW = (self.Props :: any).imageSizePx or (spec.imageHeight or 120)
 	local imgH = math.ceil(imgW / aspect)
-	-- Reserve the row height, then let the image FILL the width and lock its own
-	-- aspect so it's exactly square (or spec ratio) regardless of tiny cell-width
-	-- rounding — the constraint keys off the real rendered width, not our estimate.
 	local wrap = UIStyler.Frame("ImageWrap")
 	wrap.BackgroundTransparency = 1
 	wrap.Size = UDim2.new(1, 0, 0, imgH)
-	wrap.ClipsDescendants = true
 	wrap.Parent = col
 	next_(wrap)
-	local img = self:_MakeImage(wrap, UDim2.new(1, 0, 1, 0), true)
+	local img = self:_MakeImage(wrap, UDim2.fromOffset(imgW, imgH), true)
 	img.AnchorPoint = Vector2.new(0.5, 0)
 	img.Position = UDim2.fromScale(0.5, 0)
-	-- Width is authoritative (fills the card); height follows to hold the ratio.
-	UIStyler.AspectRatio(aspect, Enum.DominantAxis.Width).Parent = img
 	local tags = self:_MakeTags(col)
 	if tags then
 		next_(tags)

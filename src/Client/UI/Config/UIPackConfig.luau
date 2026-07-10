@@ -19,7 +19,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Standard",
 		DisplayName = "Standard",
-		Shop = { Container = "Grid", Columns = 5, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
