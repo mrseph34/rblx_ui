@@ -35,42 +35,67 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 	self._decimals = props.decimals or 2
 	self._value = math.clamp(props.value or self._min, self._min, self._max)
 
+	-- Compact = single row (label · track · value), for dense controls like the
+	-- color channel editors. Stacked = header row over a full-width track, for
+	-- the wider numeric-token sliders. One component, two layouts, so the two
+	-- never drift apart. (The color field used to give a stacked slider only
+	-- 20px, pushing its y=30 track out of view — that's what broke the R row.)
+	self._compact = props.compact == true
 	local root = self.Root
 	root.BackgroundTransparency = 1
 	if not props.size then
-		root.Size = UDim2.new(1, 0, 0, 44)
+		root.Size = UDim2.new(1, 0, 0, self._compact and 22 or 44)
 		self._baseSize = root.Size
 	end
 
-	local header = UIStyler.Frame("Header")
-	header.BackgroundTransparency = 1
-	header.Size = UDim2.new(1, 0, 0, 18)
-	header.Parent = root
+	local labelWidth = self._compact and 18 or 0
+	local valueWidth = self._compact and 46 or 60
 
 	local label = UIStyler.TextLabel("Label")
-	label.Size = UDim2.new(1, -60, 1, 0)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Text = TextConfig.Resolve(props.labelKey or props.label)
-	label.Parent = header
 	self._label = label
 
 	local readout = UIStyler.TextLabel("Value")
-	readout.Size = UDim2.new(0, 60, 1, 0)
-	readout.AnchorPoint = Vector2.new(1, 0)
-	readout.Position = UDim2.fromScale(1, 0)
 	readout.TextXAlignment = Enum.TextXAlignment.Right
-	readout.Parent = header
 	self._readout = readout
 
 	local track = Instance.new("TextButton")
 	track.Name = "Track"
 	track.Text = ""
 	track.AutoButtonColor = false
-	track.Size = UDim2.new(1, 0, 0, 8)
-	track.Position = UDim2.new(0, 0, 0, 30)
 	UIStyler.Corner(1000).Parent = track
-	track.Parent = root
 	self._track = track
+
+	if self._compact then
+		-- One row: label (left) | track (fills middle) | value (right).
+		label.Size = UDim2.new(0, labelWidth, 1, 0)
+		label.Position = UDim2.fromScale(0, 0)
+		label.Parent = root
+		readout.Size = UDim2.new(0, valueWidth, 1, 0)
+		readout.AnchorPoint = Vector2.new(1, 0)
+		readout.Position = UDim2.fromScale(1, 0)
+		readout.Parent = root
+		track.Size = UDim2.new(1, -(labelWidth + valueWidth + 12), 0, 6)
+		track.Position = UDim2.new(0, labelWidth + 6, 0.5, 0)
+		track.AnchorPoint = Vector2.new(0, 0.5)
+		track.Parent = root
+	else
+		-- Header row (label + value) stacked over a full-width track.
+		local header = UIStyler.Frame("Header")
+		header.BackgroundTransparency = 1
+		header.Size = UDim2.new(1, 0, 0, 18)
+		header.Parent = root
+		label.Size = UDim2.new(1, -valueWidth, 1, 0)
+		label.Parent = header
+		readout.Size = UDim2.new(0, valueWidth, 1, 0)
+		readout.AnchorPoint = Vector2.new(1, 0)
+		readout.Position = UDim2.fromScale(1, 0)
+		readout.Parent = header
+		track.Size = UDim2.new(1, 0, 0, 8)
+		track.Position = UDim2.new(0, 0, 0, 30)
+		track.Parent = root
+	end
 
 	local fill = UIStyler.Frame("Fill")
 	fill.Size = UDim2.fromScale(0, 1)

@@ -62,7 +62,7 @@ function UIColorFieldComponent:_Build(props: Types.UIComponentProps)
 	sliderHolder.BackgroundTransparency = 1
 	sliderHolder.Size = UDim2.new(1, 0, 1, -26)
 	sliderHolder.Position = UDim2.fromOffset(0, 26)
-	UIStyler.ListLayout({ Padding = UDim.new(0, 0) }).Parent = sliderHolder
+	UIStyler.ListLayout({ Padding = UDim.new(0, 2) }).Parent = sliderHolder
 	sliderHolder.Parent = root
 
 	local channels = { "R", "G", "B" }
@@ -71,6 +71,7 @@ function UIColorFieldComponent:_Build(props: Types.UIComponentProps)
 		local slider = UISliderComponent.new()
 		slider:Create(sliderHolder, {
 			label = channel,
+			compact = true,
 			min = 0,
 			max = 255,
 			step = 1,
