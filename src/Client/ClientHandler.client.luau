@@ -35,6 +35,7 @@ local UIScreenController = require(Controllers.UIScreenController)
 local UIInputController = require(Controllers.UIInputController)
 local UISoundController = require(Controllers.UISoundController)
 local UIOverheadController = require(Controllers.UIOverheadController)
+local UIChatBubbleController = require(Controllers.UIChatBubbleController)
 
 -- Screens.
 local GameHUDScreen = require(Screens.GameHUDScreen)
@@ -43,6 +44,8 @@ local ModalScreen = require(Screens.ModalScreen)
 local TutorialScreen = require(Screens.TutorialScreen)
 local ThemeSelectorScreen = require(Screens.ThemeSelectorScreen)
 local NPCDialogScreen = require(Screens.NPCDialogScreen)
+local SettingsScreen = require(Screens.SettingsScreen)
+local ChatBarScreen = require(Screens.ChatBarScreen)
 
 local player = Players.LocalPlayer
 
@@ -53,6 +56,7 @@ local screenController = UIScreenController.new(themeController)
 local inputController = UIInputController.new()
 local soundController = UISoundController.new()
 local overheadController = UIOverheadController.new(themeController)
+local chatBubbleController = UIChatBubbleController.new(themeController)
 
 -- Inject controllers into the component base: theme = live re-skinning; sound =
 -- hover/click SFX. Both are nil-safe so components work without them.
@@ -80,6 +84,8 @@ local modal = ModalScreen.new()
 local tutorial = TutorialScreen.new()
 local themeSelector = ThemeSelectorScreen.new()
 local npcDialog = NPCDialogScreen.new()
+local settings = SettingsScreen.new()
+local chatBar = ChatBarScreen.new()
 
 screenController:RegisterScreen("hud", hud)
 screenController:RegisterScreen("shop", shop)
@@ -87,6 +93,8 @@ screenController:RegisterScreen("modal", modal)
 screenController:RegisterScreen("tutorial", tutorial)
 screenController:RegisterScreen("themeSelector", themeSelector)
 screenController:RegisterScreen("npcDialog", npcDialog)
+screenController:RegisterScreen("settings", settings)
+screenController:RegisterScreen("chatBar", chatBar)
 screenController:SetModalScreen("modal")
 
 -- ---- purchase wiring (client -> server) -------------------------------
@@ -125,6 +133,8 @@ local function navAction(action: string)
 		screenController:ToggleScreen("shop", { balances = shop._balances })
 	elseif action == "ToggleThemeEditor" then
 		screenController:ToggleScreen("themeSelector")
+	elseif action == "ToggleSettings" then
+		screenController:ToggleScreen("settings")
 	elseif action == "ShowTutorial" then
 		screenController:ShowScreen("tutorial", {
 			steps = TutorialConfig.Steps,
@@ -303,6 +313,24 @@ if game:GetService("RunService"):IsStudio() then
 		if player.Character then
 			overheadController:SetLocation(player.Character, locationId)
 		end
+		return true
+	end)
+	bind("SayOverhead", function(text: string)
+		if player.Character then
+			chatBubbleController:Say(player.Character, text or "Hey there! 👋", { duration = 4 })
+		end
+		return true
+	end)
+	bind("ShowChatBar", function(text: string)
+		screenController:ShowScreen("chatBar", {
+			speaker = "Narrator",
+			text = text or "This is the bottom chat bar — subtitles, narration, radio chatter.",
+			duration = 5,
+		})
+		return true
+	end)
+	bind("ShowSettings", function()
+		screenController:ShowScreen("settings")
 		return true
 	end)
 	folder.Parent = ReplicatedStorage

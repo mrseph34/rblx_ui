@@ -33,6 +33,7 @@ export type NavButton = {
 
 NavConfig.Buttons = {
 	{ id = "nav.shop", icon = "🛒", action = "ToggleShop", variant = "Primary", size = Vector2.new(64, 64) },
+	{ id = "nav.settings", icon = "⚙️", action = "ToggleSettings", variant = "Ghost" },
 	{ id = "nav.theme", icon = "🎨", action = "ToggleThemeEditor", authorizedOnly = true, variant = "Secondary" },
 	{ id = "nav.help", icon = "❓", action = "ShowTutorial", variant = "Ghost" },
 } :: { NavButton }

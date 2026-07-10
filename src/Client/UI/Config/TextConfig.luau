@@ -106,6 +106,26 @@ TextConfig.Strings = {
 	["npc.choice.shop"] = "Show me the shop",
 	["npc.choice.bye"] = "Maybe later",
 
+	-- Settings menu
+	["settings.title"] = "Settings",
+	["settings.section.audio"] = "Audio",
+	["settings.section.display"] = "Display",
+	["settings.section.gameplay"] = "Gameplay",
+	["settings.master_volume"] = "Master Volume",
+	["settings.music_volume"] = "Music Volume",
+	["settings.sfx_enabled"] = "Sound Effects",
+	["settings.ui_scale"] = "UI Scale",
+	["settings.reduced_motion"] = "Reduced Motion",
+	["settings.quality"] = "Graphics Quality",
+	["settings.quality.low"] = "Low",
+	["settings.quality.medium"] = "Medium",
+	["settings.quality.high"] = "High",
+	["settings.show_damage"] = "Show Damage Numbers",
+	["settings.show_overheads"] = "Show Overhead UI",
+	["settings.camera_side"] = "Camera Side",
+	["settings.side.left"] = "Left",
+	["settings.side.right"] = "Right",
+
 	-- Notification banners (sample)
 	["notify.levelup.title"] = "Level Up!",
 	["notify.levelup.body"] = "You reached level 8. New rewards unlocked.",
