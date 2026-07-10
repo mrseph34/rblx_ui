@@ -94,6 +94,20 @@ TextConfig.Strings = {
 	["theme.import.failed"] = "Couldn't parse that theme.",
 	["theme.reset"] = "Reset",
 	["theme.close"] = "Close",
+
+	-- NPC dialogue (sample)
+	["npc.merchant.name"] = "Merchant Pip",
+	["npc.merchant.l1"] = "Well met, traveler! You've got the look of someone who appreciates fine wares.",
+	["npc.merchant.l2"] = "I've stocked crates, boosts, and cosmetics — all fairly priced, I assure you.",
+	["npc.merchant.l3"] = "So, what'll it be? Care to browse my shop, or are you just passing through?",
+	["npc.choice.shop"] = "Show me the shop",
+	["npc.choice.bye"] = "Maybe later",
+
+	-- Notification banners (sample)
+	["notify.levelup.title"] = "Level Up!",
+	["notify.levelup.body"] = "You reached level 8. New rewards unlocked.",
+	["notify.achievement.title"] = "Achievement",
+	["notify.achievement.body"] = "First Purchase — you bought your first item!",
 }
 
 -- true for "namespaced.key" shapes we should look up; false for literals that
