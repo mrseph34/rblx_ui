@@ -182,7 +182,7 @@ function ShopScreen:_RenderItems()
 		-- text block — no fixed height, no empty side space. We compute the real
 		-- pixel cell width to derive that height. Other grid arrangements (Split)
 		-- keep their configured CardHeight.
-		if spec.arrangement == "CardTop" then
+		if spec.arrangement == "CardTop" or spec.arrangement == "Overlay" then
 			local scrollW = self._scroll.AbsoluteSize.X
 			if scrollW <= 0 then
 				scrollW = 700 -- pre-measure fallback; corrected on the next render
@@ -192,17 +192,24 @@ function ShopScreen:_RenderItems()
 			if not aspect or aspect <= 0 then
 				aspect = 1
 			end
-			local imgW = cellW - 20 -- image fills the card content width (10px pad each side)
-			local imgH = imgW / aspect
-			-- Cache the pixel image width so each card sizes its image concretely.
-			self._cardImageSizePx = math.floor(imgW)
-			local textBlock = 20 -- card top+bottom padding
-				+ (spec.showTags and 24 or 0)
-				+ 24 -- name
-				+ 22 -- price
-				+ 42 -- buy
-				+ 20 -- inter-row spacing
-			cardHeight = math.floor(imgH + textBlock)
+			if spec.arrangement == "Overlay" then
+				-- The image IS the whole card (text is overlaid), so the card is just
+				-- the square — very compact, so many tiles fit on screen at once.
+				self._cardImageSizePx = math.floor(cellW)
+				cardHeight = math.floor(cellW / aspect)
+			else
+				-- CardTop: square image fills width + a COMPACT text strip below.
+				local imgW = cellW - 20 -- image fills content width (10px pad each side)
+				local imgH = imgW / aspect
+				self._cardImageSizePx = math.floor(imgW)
+				local textBlock = 16 -- tighter padding
+					+ (spec.showTags and 22 or 0)
+					+ 22 -- name
+					+ 20 -- price
+					+ 34 -- buy (compact)
+					+ 10 -- spacing
+				cardHeight = math.floor(imgH + textBlock)
+			end
 		else
 			self._cardImageSizePx = nil
 		end

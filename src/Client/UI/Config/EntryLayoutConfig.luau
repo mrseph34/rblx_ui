@@ -20,8 +20,9 @@ local EntryLayoutConfig = {}
 --   "Split"     large image left · name+desc+price+buy right (split feel)
 --   "TextFirst" name+description hero, small image top-right, price+buy footer (text-heavy)
 --   "Banner"    wide hero: big image left half, text+buy right half (featured)
+--   "Overlay"   full-bleed image with text overlaid on a bottom scrim (image showcase)
 export type EntrySpec = {
-	arrangement: "CardTop" | "Row" | "Split" | "TextFirst" | "Banner",
+	arrangement: "CardTop" | "Row" | "Split" | "TextFirst" | "Banner" | "Overlay",
 	-- Focal sizing. Interpreted per arrangement (see renderer):
 	--   CardTop  -> imageHeight (px)
 	--   Row      -> imageSize (px, square)
@@ -55,14 +56,15 @@ EntryLayoutConfig.Specs = {
 		buyStyle = "Full",
 		nameAlign = Enum.TextXAlignment.Left,
 	},
+	-- Image showcase: full-bleed square art with name/price/tags/buy OVERLAID on a
+	-- bottom scrim so the text reads over the image. The card IS the image (compact).
 	ImageFocal = {
-		arrangement = "CardTop",
-		imageHeight = 190,
+		arrangement = "Overlay",
 		imageAspect = 1,
 		showTags = true,
 		showDescription = false,
-		buyStyle = "Full",
-		nameAlign = Enum.TextXAlignment.Center,
+		buyStyle = "Compact",
+		nameAlign = Enum.TextXAlignment.Left,
 	},
 	ListRow = {
 		arrangement = "Row",

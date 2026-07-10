@@ -97,6 +97,8 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 		self:_BuildSplit(surface, spec, 0.6)
 	elseif arrangement == "TextFirst" then
 		self:_BuildTextFirst(surface, spec)
+	elseif arrangement == "Overlay" then
+		self:_BuildOverlay(surface, spec)
 	else
 		self:_BuildCardTop(surface, spec)
 	end
@@ -319,6 +321,86 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	buy.LayoutOrder = 999
 end
 
+-- Full-bleed image with the text OVERLAID on it (name/price/tags/buy), over a
+-- dark bottom scrim so the text is readable over any art. The whole card is the
+-- image — no text block below — so it's compact (card == image square) and looks
+-- premium. Tags sit top-left, name+price bottom-left over the scrim, buy bottom.
+function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
+	-- Image fills the entire card.
+	local img = self:_MakeImage(surface, UDim2.fromScale(1, 1), true)
+	img.ZIndex = 2
+
+	-- Bottom scrim: a dark gradient fading from transparent (top) to opaque
+	-- (bottom) so overlaid text reads over bright art without hiding the image.
+	local scrim = UIStyler.Frame("Scrim")
+	scrim.BackgroundColor3 = Color3.new(0, 0, 0)
+	scrim.BackgroundTransparency = 0
+	scrim.AnchorPoint = Vector2.new(0.5, 1)
+	scrim.Position = UDim2.fromScale(0.5, 1)
+	scrim.Size = UDim2.new(1, 0, 0.55, 0)
+	scrim.ZIndex = 3
+	local scrimGrad = Instance.new("UIGradient")
+	scrimGrad.Rotation = 90
+	scrimGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0.35),
+		NumberSequenceKeypoint.new(1, 0.15),
+	})
+	scrimGrad.Parent = scrim
+	scrim.Parent = surface
+	self._scrim = scrim
+	-- Match the card corner so the scrim doesn't poke past rounded edges.
+	local scrimCorner = UIStyler.Corner(16)
+	scrimCorner.Parent = scrim
+	self._scrimCorner = scrimCorner
+
+	-- Tags top-left over the image.
+	if spec.showTags then
+		local tags = self:_MakeTags(surface)
+		if tags then
+			tags.AnchorPoint = Vector2.new(0, 0)
+			tags.Position = UDim2.fromOffset(10, 10)
+			tags.Size = UDim2.new(1, -20, 0, 22)
+			tags.ZIndex = 6
+			for _, d in tags:GetDescendants() do
+				if d:IsA("GuiObject") then
+					d.ZIndex = 6
+				end
+			end
+		end
+	end
+
+	-- Text column pinned to the bottom over the scrim. Name + price stack, and a
+	-- compact Buy sits to the right so nothing overflows the card's bottom edge.
+	local info = UIStyler.Frame("Info")
+	info.BackgroundTransparency = 1
+	info.AnchorPoint = Vector2.new(0, 1)
+	info.Position = UDim2.new(0, 10, 1, -10)
+	info.Size = UDim2.new(1, -20, 0, 44)
+	info.ZIndex = 5
+	info.Parent = surface
+
+	local name = self:_MakeName(info, 20)
+	name.Size = UDim2.new(1, -70, 0, 20)
+	name.Position = UDim2.fromOffset(0, 0)
+	name.ZIndex = 5
+	local price = self:_MakePrice(info)
+	price.Size = UDim2.new(1, -70, 0, 20)
+	price.Position = UDim2.fromOffset(0, 22)
+	price.ZIndex = 5
+	-- Compact Buy button, right-aligned, vertically centred over the two text rows.
+	local buy = self:_MakeBuy(info)
+	buy.AnchorPoint = Vector2.new(1, 0.5)
+	buy.Position = UDim2.new(1, 0, 0.5, 0)
+	buy.Size = UDim2.fromOffset(60, 34)
+	for _, d in buy:GetDescendants() do
+		if d:IsA("GuiObject") then
+			d.ZIndex = math.max(d.ZIndex, 5)
+		end
+	end
+	buy.ZIndex = 5
+end
+
 -- Small image left · name+tags middle · price+buy right. List / compact row.
 function UICardComponent:_BuildRow(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
 	UIStyler.PaddingXY(10, 8).Parent = surface
@@ -475,9 +557,12 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	end
 	self._shadow.ImageTransparency = raised and math.clamp(1 - shape.ShadowStrength * 0.8, 0, 1) or 1
 
+	-- Overlay cards put text over the image, so name/price are forced WHITE (over
+	-- the dark bottom scrim) for readability regardless of the theme's text colour.
+	local overlay = self._spec.arrangement == "Overlay"
 	self._name.FontFace = theme.Fonts.Subtitle
 	self._name.TextSize = theme.TextSizes.Subtitle
-	self._name.TextColor3 = c.TextPrimary
+	self._name.TextColor3 = overlay and Color3.new(1, 1, 1) or c.TextPrimary
 
 	self._price.FontFace = theme.Fonts.Numeric
 	self._price.TextSize = theme.TextSizes.Body
@@ -487,6 +572,11 @@ function UICardComponent:_Style(theme: Types.UITheme)
 		self._desc.FontFace = theme.Fonts.Body
 		self._desc.TextSize = theme.TextSizes.Small
 		self._desc.TextColor3 = c.TextSecondary
+	end
+
+	-- Overlay scrim: keep its rounded corner matched so it fits the card.
+	if self._scrimCorner then
+		self._scrimCorner.CornerRadius = UDim.new(0, radius)
 	end
 end
 
