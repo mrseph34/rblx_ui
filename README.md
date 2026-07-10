@@ -209,9 +209,9 @@ Beyond the theme, the **📦 Script** button (`PackExporter`) exports a
 - returns one `SPEC` table with every resolved theme token, pack/layout choice,
   config value and string that part uses (the **design**, not the renderer code);
 - is topped with a **"GET THE REAL CODE" header** pointing at this repo
-  (`src/Client/UI`) so a receiving AI reads the actual source for an exact copy,
-  plus an **AI build brief** with the architecture rules for rebuilding from the
-  SPEC alone.
+  (`src/Client/UI`) — public, so any AI can read it directly with no access
+  request — for an exact copy, plus an **AI build brief** with the architecture
+  rules for rebuilding from the SPEC alone.
 
 So you can paste one file into a fresh AI chat (or hand it to a developer): with
 the repo it makes an exact copy, and even without it a faithful rebuild from the

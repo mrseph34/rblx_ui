@@ -110,9 +110,10 @@ end
 
 -- ---- header / brief ----------------------------------------------------
 
--- The canonical source repo for the full pack. The in-game export can only ship
--- a design SPEC (a running game cannot read module source), so this points the
--- consuming AI at the real code. Update this string if the repo moves.
+-- The canonical source repo for the full pack (public — readable by anyone,
+-- including another AI, with no access request needed). The in-game export can
+-- only ship a design SPEC (a running game cannot read module source), so this
+-- points the consuming AI at the real code. Update this string if the repo moves.
 PackExporter.SourceRepo = "https://github.com/mrseph34/rblx_ui"
 
 -- Prepended above every export so whoever receives the file knows the REAL code
@@ -125,13 +126,13 @@ local function sourceHeader(): string
 -- ============================================================================
 -- The `SPEC` table below is the DESIGN of this pack (every colour, font, layout,
 -- HUD/nav/overhead config and string) — it is NOT the renderer code. To recreate
--- the pack faithfully, read the actual source modules here:
+-- the pack faithfully, read the actual source modules here (public repo, no
+-- access request needed):
 --
 --     %s   (folder: src/Client/UI)
 --
--- If that link 404s the repo is private — ask the owner to make it public or to
--- paste the `src/Client/UI` folder. With the real source you get an exact copy;
--- with only this SPEC you get a faithful rebuild guided by the brief below.
+-- With the real source you get an exact copy; with only this SPEC below you get
+-- a faithful rebuild guided by the brief that follows.
 -- ============================================================================
 ]],
 		PackExporter.SourceRepo
