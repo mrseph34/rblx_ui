@@ -11,14 +11,23 @@
 
 local NavConfig = {}
 
--- Rail geometry. ButtonSize is the SQUARE size for icon-only buttons;
--- LabeledButtonSize is the wider size used automatically for any button that
--- carries a text `label` (icon+text or text-only). FillDirection lets the rail
--- be a vertical column (classic) or a horizontal toolbar.
+-- Design resolution every fraction below is authored against (matches
+-- UIScreenBase's own design resolution) — SizeFor/geometry below convert these
+-- into pure Scale fractions of the REAL viewport, so the rail's buttons/gaps
+-- shrink and grow with the screen exactly like the reference MainGui does,
+-- instead of staying a constant physical pixel size at any viewport.
+NavConfig.DesignWidth = 1280
+NavConfig.DesignHeight = 720
+
+-- Rail geometry, authored in DESIGN-SPACE pixels (at DesignWidth x DesignHeight)
+-- then converted to Scale fractions by SizeFor/UINavRailController — never used
+-- as raw Offset pixels directly. ButtonSize is the SQUARE size for icon-only
+-- buttons; LabeledButtonSize is the wider size for any button with a text
+-- `label`. FillDirection lets the rail be a vertical column or horizontal bar.
 NavConfig.ButtonSize = Vector2.new(56, 56)
 NavConfig.LabeledButtonSize = Vector2.new(150, 46)
 NavConfig.Spacing = 10
-NavConfig.EdgeOffset = 12 -- px gap from the screen edge
+NavConfig.EdgeOffset = 12 -- design-space gap from the screen edge
 NavConfig.FillDirection = "Vertical" :: "Vertical" | "Horizontal"
 
 -- Global toggle: DEFAULT false = the rail is compact icon-only SQUARES, each with
@@ -72,6 +81,20 @@ function NavConfig.SizeFor(button: NavButton, showLabels: boolean?): Vector2
 		return NavConfig.LabeledButtonSize
 	end
 	return button.size or NavConfig.ButtonSize
+end
+
+-- Converts a design-space X pixel value (authored at DesignWidth) into a Scale
+-- fraction of the real viewport width — the pure-Scale counterpart to using
+-- the value as a raw Offset. Used for anything measured along the horizontal
+-- axis (button widths, horizontal spacing/edge offsets).
+function NavConfig.ScaleX(designPx: number): number
+	return designPx / NavConfig.DesignWidth
+end
+
+-- Same as ScaleX but for the vertical axis (button heights, vertical spacing/
+-- edge margins), converted against DesignHeight.
+function NavConfig.ScaleY(designPx: number): number
+	return designPx / NavConfig.DesignHeight
 end
 
 return NavConfig

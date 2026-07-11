@@ -73,9 +73,10 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	local externalBuy = spec.arrangement == "CardTop"
 		and (spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle")
 	-- OutsideBelow reserves a full button + gap; Straddle only reserves HALF a
-	-- button's height (the other half overlaps the surface on top of it).
+	-- button's height (the other half overlaps the surface on top of it). Both
+	-- are SCALE fractions of Root's own height (Root = the full card cell).
 	local externalReserve = externalBuy
-		and (spec.buyStyle == "Straddle" and math.floor(CardSpacing.ExternalBuy.Height / 2)
+		and (spec.buyStyle == "Straddle" and (CardSpacing.ExternalBuy.Height / 2)
 			or (CardSpacing.ExternalBuy.Height + CardSpacing.ExternalBuy.BelowGap))
 		or 0
 	self._externalReserve = externalReserve
@@ -85,7 +86,7 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	local surface = UIStyler.Frame("Surface")
 	surface.BackgroundTransparency = 0
 	if externalBuy then
-		surface.Size = UDim2.new(1, 0, 1, -externalReserve)
+		surface.Size = UDim2.new(1, 0, 1 - externalReserve, 0)
 		surface.AnchorPoint = Vector2.new(0.5, 0)
 		surface.Position = UDim2.new(0.5, 0, 0, 0)
 	else
@@ -98,6 +99,16 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	surface.Parent = root
 	self._surface = surface
 	self:_UseScaleTarget(surface)
+
+	-- CardTop's own fixed width:height shape — the same trick as the reference
+	-- MainGui's item cards (a UIAspectRatioConstraint on the card itself), so
+	-- the whole cell always keeps its authored proportions no matter what Scale
+	-- CellSize the grid gives it. Every internal element below is then just a
+	-- Scale fraction of THIS card's own resolved height — never a pixel Offset.
+	if spec.arrangement == "CardTop" then
+		local cardAspect = UIStyler.AspectRatio(CardSpacing.CardTop.AspectRatio, Enum.DominantAxis.Width)
+		cardAspect.Parent = root
+	end
 
 	self._corner = UIStyler.Corner(16)
 	self._corner.Parent = surface
@@ -147,8 +158,10 @@ function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.
 	-- Default: as wide as the box itself (matches the card, edge to edge) — a
 	-- per-spec buttonSize can override this later if a narrower/fixed width is
 	-- ever wanted, but the out-of-the-box default spans the full card width.
+	-- Height is a Scale fraction of Root (the full card cell), like everything
+	-- else — never a pixel Offset.
 	local buttonH = CardSpacing.ExternalBuy.Height
-	local size = UDim2.new(1, 0, 0, buttonH)
+	local size = UDim2.new(1, 0, buttonH, 0)
 	buy:Create(root, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
 		variant = props.owned and "Ghost" or (props.affordable ~= false and "Success" or "Ghost"),
@@ -158,7 +171,7 @@ function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.
 		-- Straddle: centred exactly on the surface's bottom edge (root height
 		-- minus the half-button reserve). OutsideBelow: flush with Root's own
 		-- bottom edge, safely inside the full-button-plus-gap reserve.
-		position = straddle and UDim2.new(0.5, 0, 1, -self._externalReserve) or UDim2.new(0.5, 0, 1, 0),
+		position = straddle and UDim2.new(0.5, 0, 1 - self._externalReserve, 0) or UDim2.new(0.5, 0, 1, 0),
 		onClick = function()
 			if props.onBuy then
 				props.onBuy(self._item)
@@ -212,7 +225,11 @@ function UICardComponent:_MakeImage(parent: Instance, size: UDim2, fillWidth: bo
 		mono.TextScaled = true
 		mono.Text = string.upper(string.sub(TextConfig.Resolve(item.nameKey), 1, 1))
 		mono.TextColor3 = Color3.new(1, 1, 1)
-		UIStyler.Padding(math.max(8, math.floor(holder.Size.Y.Offset * 0.18))).Parent = mono
+		-- Scale padding (a fraction of the label's own resolved size) instead of a
+		-- pixel value derived from Size.Y.Offset — that Offset read is always 0 now
+		-- that image holders are Scale-sized, so a fixed px fallback would never
+		-- actually scale with the tile at different viewport sizes.
+		UIStyler.PaddingScale(0.18).Parent = mono
 		mono.Parent = holder
 	end
 	holder.Parent = parent
@@ -221,13 +238,14 @@ end
 
 -- Names NEVER wrap to a 2nd line — TextScaled shrinks the text to fit the
 -- fixed box width/height instead (a size constraint caps how far it can
--- shrink so it never goes illegibly small). `height` is the fixed row height
--- the caller reserves; `oneLine` only affects that height (grid-card rows use
--- a small fixed height, load-bearing slots use a taller one) — wrapping is
--- off either way.
-function UICardComponent:_MakeName(parent: Instance, height: number, oneLine: boolean?): TextLabel
+-- shrink so it never goes illegibly small). `height` is a UDim (Scale
+-- fraction of the card OR a pixel Offset, caller's choice during the
+-- pure-Scale conversion) for the row the caller reserves; `oneLine` only
+-- affects the text-size cap (grid-card rows cap smaller) — wrapping is off
+-- either way.
+function UICardComponent:_MakeName(parent: Instance, height: UDim, oneLine: boolean?): TextLabel
 	local name = UIStyler.TextLabel("Name")
-	name.Size = UDim2.new(1, 0, 0, height)
+	name.Size = UDim2.new(UDim.new(1, 0), height)
 	name.TextXAlignment = self._spec.nameAlign
 	name.TextYAlignment = Enum.TextYAlignment.Center
 	name.TextTruncate = Enum.TextTruncate.None
@@ -261,28 +279,49 @@ function UICardComponent:_MakeDescription(parent: Instance): TextLabel?
 	return desc
 end
 
-function UICardComponent:_MakePrice(parent: Instance): TextLabel
+-- Un-converted arrangements (Row/Split/TextFirst/Overlay) still pass no
+-- `height` override and get this legacy pixel row height, matching the
+-- pre-conversion look until their own conversion stage.
+local LEGACY_PRICE_HEIGHT_PX = 16
+local LEGACY_TAGROW_HEIGHT_PX = 15
+
+-- `height` overrides the default Offset-based row height with a caller-chosen
+-- UDim (CardTop passes a SCALE fraction of the card's own height; other
+-- arrangements — not yet converted — omit it and keep the old pixel default).
+function UICardComponent:_MakePrice(parent: Instance, height: UDim?): TextLabel
 	local price = UIStyler.TextLabel("Price")
-	price.Size = UDim2.new(1, 0, 0, CardSpacing.Height.Price)
+	price.Size = UDim2.new(UDim.new(1, 0), height or UDim.new(0, LEGACY_PRICE_HEIGHT_PX))
 	price.TextXAlignment = self._spec.nameAlign
 	price.Text = string.format("%s %s", self.Props.currencyIcon or "", tostring(self._item.price))
+	-- A caller-supplied SCALE height (CardTop) means the row shrinks/grows with
+	-- the card at any viewport, so the text must shrink/grow with it too —
+	-- TextScaled instead of a theme-fixed pixel TextSize, same as _MakeName.
+	if height then
+		price.TextTruncate = Enum.TextTruncate.None
+		price.TextScaled = true
+		price.TextWrapped = false
+		self._priceConstraint = UIStyler.TextSizeConstraint(16, 7)
+		self._priceConstraint.Parent = price
+	end
 	price.Parent = parent
 	self._price = price
+	self._priceScaled = height ~= nil
 	return price
 end
 
 -- Always returns a fixed-height row when the spec shows tags — even for an item
 -- with no tags — so the slot is reserved and every card in a pack keeps the
 -- same vertical rhythm (an item missing tags must not shift name/price/buy).
--- Returns nil only when the pack doesn't use tags at all.
-function UICardComponent:_MakeTags(parent: Instance): Frame?
+-- Returns nil only when the pack doesn't use tags at all. `height` overrides
+-- the default Offset-based row height (see _MakePrice's note above).
+function UICardComponent:_MakeTags(parent: Instance, height: UDim?): Frame?
 	if not self._spec.showTags then
 		return nil
 	end
 	local item = self._item
 	local tagRow = UIStyler.Frame("Tags")
 	tagRow.BackgroundTransparency = 1
-	tagRow.Size = UDim2.new(1, 0, 0, CardSpacing.Height.TagRow)
+	tagRow.Size = UDim2.new(UDim.new(1, 0), height or UDim.new(0, LEGACY_TAGROW_HEIGHT_PX))
 	-- (Matches the badge's own height exactly — no slack above/below it.)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
@@ -366,7 +405,15 @@ function UICardComponent:_MakeTagPriceRow(parent: Instance): Frame
 	return row
 end
 
-function UICardComponent:_MakeBuy(parent: Instance): GuiObject
+-- Un-converted arrangements (Row/Split/TextFirst) still pass useCardScale =
+-- false and get these legacy pixel heights, matching the pre-conversion look.
+local LEGACY_BUY_HEIGHT_PX = { Compact = 26, IconRight = 26, Pill = 24, Full = 26 }
+
+-- `useCardScale`: true when `parent`'s own height IS (a fraction of) the
+-- card's own AbsoluteSize (CardTop's `col`), so CardSpacing.Height.Buy* (now
+-- Scale fractions of the card) can be used directly. Un-converted arrangements
+-- pass false/omit it and get the legacy pixel heights instead.
+function UICardComponent:_MakeBuy(parent: Instance, useCardScale: boolean?): GuiObject
 	local props = self.Props
 	local spec = self._spec
 	-- Quantity: an inventory view has nothing to purchase — show an owned-count
@@ -377,6 +424,9 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 	local buy = UIButtonComponent.new()
 	self._buy = buy
 	local size
+	local function h(cardScaleFraction: number, legacyKey: string): UDim
+		return useCardScale and UDim.new(cardScaleFraction, 0) or UDim.new(0, LEGACY_BUY_HEIGHT_PX[legacyKey])
+	end
 	if spec.buyStyle == "Compact" then
 		-- Capped to the parent's real resolved width — a fixed 92px button could
 		-- end up WIDER than the whole card on a dense grid pack (many columns on
@@ -384,15 +434,15 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 		-- right-hand column is always >=92px wide, so this is a no-op there.
 		local availableW = parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
 		local w = availableW > 0 and math.min(92, availableW) or 92
-		size = UDim2.new(0, w, 0, CardSpacing.Height.BuyCompact)
+		size = UDim2.new(UDim.new(0, w), h(CardSpacing.Height.BuyCompact, "Compact"))
 	elseif spec.buyStyle == "IconRight" then
-		size = UDim2.new(0, 34, 0, CardSpacing.Height.BuyIconRight)
+		size = UDim2.new(UDim.new(0, 34), h(CardSpacing.Height.BuyIconRight, "IconRight"))
 	elseif spec.buyStyle == "Pill" then
 		-- Smaller, rounder, centred — deliberately NOT flush with the image box
 		-- above it (the caller adds real spacing before this).
-		size = UDim2.new(0, 110, 0, CardSpacing.Height.BuyPill)
+		size = UDim2.new(UDim.new(0, 110), h(CardSpacing.Height.BuyPill, "Pill"))
 	else
-		size = UDim2.new(1, 0, 0, CardSpacing.Height.BuyFull)
+		size = UDim2.new(UDim.new(1, 0), h(CardSpacing.Height.BuyFull, "Full"))
 	end
 	buy:Create(parent, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -491,7 +541,7 @@ end
 -- renderer-code hunt, and lets each pair (image->tags, tags->name, name->price,
 -- price->buy) have its own independently-tunable gap.
 function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
-	UIStyler.Padding(CardSpacing.SurfacePadding).Parent = surface
+	UIStyler.PaddingScale(CardSpacing.SurfacePadding).Parent = surface
 	local col = stack("Content", 0, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
 	col.Size = UDim2.fromScale(1, 1)
 	col.Parent = surface
@@ -501,37 +551,51 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
-	-- A zero-height frame just for spacing — its Size.Y IS the gap.
-	local function gap(px: number)
-		if px <= 0 then
+	-- A zero-height frame just for spacing — its Size.Y (a SCALE fraction of the
+	-- card's own height) IS the gap.
+	local function gap(scale: number)
+		if scale <= 0 then
 			return
 		end
 		local spacer = UIStyler.Frame("Gap")
 		spacer.BackgroundTransparency = 1
-		spacer.Size = UDim2.new(1, 0, 0, px)
+		spacer.Size = UDim2.new(1, 0, scale, 0)
 		spacer.Parent = col
 		next_(spacer)
 	end
 
-	-- Image is a CENTRED square (or spec aspect) whose size ShopScreen computed to
-	-- keep the whole card compact & roughly square (AAA tiles, not long strips).
-	-- imageSizePx = the square's SIDE (width); height = side / aspect. It's centred
-	-- in a full-width row, so on wide cards there are small even margins — never a
-	-- lonely square hugging one edge, never a lanky card.
+	-- Image fills the card's content width edge-to-edge (imageFillWidth) or is a
+	-- centred square/rect — either way its HEIGHT is a Scale fraction of the
+	-- card's own height, computed from the image's aspect against the known
+	-- content width fraction (1 - 2*SurfacePadding), so the whole row scales
+	-- perfectly with the card's own UIAspectRatioConstraint-driven size, with no
+	-- pixel measurement needed at all.
 	local aspect = (spec :: any).imageAspect
 	if not aspect or aspect <= 0 then
 		aspect = 1 -- square default
 	end
-	local imgW = (self.Props :: any).imageSizePx or (spec.imageHeight or 120)
-	local imgH = math.ceil(imgW / aspect)
+	local contentW = 1 - CardSpacing.SurfacePadding * 2 -- fraction of card WIDTH
+	local cardAspect = CardSpacing.CardTop.AspectRatio -- card WIDTH / card HEIGHT
+	-- imgH (fraction of card HEIGHT) = imgW(px) / aspect, expressed in the same
+	-- units as cardHeight: imgW(px) = contentW * cardWidth(px); cardHeight(px) =
+	-- cardWidth(px) / cardAspect. imgH_frac = imgW(px)/aspect / cardHeight(px)
+	--                                       = contentW * cardAspect / aspect.
+	local imgHFrac = (contentW * cardAspect) / aspect
 	local wrap = UIStyler.Frame("ImageWrap")
 	wrap.BackgroundTransparency = 1
-	wrap.Size = UDim2.new(1, 0, 0, imgH)
+	wrap.Size = UDim2.new(1, 0, imgHFrac, 0)
 	wrap.Parent = col
 	next_(wrap)
-	local img = self:_MakeImage(wrap, UDim2.fromOffset(imgW, imgH), true)
+	local img = self:_MakeImage(wrap, UDim2.fromScale(1, 1), true)
 	img.AnchorPoint = Vector2.new(0.5, 0)
 	img.Position = UDim2.fromScale(0.5, 0)
+	-- These two overlays are sized relative to `wrap` (the image wrap), whose OWN
+	-- height is imgHFrac (a fraction of the CARD, not of itself) — Scale always
+	-- resolves against the immediate parent, so a card-relative fraction like
+	-- CardSpacing.Height.TagRow must be re-expressed as a fraction of `wrap`
+	-- itself: divide by imgHFrac to convert "fraction of card" to "fraction of
+	-- wrap".
+	local tagRowFracOfWrap = CardSpacing.Height.TagRow / imgHFrac
 	-- Banner look: the tag badges straddle the image's TOP edge — a later
 	-- sibling of the image inside the same wrap, so it renders on top of it
 	-- without needing any ZIndex bump — half overlapping onto the art, half
@@ -540,8 +604,8 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		local straddleTags = self:_MakeTags(wrap)
 		if straddleTags then
 			straddleTags.AnchorPoint = Vector2.new(0, 0)
-			straddleTags.Position = UDim2.new(0, 8, 0, CardSpacing.BannerStraddleOffset)
-			straddleTags.Size = UDim2.new(1, -16, 0, CardSpacing.Height.TagRow)
+			straddleTags.Position = UDim2.new(0.04, 0, CardSpacing.BannerStraddleOffset / imgHFrac, 0)
+			straddleTags.Size = UDim2.new(0.92, 0, tagRowFracOfWrap, 0)
 		end
 	end
 	-- Standard 2.0: badges overlay the image's top-left corner, price overlays
@@ -553,31 +617,31 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 			local overlayTags = self:_MakeTags(wrap)
 			if overlayTags then
 				overlayTags.AnchorPoint = Vector2.new(0, 0)
-				overlayTags.Position = UDim2.fromOffset(8, 8)
-				overlayTags.Size = UDim2.new(1, -16, 0, CardSpacing.Height.TagRow)
+				overlayTags.Position = UDim2.new(0.04, 0, 0.04, 0)
+				overlayTags.Size = UDim2.new(0.92, 0, tagRowFracOfWrap, 0)
 			end
 		end
 		local priceChip = self:_MakePriceChip(wrap)
 		priceChip.AnchorPoint = Vector2.new(1, 1)
-		priceChip.Position = UDim2.new(1, -8, 1, -8)
+		priceChip.Position = UDim2.new(0.96, 0, 0.96, 0)
 	end
 	-- Standard 2.0: price rides on the RIGHT of the tag row (name above it, buy
 	-- below). Otherwise: tags row, then name, then price on its own row.
 	if spec.priceWithTags then
 		gap(CardSpacing.Gap.ImageToName)
-		local name = self:_MakeName(col, CardSpacing.Height.Name, true)
+		local name = self:_MakeName(col, UDim.new(CardSpacing.Height.Name, 0), true)
 		next_(name)
 		gap(CardSpacing.Gap.NameToPrice)
 		next_(self:_MakeTagPriceRow(col))
 	elseif spec.overlayBadgeAndPrice then
 		-- Badges + price already placed on the image — text column is just Name.
 		gap(CardSpacing.Gap.ImageToName)
-		local name = self:_MakeName(col, CardSpacing.Height.Name, true)
+		local name = self:_MakeName(col, UDim.new(CardSpacing.Height.Name, 0), true)
 		next_(name)
 	else
 		-- tagStraddle already placed the badges on the image — don't also give
 		-- them a row in the text column below.
-		local tags = not spec.tagStraddle and self:_MakeTags(col) or nil
+		local tags = not spec.tagStraddle and self:_MakeTags(col, UDim.new(CardSpacing.Height.TagRow, 0)) or nil
 		if tags then
 			-- The missing gap: this was never inserted before, so the badge
 			-- always sat flush against the image regardless of the config value.
@@ -587,10 +651,10 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		else
 			gap(CardSpacing.Gap.ImageToName)
 		end
-		local name = self:_MakeName(col, CardSpacing.Height.Name, true)
+		local name = self:_MakeName(col, UDim.new(CardSpacing.Height.Name, 0), true)
 		next_(name)
 		gap(CardSpacing.Gap.NameToPrice)
-		local price = self:_MakePrice(col)
+		local price = self:_MakePrice(col, UDim.new(CardSpacing.Height.Price, 0))
 		next_(price)
 	end
 	-- "OutsideBelow"/"Straddle": the real button is built externally (see
@@ -600,7 +664,7 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle" then
 		local pad = UIStyler.Frame("BottomPad")
 		pad.BackgroundTransparency = 1
-		pad.Size = UDim2.new(1, 0, 0, CardSpacing.ExternalBuy.BottomPad)
+		pad.Size = UDim2.new(1, 0, CardSpacing.ExternalBuy.BottomPad, 0)
 		pad.LayoutOrder = 900
 		pad.Parent = col
 		return
@@ -608,7 +672,7 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	-- Pill buttons get real breathing room so they read as a separate element
 	-- below the image box, not flush against the price row like a normal buy.
 	gap(spec.buyStyle == "Pill" and CardSpacing.Gap.BuyToPill or CardSpacing.Gap.PriceToBuy)
-	local buy = self:_MakeBuy(col)
+	local buy = self:_MakeBuy(col, true)
 	buy.LayoutOrder = 999
 	-- (Pill buttons are meant for a CENTRED spec — nameAlign = Center — so the
 	-- column's own HorizontalAlignment already centres a narrower button like this.)
@@ -669,7 +733,7 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		strip.ZIndex = 4
 		strip.Parent = surface
 		self._nameStrip = strip
-		local name = self:_MakeName(strip, 34)
+		local name = self:_MakeName(strip, UDim.new(0, 34))
 		name.AnchorPoint = Vector2.new(0, 0)
 		name.Position = UDim2.fromOffset(8, 0)
 		name.Size = UDim2.new(1, -16, 1, 0)
@@ -771,7 +835,7 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	if not useCenterStrip then
 		-- Title takes the FULL width on its own row, above price+buy — not
 		-- squeezed to leave room for the buy button beside it.
-		local name = self:_MakeName(info, 20, true)
+		local name = self:_MakeName(info, UDim.new(0, 20), true)
 		name.Size = UDim2.new(1, 0, 0, 20)
 		name.Position = UDim2.fromOffset(0, 0)
 		name.ZIndex = 5
@@ -829,7 +893,7 @@ function UICardComponent:_BuildRow(surface: Frame, spec: EntryLayoutConfig.Entry
 	middle.Size = UDim2.new(1, -(imageSize + 10 + 140), 1, 0)
 	middle.LayoutOrder = 2
 	middle.Parent = row
-	self:_MakeName(middle, 26).LayoutOrder = 1
+	self:_MakeName(middle, UDim.new(0, 26)).LayoutOrder = 1
 	local tags = self:_MakeTags(middle)
 	if tags then
 		tags.LayoutOrder = 2
@@ -871,7 +935,7 @@ function UICardComponent:_BuildSplit(surface: Frame, spec: EntryLayoutConfig.Ent
 	right.Parent = row
 	local o = 0
 	local function next_(g: GuiObject) o += 1; g.LayoutOrder = o end
-	next_(self:_MakeName(right, 30))
+	next_(self:_MakeName(right, UDim.new(0, 30)))
 	local tags = self:_MakeTags(right)
 	if tags then next_(tags) end
 	local desc = self:_MakeDescription(right)
@@ -901,7 +965,7 @@ function UICardComponent:_BuildTextFirst(surface: Frame, spec: EntryLayoutConfig
 	local img = self:_MakeImage(header, UDim2.fromOffset(imgSize, imgSize))
 	img.AnchorPoint = Vector2.new(1, 0)
 	img.Position = UDim2.fromScale(1, 0)
-	local name = self:_MakeName(header, imgSize)
+	local name = self:_MakeName(header, UDim.new(0, imgSize))
 	name.Size = UDim2.new(1, -(imgSize + 10), 1, 0)
 	name.TextYAlignment = Enum.TextYAlignment.Center
 
@@ -1001,8 +1065,16 @@ function UICardComponent:_Style(theme: Types.UITheme)
 
 	if self._price then
 		self._price.FontFace = theme.Fonts.Numeric
-		self._price.TextSize = theme.TextSizes.Body
+		-- Scale-height rows (CardTop) use TextScaled + a constraint (set below)
+		-- instead of a fixed pixel TextSize, so the price shrinks/grows with the
+		-- card at any viewport instead of overflowing a small Scale-sized row.
+		if not self._priceScaled then
+			self._price.TextSize = theme.TextSizes.Body
+		end
 		self._price.TextColor3 = c.Accent
+	end
+	if self._priceConstraint then
+		self._priceConstraint.MaxTextSize = theme.TextSizes.Body
 	end
 
 	if self._desc then

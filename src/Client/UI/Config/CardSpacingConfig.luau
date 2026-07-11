@@ -1,69 +1,68 @@
 --!strict
--- Every gap/height inside a shop card, named and in ONE place. This exists
--- because tuning card spacing used to mean hunting through UICardComponent's
--- renderer AND ShopScreen's height formula and changing matching magic numbers
--- in both — easy to get out of sync, slow to iterate. Now: change a number
--- here, both the renderer and ShopScreen's card-height math read it live.
+-- Every gap/height inside a shop card, as a SCALE FRACTION of the card's own
+-- height (never a pixel Offset) — the same pattern proven in the reference
+-- MainGui/Shop: an element's Size is always a fraction of its parent's real
+-- AbsoluteSize, so Roblox's own layout engine resolves the correct pixel size
+-- at ANY viewport with zero runtime scale math, zero UIScale, and text that
+-- shrinks/grows via TextScaled in lockstep automatically.
 --
--- Names describe the GAP, not a generic index, so "make X touch Y" is a single
--- line: find CardSpacing.Gap.TagsToName, set it to 0.
+-- CardTop.AspectRatio (width:height) is the card's own fixed shape, applied
+-- via a UIAspectRatioConstraint on the card surface (see UICardComponent).
+-- Every Height.*/Gap.* value below is "this many multiples of the card's own
+-- height" — so changing AspectRatio alone re-proportions everything at once,
+-- and tuning one gap never drifts out of sync with anything else (there is
+-- only one source of truth; ShopScreen no longer duplicates this math).
+--
+-- Names describe the GAP, not a generic index, so "make X touch Y" is a
+-- single line: find CardSpacing.Gap.TagsToName, set it to 0.
 
 local CardSpacing = {}
 
--- Surface (the card's visible box) inner padding, all four sides.
-CardSpacing.SurfacePadding = 8
+-- CardTop's fixed width:height ratio (matches the pre-conversion StandardCard
+-- look exactly, computed from the old pixel formula at a representative
+-- column width — see the commit that introduced this file for the derivation).
+CardSpacing.CardTop = {
+	AspectRatio = 0.7058823529411765,
+}
 
--- Element heights (fixed, tight fits — see UICardComponent._MakeName's note on
--- why these are fixed instead of AutomaticSize).
+-- Surface (the card's visible box) inner padding, as a fraction of the card's
+-- own height, applied equally to all four sides via UIStyler.Padding-style use.
+CardSpacing.SurfacePadding = 0.03137254901960784
+
+-- Element heights, as fractions of the card's own height.
 CardSpacing.Height = {
-	TagRow = 15, -- matches UIBadgeComponent's own height exactly, no slack
-	-- Name/Price: 16, exactly matching the Body text's measured TextBounds (no
-	-- slack at all — Center-aligned text in a box this tight leaves no visible
-	-- padding above or below the glyph).
-	Name = 16,
-	Price = 16,
-	BuyFull = 26,
-	BuyCompact = 26,
-	BuyPill = 24,
-	BuyIconRight = 26,
-	TagPriceRow = 18,
+	TagRow = 0.058823529411764705,
+	Name = 0.06274509803921569,
+	Price = 0.06274509803921569,
+	BuyFull = 0.10196078431372549,
+	BuyCompact = 0.10196078431372549,
+	BuyPill = 0.09411764705882353, -- 24/255
+	BuyIconRight = 0.10196078431372549,
+	TagPriceRow = 0.07058823529411765, -- 18/255
 }
 
 -- Gaps BETWEEN specific pairs of elements in the CardTop text column, in
--- LAYOUT ORDER. Each is independently tunable — set any one to 0 to make that
--- specific pair touch, without affecting any other gap.
+-- LAYOUT ORDER, as fractions of the card's own height. Each is independently
+-- tunable — set any one to 0 to make that specific pair touch.
 CardSpacing.Gap = {
-	-- REAL BUG (found via live testing): this value existed in config but was
-	-- never actually inserted by the renderer — there was NO gap frame between
-	-- the image and the tag badges at all, regardless of this number. Badges
-	-- always sat flush (0px, not 1px) against the image. Now wired in for real.
-	ImageToTags = 2,
-	-- Removed (was a separate 2px gap here too) — with ImageToTags now actually
-	-- present, an ADDITIONAL gap below the badge made the name sit too far away.
-	-- One small gap above the badge is enough breathing room.
+	ImageToTags = 0.00784313725490196,
 	TagsToName = 0,
-	ImageToName = 2, -- image bottom -> item name, when there are no tags
-	NameToPrice = 2, -- item name -> price
-	-- Always present now (was 0 — the in-box buy button sat flush against the
-	-- price with zero breathing room, which read as wrong once actually seen).
-	PriceToBuy = 2,
-	BuyToPill = 8, -- price -> buy button, ONLY for the Pill buy style (more
-	-- breathing room so a Pill button reads as a separate element)
+	ImageToName = 0.00784313725490196, -- image bottom -> item name, when no tags
+	NameToPrice = 0.00784313725490196,
+	PriceToBuy = 0.00784313725490196,
+	BuyToPill = 0.03137254901960784, -- price -> buy button, Pill style only (8/255)
 }
 
 -- Straddle-banner mode (tagStraddle spec flag): how far the tag row overlaps
--- UP over the image's top edge. Half the badge height reads as "straddling".
-CardSpacing.BannerStraddleOffset = -8
+-- UP over the image's top edge, as a fraction of the card height.
+CardSpacing.BannerStraddleOffset = -0.03137254901960784
 
--- External buy button (OutsideBelow/Straddle buyStyle — the button escapes the
--- card's own clipped box and floats as a Root-level sibling; see
--- UICardComponent._BuildExternalBuy).
+-- External buy button (OutsideBelow/Straddle buyStyle), as fractions of the
+-- card's own height.
 CardSpacing.ExternalBuy = {
-	Height = 26,
-	BottomPad = 4, -- inside the box: price -> the box's own clipped bottom edge
-	-- OutsideBelow: the visible air gap between the box's bottom edge and the
-	-- floating button below it (kept small — "outside" still means "close by").
-	BelowGap = 4,
+	Height = 0.10196078431372549,
+	BottomPad = 0.01568627450980392,
+	BelowGap = 0.01568627450980392,
 }
 
 return CardSpacing

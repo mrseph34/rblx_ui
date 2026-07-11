@@ -52,6 +52,21 @@ function UIStyler.PaddingXY(x: number, y: number): UIPadding
 	return padding
 end
 
+-- Scale-fraction padding (of the padded element's own resolved size) on all
+-- four sides — the pure-Scale counterpart to UIStyler.Padding's pixel Offset,
+-- for elements whose Size is itself a Scale fraction of a UIAspectRatioConstraint-
+-- driven parent (e.g. shop cards) so the padding scales in lockstep instead of
+-- staying a fixed pixel amount at any viewport size.
+function UIStyler.PaddingScale(all: number): UIPadding
+	local padding = Instance.new("UIPadding")
+	local frac = UDim.new(all, 0)
+	padding.PaddingTop = frac
+	padding.PaddingBottom = frac
+	padding.PaddingLeft = frac
+	padding.PaddingRight = frac
+	return padding
+end
+
 -- Vertical two-stop gradient used for the "raised"/glossy look. Intensity 0
 -- yields a flat fill; higher values brighten the top and darken the bottom.
 function UIStyler.Gradient(rotation: number, intensity: number): UIGradient

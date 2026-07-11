@@ -186,16 +186,42 @@ function ShopScreen:_RebuildLayout()
 	self._activeSpec = spec
 	self._activeShopLayout = shopLayout
 
-	if shopLayout.Container == "Grid" then
+	if shopLayout.Container == "Grid" and spec.arrangement == "CardTop" then
+		-- Pure-Scale path (matches the reference MainGui pattern): the card now
+		-- keeps its OWN fixed width:height ratio via a UIAspectRatioConstraint on
+		-- the card itself (see UICardComponent._Build), with AspectType
+		-- FitWithinMaxSize — so the grid CELL just needs to be a big-enough Scale
+		-- box, and the card centres itself inside it at the correct shape. No
+		-- pixel measurement, no per-pass height computation, no ShopScreen/
+		-- CardSpacingConfig cross-referencing needed for this arrangement anymore.
+		self._cardImageSizePx = nil
+		local cols = shopLayout.Columns
+		local cellPad = 10
+		local colFrac = 1 / cols
+		-- The scroll frame's own width:height ratio is NOT 1:1, so a cell height
+		-- Scale fraction must convert through the scroll's real AbsoluteSize once
+		-- here (this is the only pixel read in the whole CardTop path — a single
+		-- one-time-per-layout-pass conversion, not a per-card/per-element one).
+		-- Colonies of cards keep being pure Scale internally either way, this just
+		-- picks the right Scale NUMBER for the cell height.
+		local scrollSize = self._scroll.AbsoluteSize
+		local scrollAspect = (scrollSize.X > 0 and scrollSize.Y > 0) and (scrollSize.X / scrollSize.Y) or (16 / 9)
+		local cellHFrac = (colFrac * scrollAspect) / CardSpacing.CardTop.AspectRatio
+		local cell = UIStyler.GridLayout(
+			UDim2.new(colFrac, -cellPad, cellHFrac, -cellPad),
+			UDim2.fromOffset(cellPad, cellPad)
+		)
+		cell.Parent = self._scroll
+	elseif shopLayout.Container == "Grid" then
 		local cols = shopLayout.Columns
 		local cellPad = 10
 		local cardHeight = shopLayout.CardHeight
-		-- For CardTop/Overlay specs (image-on-top), the image FILLS the card width
+		-- For legacy Overlay specs (image-on-top), the image FILLS the card width
 		-- and holds its aspect, so the card must be exactly tall enough for that
 		-- image + the text block — no fixed height, no empty side space. We compute
 		-- the real pixel cell width to derive that height. Other grid arrangements
 		-- (Split) keep their configured CardHeight.
-		if spec.arrangement == "CardTop" or spec.arrangement == "Overlay" then
+		if spec.arrangement == "Overlay" then
 			local scrollW = self._scroll.AbsoluteSize.X
 			if scrollW <= 0 then
 				scrollW = 700 -- pre-measure fallback; corrected on the next render

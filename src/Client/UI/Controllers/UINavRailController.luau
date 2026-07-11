@@ -103,56 +103,77 @@ function UINavRailController:Build()
 	local horizontal = geo.fill == "Horizontal"
 	local onRight = geo.side == "Right"
 
-	-- Compute every button's size FIRST, so the rail's total content size (and
-	-- therefore its true center) is known before anything is positioned.
+	-- Every button's size is a SCALE fraction of the viewport (converted from
+	-- its design-space pixel size via NavConfig.ScaleX/ScaleY) — never a raw
+	-- Offset — so the whole rail shrinks/grows with the real screen size
+	-- exactly like the reference MainGui's UI does, with no UIScale needed.
 	local sizes = {}
-	local totalMain, maxCross = 0, 0
+	local totalMainFrac, maxCrossFrac = 0, 0
 	for i, def in buttons do
-		local size = NavConfig.SizeFor(def, geo.showLabels)
-		sizes[i] = size
-		local main = horizontal and size.X or size.Y
-		local cross = horizontal and size.Y or size.X
-		totalMain += main
-		maxCross = math.max(maxCross, cross)
+		local sizePx = NavConfig.SizeFor(def, geo.showLabels)
+		local sizeFrac = Vector2.new(NavConfig.ScaleX(sizePx.X), NavConfig.ScaleY(sizePx.Y))
+		sizes[i] = sizeFrac
+		local main = horizontal and sizeFrac.X or sizeFrac.Y
+		local cross = horizontal and sizeFrac.Y or sizeFrac.X
+		totalMainFrac += main
+		maxCrossFrac = math.max(maxCrossFrac, cross)
 	end
+	local spacingFrac = horizontal and NavConfig.ScaleX(NavConfig.Spacing) or NavConfig.ScaleY(NavConfig.Spacing)
 	if #buttons > 1 then
-		totalMain += NavConfig.Spacing * (#buttons - 1)
+		totalMainFrac += spacingFrac * (#buttons - 1)
 	end
-	local railW = horizontal and totalMain or (maxCross + 16)
-	local railH = horizontal and (maxCross + 16) or totalMain
+	local crossPadFrac = horizontal and NavConfig.ScaleY(16) or NavConfig.ScaleX(16)
+	local railWFrac = horizontal and totalMainFrac or (maxCrossFrac + crossPadFrac)
+	local railHFrac = horizontal and (maxCrossFrac + crossPadFrac) or totalMainFrac
 
-	-- Vertical anchor, computed in ABSOLUTE PIXELS from the real viewport height,
-	-- then compensated for the GuiInset quirk (see module-level note). Top/Bottom
-	-- hug the edge with a fixed px margin; Center is a true pixel centre —
-	-- AnchorPoint.Y = 0.5 at that exact Y, on a frame whose height we just
-	-- computed exactly.
-	local viewportH = workspace.CurrentCamera.ViewportSize.Y
+	-- Vertical anchor, computed as a SCALE fraction of the real viewport height,
+	-- then compensated for the GuiInset quirk (see module-level note) — the
+	-- inset itself is genuinely a fixed pixel amount (a real screen element,
+	-- not a design-space size), so it stays an Offset added on top of the
+	-- Scale position. Top/Bottom hug the edge with a scaled margin; Center is
+	-- a true fractional centre — AnchorPoint.Y = 0.5 at that exact fraction.
 	local insetY = GuiService:GetGuiInset().Y
-	local anchorY, pixelY
+	local edgeMarginFrac = NavConfig.ScaleY(EDGE_MARGIN_Y)
+	local anchorY, fracY
 	if geo.vertical == "Top" then
-		anchorY, pixelY = 0, EDGE_MARGIN_Y + insetY
+		anchorY, fracY = 0, edgeMarginFrac
 	elseif geo.vertical == "Bottom" then
-		anchorY, pixelY = 1, viewportH - EDGE_MARGIN_Y + insetY
+		anchorY, fracY = 1, 1 - edgeMarginFrac
 	else
-		anchorY, pixelY = 0.5, viewportH * 0.5 + insetY
+		anchorY, fracY = 0.5, 0.5
 	end
-	local edge = NavConfig.EdgeOffset
+	local edgeFrac = NavConfig.ScaleX(NavConfig.EdgeOffset)
 
 	local rail = UIStyler.Frame("Rail")
 	rail.BackgroundTransparency = 1
 	rail.AnchorPoint = Vector2.new(onRight and 1 or 0, anchorY)
-	rail.Position = UDim2.new(onRight and 1 or 0, onRight and -edge or edge, 0, pixelY)
-	rail.Size = UDim2.fromOffset(railW, railH)
+	if onRight then
+		rail.Position = UDim2.new(1, 0, fracY, insetY) - UDim2.fromScale(edgeFrac, 0)
+	else
+		rail.Position = UDim2.new(0, 0, fracY, insetY) + UDim2.fromScale(edgeFrac, 0)
+	end
+	rail.Size = UDim2.fromScale(railWFrac, railHFrac)
+	-- Same viewport-fraction -> rail-fraction conversion as the buttons below:
+	-- Padding resolves against rail's own size, so spacingFrac (a fraction OF
+	-- THE VIEWPORT) must be divided by the rail's own main-axis fraction first.
+	local railMainFrac = horizontal and railWFrac or railHFrac
+	local spacingFracOfRail = railMainFrac > 0 and (spacingFrac / railMainFrac) or 0
 	UIStyler.ListLayout({
 		FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
-		Padding = UDim.new(0, NavConfig.Spacing),
+		Padding = UDim.new(spacingFracOfRail, 0),
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		VerticalAlignment = Enum.VerticalAlignment.Center,
 	}).Parent = rail
 	rail.Parent = gui
 
+	-- Buttons are parented INSIDE `rail`, so a Scale fraction on them resolves
+	-- against rail's OWN AbsoluteSize, not the viewport — but sizeFrac above was
+	-- computed as a fraction OF THE VIEWPORT. Re-expressing it as a fraction of
+	-- rail (divide by rail's own viewport fraction) cancels that out to the
+	-- correct final size, the same fix pattern as the earlier UIScale
+	-- double-scaling bug, just via nested Scale instead of nested UIScale.
 	for i, def in buttons do
-		local size = sizes[i]
+		local sizeFrac = sizes[i]
 		local showLabel = geo.showLabels and def.label ~= nil and def.label ~= ""
 		local button = UIButtonComponent.new()
 		button:Create(rail, {
@@ -160,7 +181,7 @@ function UINavRailController:Build()
 			iconId = def.iconId,
 			text = showLabel and def.label or nil,
 			variant = def.variant or "Primary",
-			size = UDim2.fromOffset(size.X, size.Y),
+			size = UDim2.fromScale(sizeFrac.X / railWFrac, sizeFrac.Y / railHFrac),
 			layoutOrder = i,
 			onClick = function()
 				if self._actionHandler then
