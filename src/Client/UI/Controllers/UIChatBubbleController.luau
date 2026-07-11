@@ -204,6 +204,9 @@ function UIChatBubbleController:_StyleEntry(entry: any, theme: Types.UITheme)
 	entry.label.FontFace = theme.Fonts.Body
 	entry.label.TextSize = theme.TextSizes.Body
 	entry.label.TextColor3 = c.TextPrimary
+	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
+	-- this glyph (▼) on the emoji/symbol-incapable engine default.
+	entry.tail.FontFace = theme.Fonts.Body
 	entry.tail.TextColor3 = c.SurfaceRaised
 end
 

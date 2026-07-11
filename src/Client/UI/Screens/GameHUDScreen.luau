@@ -143,7 +143,10 @@ function GameHUDScreen:_BuildContent()
 		container.Size = UDim2.fromOffset(240, 200)
 		container.AutomaticSize = Enum.AutomaticSize.Y
 		UIStyler.ListLayout({
-			Padding = UDim.new(0, 6),
+			-- Tight (was 6): meters no longer have a separate name row above
+			-- them, so a small gap between each stacked element reads as one
+			-- cohesive HUD group instead of spread-out separate rows.
+			Padding = UDim.new(0, 3),
 			HorizontalAlignment = Enum.HorizontalAlignment[layout.align],
 			-- Belt-and-suspenders with AutomaticSize: if the box doesn't shrink to
 			-- exactly fit its content, Bottom/Top alignment still pins the content
@@ -230,26 +233,25 @@ end
 
 function GameHUDScreen:_BuildElement(container: Frame, element: any)
 	if element.format == "Bar" then
+		-- The meter's name lives INSIDE the bar now (overlaid on the fill, left-
+		-- aligned, value right-aligned — see UIProgressBarComponent's `label`
+		-- prop) instead of a separate text row stacked above it. One row per
+		-- meter instead of two, so three vitals stack in a lot less vertical
+		-- space and the whole group reads as a tighter unit.
 		local wrapper = UIStyler.Frame("bar_" .. element.id)
 		wrapper.BackgroundTransparency = 1
-		wrapper.Size = UDim2.fromOffset(220, 40)
-		local label = UIStyler.TextLabel("Label")
-		label.Size = UDim2.new(1, 0, 0, 18)
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Text = string.format("%s %s", element.icon or "", TextConfig.Resolve(element.labelKey))
-		label.Parent = wrapper
+		wrapper.Size = UDim2.fromOffset(220, 22)
 		local bar = UIProgressBarComponent.new()
 		bar:Create(wrapper, {
 			value = self._values[element.id] or 0,
 			maxValue = element.maxValue or 100,
 			colorToken = element.colorToken,
-			showText = true,
-			position = UDim2.fromOffset(0, 20),
-			size = UDim2.new(1, 0, 0, 16),
+			label = string.format("%s %s", element.icon or "", TextConfig.Resolve(element.labelKey)),
+			size = UDim2.fromScale(1, 1),
 		})
 		wrapper.Parent = container
 		self._bars[element.id] = bar
-		self._elementViews[element.id] = { root = wrapper, label = label }
+		self._elementViews[element.id] = { root = wrapper }
 	else
 		local chip = UIStyler.Frame("chip_" .. element.id)
 		chip.BackgroundTransparency = 0

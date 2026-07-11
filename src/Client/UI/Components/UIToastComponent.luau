@@ -51,7 +51,10 @@ function UIToastComponent:_Build(props: Types.UIComponentProps)
 	local icon = UIStyler.TextLabel("Icon")
 	icon.Size = UDim2.fromOffset(26, 26)
 	icon.Position = UDim2.new(0, 10, 0.5, -13)
-	icon.TextScaled = true
+	-- NOT TextScaled — confirmed by direct measurement (see UIButtonComponent)
+	-- that TextScaled on a small RichText-enabled box silently draws nothing. A
+	-- concrete TextSize renders reliably.
+	icon.TextSize = 20
 	icon.Parent = root
 	self._icon = icon
 
@@ -96,6 +99,10 @@ function UIToastComponent:_Style(theme: Types.UITheme)
 	self._stroke.Thickness = theme.Effects.StrokeThickness
 	self._stroke.Transparency = 0.2
 	self._stripe.BackgroundColor3 = accent
+	-- Same bug class as UIButtonComponent's icon: never assigning FontFace left
+	-- this label on the engine default (LegacyArial), which has no emoji glyphs
+	-- at all — the variant icon (ℹ️✅⛔⚠️) was genuinely invisible.
+	self._icon.FontFace = theme.Fonts.Body
 	self._label.FontFace = theme.Fonts.Body
 	self._label.TextSize = theme.TextSizes.Body
 	self._label.TextColor3 = c.TextPrimary

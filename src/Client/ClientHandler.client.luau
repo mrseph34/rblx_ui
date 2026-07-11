@@ -18,7 +18,6 @@ local Controllers = UI.Controllers
 -- Config / shared.
 local DevConfig = require(UI.Config.DevConfig)
 local HUDConfig = require(UI.Config.HUDConfig)
-local NavConfig = require(UI.Config.NavConfig)
 local LayoutPresetConfig = require(UI.Config.LayoutPresetConfig)
 local PanelAnimConfig = require(UI.Config.PanelAnimConfig)
 local TutorialConfig = require(UI.Config.TutorialConfig)
@@ -26,10 +25,8 @@ local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local Remotes = require(ReplicatedStorage.Shared.Net.Remotes)
 local SharedTypes = require(ReplicatedStorage.Shared.Types)
 
--- Component base (for dependency injection) + styler for the nav rail.
+-- Component base, for dependency injection into every component/screen.
 local UIComponentBase = require(Components.UIComponentBase)
-local UIButtonComponent = require(Components.UIButtonComponent)
-local UIStyler = require(UI.UIStyler)
 
 -- Controllers.
 local UIThemeController = require(Controllers.UIThemeController)
@@ -39,6 +36,7 @@ local UISoundController = require(Controllers.UISoundController)
 local UIOverheadController = require(Controllers.UIOverheadController)
 local UIChatBubbleController = require(Controllers.UIChatBubbleController)
 local UILayoutController = require(Controllers.UILayoutController)
+local UINavRailController = require(Controllers.UINavRailController)
 
 -- Screens.
 local GameHUDScreen = require(Screens.GameHUDScreen)
@@ -133,9 +131,11 @@ end
 
 -- ---- floating nav rail (dev/demo) -------------------------------------
 
+local navRailController = UINavRailController.new(themeController, screenController, layoutController, DevConfig)
+
 -- Maps a NavConfig button `action` to what it does. Adding a nav button is a
 -- data edit in NavConfig plus (if it's a new action) one row here.
-local function navAction(action: string)
+navRailController:SetActionHandler(function(action: string)
 	if action == "ToggleShop" then
 		screenController:ToggleScreen("shop", { balances = shop._balances })
 	elseif action == "ToggleThemeEditor" then
@@ -148,95 +148,18 @@ local function navAction(action: string)
 			onComplete = function() end,
 		})
 	end
-end
+end)
 
-local function buildNavRail()
-	if not DevConfig.ShowNavRail then
-		return
-	end
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "NavRail"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 8
-	gui.Parent = player:WaitForChild("PlayerGui")
-
-	-- Position the rail per the active LAYOUT PRESET when one is set, else per the
-	-- active pack (side + vertical anchor). The layout controller returns whichever
-	-- is in effect; geometry (size/spacing/labels) comes from NavConfig.
-	local geo = layoutController:GetNavGeometry(themeController:GetPack().Nav)
-	local horizontal = geo.fill == "Horizontal"
-	local onRight = geo.side == "Right"
-	local showLabels = geo.showLabels
-	local vAnchor = geo.vertical == "Top" and 0 or (geo.vertical == "Bottom" and 1 or 0.5)
-	-- "Center" sits a bit above true dead-centre (0.4, not 0.5): the HUD's
-	-- bottom-left region (health/mana/stamina) hugs the true screen bottom, and a
-	-- perfectly-centred rail's lower half reached down far enough to collide with
-	-- it. This clears that collision while still reading as "centered".
-	local vPos = geo.vertical == "Top" and 0.14 or (geo.vertical == "Bottom" and 0.86 or 0.4)
-	local edge = NavConfig.EdgeOffset
-
-	local rail = UIStyler.Frame("Rail")
-	rail.BackgroundTransparency = 1
-	rail.AnchorPoint = Vector2.new(onRight and 1 or 0, vAnchor)
-	rail.Position = UDim2.new(onRight and 1 or 0, onRight and -edge or edge, vPos, 0)
-	rail.Size = UDim2.fromOffset(NavConfig.ButtonSize.X + 16, 300)
-	rail.AutomaticSize = Enum.AutomaticSize.XY
-	UIStyler.ListLayout({
-		FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
-		Padding = UDim.new(0, NavConfig.Spacing),
-		-- Centre the buttons within the rail's column so mixed square/labelled
-		-- widths still line up on a shared centre line instead of jumping edges.
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = vAnchor == 1 and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top,
-	}).Parent = rail
-	rail.Parent = gui
-
-	local order = 0
-	for _, def in NavConfig.Buttons do
-		if def.authorizedOnly and not DevConfig.IsAuthorized(player.UserId) then
-			continue
-		end
-		order += 1
-		-- Wider labelled size when the button carries text; square when icon-only.
-		-- The active preset's showLabels wins over the NavConfig global.
-		local size = NavConfig.SizeFor(def, showLabels)
-		local showLabel = showLabels and def.label ~= nil and def.label ~= ""
-		local button = UIButtonComponent.new()
-		button:Create(rail, {
-			icon = def.icon,
-			iconId = def.iconId,
-			-- Only pass text when labels are on, so flipping NavConfig.ShowLabels
-			-- off collapses the whole rail back to compact icon-only squares.
-			text = showLabel and def.label or nil,
-			variant = def.variant or "Primary",
-			size = UDim2.fromOffset(size.X, size.Y),
-			layoutOrder = order,
-			onClick = function()
-				navAction(def.action)
-			end,
-		})
-		screenController:RegisterHighlightTarget(def.id, button.Root)
-	end
-end
-
--- Rebuild the nav rail in place (destroy + rebuild) so it re-reads the current
--- layout geometry — used after a pack swap or a layout-preset change.
-local function rebuildNav()
-	local existing = player.PlayerGui:FindFirstChild("NavRail")
-	if existing then
-		existing:Destroy()
-	end
-	buildNavRail()
-end
 -- The layout controller triggers a nav rebuild whenever a preset is applied.
-layoutController:SetNavRebuilder(rebuildNav)
+layoutController:SetNavRebuilder(function()
+	navRailController:Rebuild()
+end)
 
 -- Swap the active pack: re-skin/relayout the shop shape, rebuild the HUD and the
 -- nav rail (both read pack settings). Shared by the nav/dev screen and the seam.
 local function applyPack(packId: string)
 	themeController:SetPack(packId)
-	rebuildNav()
+	navRailController:Rebuild()
 	hud:Rebuild()
 	if screenController:IsVisible("shop") then
 		-- Pack swap changes the layout shape (columns/spec), not just data.
@@ -338,7 +261,8 @@ screenController:ShowScreen("hud", {
 	},
 })
 
-buildNavRail()
+navRailController:Build()
+navRailController:WatchViewportResize()
 
 -- Studio-only debug seam. Exposed via BindableFunctions in ReplicatedStorage
 -- (not _G, which is not shared with externally-injected code) so the MCP

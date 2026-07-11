@@ -174,6 +174,9 @@ function UIDropdownComponent:_Style(theme: Types.UITheme)
 	self._currentText.FontFace = theme.Fonts.Body
 	self._currentText.TextSize = theme.TextSizes.Body
 	self._currentText.TextColor3 = c.TextPrimary
+	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
+	-- this glyph (▾/▴) on the emoji/symbol-incapable engine default.
+	self._arrow.FontFace = theme.Fonts.Body
 	self._arrow.TextColor3 = c.TextSecondary
 
 	self._list.BackgroundColor3 = c.Surface

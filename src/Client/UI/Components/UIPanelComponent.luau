@@ -42,19 +42,6 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
 	self._stroke.Parent = root
 
-	-- Drop shadow (a soft image behind the panel).
-	local shadow = Instance.new("ImageLabel")
-	shadow.Name = "Shadow"
-	shadow.BackgroundTransparency = 1
-	shadow.Image = "rbxassetid://5028857084"
-	shadow.ScaleType = Enum.ScaleType.Slice
-	shadow.SliceCenter = Rect.new(24, 24, 276, 276)
-	shadow.Size = UDim2.new(1, 40, 1, 40)
-	shadow.Position = UDim2.new(0, -20, 0, -16)
-	shadow.ZIndex = 0
-	shadow.Parent = root
-	self._shadow = shadow
-
 	-- Header.
 	local header = UIStyler.Frame("Header")
 	header.Size = UDim2.new(1, 0, 0, 44)
@@ -162,13 +149,6 @@ function UIPanelComponent:_Style(theme: Types.UITheme)
 	self._stroke.Color = c.Stroke
 	self._stroke.Thickness = theme.Effects.StrokeThickness
 	self._stroke.Transparency = 0.3
-	-- Raised3D deepens the panel shadow a touch for more lift.
-	local shadowT = theme.Effects.ShadowTransparency
-	if ThemeShape.IsRaised(theme) then
-		shadowT = math.clamp(shadowT - 0.15, 0, 1)
-	end
-	self._shadow.ImageTransparency = shadowT
-	self._shadow.ImageColor3 = c.Overlay
 
 	self._title.FontFace = theme.Fonts.Title
 	self._title.TextSize = theme.TextSizes.Title

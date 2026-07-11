@@ -454,6 +454,9 @@ function ThemeSelectorScreen:_EnsurePartPicker()
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.fromScale(1, 0)
 	close.Text = "✖"
+	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
+	-- this glyph on the emoji/symbol-incapable engine default.
+	close.FontFace = theme.Fonts.Button
 	close.TextScaled = true
 	close.BackgroundColor3 = theme.Colors.Error
 	close.TextColor3 = theme.Colors.TextOnPrimary
@@ -547,6 +550,9 @@ function ThemeSelectorScreen:_EnsureLayoutPicker()
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.fromScale(1, 0)
 	close.Text = "✖"
+	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
+	-- this glyph on the emoji/symbol-incapable engine default.
+	close.FontFace = theme.Fonts.Button
 	close.TextScaled = true
 	close.BackgroundColor3 = theme.Colors.Error
 	close.TextColor3 = theme.Colors.TextOnPrimary
@@ -641,6 +647,9 @@ function ThemeSelectorScreen:_EnsureAnimPicker()
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.fromScale(1, 0)
 	close.Text = "✖"
+	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
+	-- this glyph on the emoji/symbol-incapable engine default.
+	close.FontFace = theme.Fonts.Button
 	close.TextScaled = true
 	close.BackgroundColor3 = theme.Colors.Error
 	close.TextColor3 = theme.Colors.TextOnPrimary
@@ -787,6 +796,9 @@ function ThemeSelectorScreen:_BuildOverlay(titleKey: string, icon: string, isImp
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.fromScale(1, 0)
 	close.Text = "✖"
+	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
+	-- this glyph on the emoji/symbol-incapable engine default.
+	close.FontFace = theme.Fonts.Button
 	close.TextScaled = true
 	close.BackgroundColor3 = theme.Colors.Error
 	close.TextColor3 = theme.Colors.TextOnPrimary

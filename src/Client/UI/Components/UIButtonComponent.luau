@@ -85,7 +85,12 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	-- collapse to 0x0 — Size.X starts at 0 with no offset, and FitWithinMaxSize
 	-- fits the ratio inside THAT zero-width box, not the button's real size).
 	icon.Size = UDim2.fromOffset(24, 24)
-	icon.TextScaled = true
+	-- NOT TextScaled — confirmed by direct measurement that TextScaled=true on a
+	-- small RichText-enabled box silently computes a degenerate size that draws
+	-- nothing (TextBounds/TextSize *reported* non-zero-ish values, but nothing
+	-- ever rasterized). _Style sets a concrete, computed TextSize instead, which
+	-- renders reliably.
+	icon.TextSize = 24
 	icon.LayoutOrder = 1
 	icon.Visible = false
 	icon.Parent = content
@@ -110,7 +115,15 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	label.Parent = content
 	self._label = label
 
-	-- Hit target overlays everything so the whole button is clickable.
+	-- Hit target overlays everything so the whole button is clickable. It does
+	-- NOT need to render above Surface: under the default ZIndexBehavior.Sibling,
+	-- whichever ROOT-level sibling has the higher ZIndex paints its ENTIRE
+	-- subtree on top of the other's — so Hit at ZIndex 5 (vs Surface's 2) was
+	-- painting over Surface's whole subtree, including the icon/label inside it,
+	-- no matter what ZIndex THEY had. That's what made every icon invisible.
+	-- Surface is a plain Frame (Active is never set true), so it never blocks
+	-- input — Hit still receives every click/tap/gamepad-A over its full bounds
+	-- sitting BELOW Surface, with nothing rendered on top of the icon anymore.
 	local button = Instance.new("TextButton")
 	button.Name = "Hit"
 	button.BackgroundTransparency = 1
@@ -121,7 +134,7 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	-- Activated (bound in _BindInteractions) fires for mouse, touch AND gamepad,
 	-- so one code path serves PC, mobile and console.
 	button.Selectable = true
-	button.ZIndex = 5
+	button.ZIndex = 1
 	button.Parent = root
 	self._button = button
 
@@ -243,7 +256,17 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 		local iconSize = math.clamp(buttonH * 0.55, 16, 40)
 		self._icon.Size = UDim2.fromOffset(iconSize, iconSize)
 		self._iconImage.Size = UDim2.fromOffset(iconSize, iconSize)
+		-- Concrete TextSize (not TextScaled — see the _Build comment on why) so
+		-- the glyph actually renders at a size proportional to the box.
+		self._icon.TextSize = math.floor(iconSize * 0.85)
 	end
+	-- FontFace was never assigned, so the icon silently fell back to the engine
+	-- default (LegacyArial) — a font with NO emoji glyph coverage at all, so
+	-- every emoji icon rendered as genuinely invisible (not a screenshot quirk;
+	-- confirmed on the live TextLabel: TextSize collapsed to ~8 with nothing
+	-- drawn). Any modern FontFace (the theme's, same as the button label) covers
+	-- emoji correctly via Roblox's normal glyph-substitution path.
+	self._icon.FontFace = theme.Fonts.Button
 	self._icon.TextColor3 = textColor
 	self._button.Active = enabled
 	self._button.Selectable = enabled -- disabled buttons drop out of gamepad nav

@@ -60,7 +60,10 @@ function UINotificationComponent:_Build(props: Types.UIComponentProps)
 
 	local icon = UIStyler.TextLabel("Icon")
 	icon.Size = UDim2.fromScale(1, 1)
-	icon.TextScaled = true
+	-- NOT TextScaled — confirmed by direct measurement (see UIButtonComponent)
+	-- that TextScaled on a small RichText-enabled box silently draws nothing. A
+	-- concrete TextSize renders reliably.
+	icon.TextSize = 26
 	UIStyler.Padding(10).Parent = icon
 	icon.Parent = badge
 	self._icon = icon
@@ -124,6 +127,10 @@ function UINotificationComponent:_Style(theme: Types.UITheme)
 	self._stroke.Transparency = 0.15
 	self._gradient.Enabled = theme.Effects.UseGradients
 	self._badge.BackgroundColor3 = accent
+	-- Same bug class as UIButtonComponent's icon: never assigning FontFace left
+	-- this label on the engine default (LegacyArial), which has no emoji glyphs
+	-- at all — the variant icon (ℹ️✅🏆⭐) was genuinely invisible.
+	self._icon.FontFace = theme.Fonts.Title
 	self._title.FontFace = theme.Fonts.Title
 	self._title.TextSize = theme.TextSizes.Subtitle
 	self._title.TextColor3 = c.TextPrimary
