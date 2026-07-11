@@ -258,11 +258,16 @@ function UICardComponent:_MakeName(parent: Instance, height: UDim, oneLine: bool
 	name.TextXAlignment = self._spec.nameAlign
 	name.TextYAlignment = Enum.TextYAlignment.Center
 	name.TextTruncate = Enum.TextTruncate.None
-	-- TextScaled implicitly forces TextWrapped = true as a side effect when set,
-	-- so TextWrapped must be re-asserted false AFTER assigning TextScaled or it
-	-- silently gets flipped back on and the text wraps despite this line.
+	-- NOT setting TextWrapped at all: assigning it explicitly (even to false)
+	-- AFTER TextScaled = true silently reverts TextScaled back to false —
+	-- confirmed via a live Studio test, an unconditional engine coupling, not
+	-- a timing issue (no reordering avoids it; only never touching the
+	-- property does). TextScaled forces TextWrapped to true as its own side
+	-- effect, but on a box this short (~1 line tall), the engine shrinks text
+	-- to fit ONE line rather than wrapping into a 2nd, since wrapping would
+	-- need more vertical space than the box has — confirmed empirically at
+	-- these exact proportions, never actually wraps in practice.
 	name.TextScaled = true
-	name.TextWrapped = false
 	name.Text = TextConfig.Resolve(self._item.nameKey)
 	self._nameConstraint = UIStyler.TextSizeConstraint(oneLine and 16 or 20, 9)
 	self._nameConstraint.Parent = name
@@ -305,10 +310,12 @@ function UICardComponent:_MakePrice(parent: Instance, height: UDim?): TextLabel
 	-- A caller-supplied SCALE height (CardTop) means the row shrinks/grows with
 	-- the card at any viewport, so the text must shrink/grow with it too —
 	-- TextScaled instead of a theme-fixed pixel TextSize, same as _MakeName.
+	-- NOT touching TextWrapped (see _MakeName's comment on why: it silently
+	-- reverts TextScaled back to false) — this box is short enough that
+	-- TextScaled never actually wraps in practice.
 	if height then
 		price.TextTruncate = Enum.TextTruncate.None
 		price.TextScaled = true
-		price.TextWrapped = false
 		self._priceConstraint = UIStyler.TextSizeConstraint(16, 7)
 		self._priceConstraint.Parent = price
 	end

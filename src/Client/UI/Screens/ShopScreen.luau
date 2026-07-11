@@ -101,8 +101,10 @@ function ShopScreen:_BuildContent()
 	-- always keeps consistent spacing/sizing at any panel size).
 	local categoryBar = UIStyler.Frame("Categories")
 	categoryBar.BackgroundTransparency = 1
-	categoryBar.Size = UDim2.new(1, 0, 0.08, 0)
-	categoryBar.Position = UDim2.new(0, 0, 0.02, 0)
+	-- Inset 2% on each side (98% wide) so a hovered/scaled-up tab at either end
+	-- never pops outside the panel's own edge.
+	categoryBar.Size = UDim2.new(0.98, 0, 0.08, 0)
+	categoryBar.Position = UDim2.new(0.01, 0, 0.02, 0)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Left,

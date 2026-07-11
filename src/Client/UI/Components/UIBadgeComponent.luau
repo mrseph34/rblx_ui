@@ -10,6 +10,7 @@
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
+local TextScaleConfig = require(script.Parent.Parent.Config.TextScaleConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 
 local UIBadgeComponent = setmetatable({}, { __index = UIComponentBase })
@@ -52,8 +53,18 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 	UIStyler.PaddingScale(0.12).Parent = root
 
 	local label = UIStyler.TextLabel("Label")
+	-- AutomaticSize.X stays (root itself AutomaticSizes off this label's real
+	-- text width, so the chip hugs the text) — but the text now scales via
+	-- TextScaled per TextScaleConfig instead of a fixed pixel size.
 	label.AutomaticSize = Enum.AutomaticSize.X
 	label.Size = UDim2.fromScale(0, 1)
+	-- TextScaled must be the LAST text-wrap-related assignment — setting
+	-- TextWrapped afterward (even to false) silently reverts TextScaled back
+	-- to false (confirmed via a live Studio test). AutomaticSize.X growing to
+	-- fit the unwrapped text means wrapping never actually triggers anyway.
+	label.TextScaled = true
+	self._labelConstraint = UIStyler.TextSizeConstraint(16, 6)
+	self._labelConstraint.Parent = label
 	label.Parent = root
 	self._label = label
 
@@ -76,14 +87,11 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 	self.Root.BackgroundColor3 = fill
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
 	self._label.FontFace = theme.Fonts.Button
-	-- Text scales with the badge's own resolved height instead of a fixed
-	-- theme pixel size, so it shrinks/grows in lockstep with the badge at any
-	-- viewport (same safe AbsoluteSize-derived pattern as UIButtonComponent's
-	-- label — not TextScaled, which degenerates on small RichText boxes).
-	local badgeH = self.Root.AbsoluteSize.Y
-	local cap = math.max(9, theme.TextSizes.Small - 3)
-	self._label.TextSize = badgeH > 0 and math.clamp(math.floor(badgeH * 0.62), 6, cap) or cap
 	self._label.TextColor3 = c.TextOnPrimary
+	if self._labelConstraint then
+		-- Smaller than Small — badges are secondary info; colour carries them.
+		self._labelConstraint.MaxTextSize = TextScaleConfig.ScaledCap(math.max(9, theme.TextSizes.Small - 3))
+	end
 end
 
 return UIBadgeComponent

@@ -48,7 +48,9 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	-- shows a rounded "border" there. Header itself stays square so its
 	-- children (title/close) lay out against simple edges.
 	local header = UIStyler.Frame("Header")
-	header.Size = UDim2.new(1, 0, 0, 44)
+	-- Full width, Scale height (10% of the panel) — not a fixed pixel row —
+	-- so it always spans the panel's whole horizontal edge and scales with it.
+	header.Size = UDim2.new(1, 0, 0.1, 0)
 	header.BackgroundTransparency = 1
 	header.ZIndex = 2
 	header.Parent = root
@@ -85,12 +87,21 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 
 	local title = UIStyler.TextLabel("Title")
 	-- Leaves room for the close button (a Scale fraction of header width, not a
-	-- stale pixel reservation) when one is shown; full width otherwise.
-	title.Size = UDim2.new(props.showClose ~= false and 0.82 or 1, 0, 1, 0)
+	-- stale pixel reservation) when one is shown; full width otherwise. Height
+	-- is capped to ~55% of header (short — about one text line's worth) rather
+	-- than the full header height: TextScaled genuinely wraps onto a 2nd line
+	-- if the box is tall enough to fit one (confirmed via a live Studio test),
+	-- so a short box is what makes it shrink-to-fit-one-line instead.
+	title.AnchorPoint = Vector2.new(0, 0.5)
+	title.Position = UDim2.new(0, 0, 0.5, 0)
+	title.Size = UDim2.new(props.showClose ~= false and 0.82 or 1, 0, 0.55, 0)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = TextConfig.Resolve(props.titleKey or props.title)
+	-- NOT touching TextWrapped — assigning it explicitly (even to false) AFTER
+	-- TextScaled = true silently reverts TextScaled back to false, confirmed
+	-- via a live Studio test (an unconditional engine coupling, not a timing
+	-- issue — no reordering avoids it).
 	title.TextScaled = true
-	title.TextWrapped = false
 	title.ZIndex = 2
 	self._titleConstraint = UIStyler.TextSizeConstraint(28, 10)
 	self._titleConstraint.Parent = title
@@ -131,8 +142,8 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	-- Body: children go here.
 	local body = UIStyler.Frame("Body")
 	body.BackgroundTransparency = 1
-	body.Size = UDim2.new(1, 0, 1, -44)
-	body.Position = UDim2.new(0, 0, 0, 44)
+	body.Size = UDim2.new(1, 0, 0.9, 0)
+	body.Position = UDim2.new(0, 0, 0.1, 0)
 	body.ZIndex = 2
 	body.Parent = root
 	self.Body = body

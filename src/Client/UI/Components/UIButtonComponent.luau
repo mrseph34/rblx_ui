@@ -11,6 +11,7 @@ local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
+local TextScaleConfig = require(script.Parent.Parent.Config.TextScaleConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 
 local UIButtonComponent = setmetatable({}, { __index = UIComponentBase })
@@ -108,10 +109,24 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	self._iconImage = iconImage
 
 	local label = UIStyler.TextLabel("Label")
+	-- AutomaticSize.X stays (it shares a UIListLayout row with the icon, whose
+	-- own width comes from measuring the label's real text width) — but the
+	-- text itself now scales via TextScaled instead of a fixed pixel size, per
+	-- TextScaleConfig, so it shrinks/grows with the button at any viewport.
 	label.AutomaticSize = Enum.AutomaticSize.X
 	label.Size = UDim2.fromScale(0, 1)
+	-- TextScaled must be the LAST text-wrap-related assignment: setting
+	-- TextWrapped afterward (even to false) silently reverts TextScaled back
+	-- to false, confirmed via a live Studio test — the mirror image of
+	-- TextScaled's own documented side effect of forcing TextWrapped to true.
+	-- AutomaticSize.X growing to fit the unwrapped text means wrapping never
+	-- actually triggers in practice, so leaving TextWrapped at its (now true)
+	-- default is harmless here.
+	label.TextScaled = true
 	label.LayoutOrder = 2
 	label.TextXAlignment = Enum.TextXAlignment.Center
+	self._labelConstraint = UIStyler.TextSizeConstraint(24, 8)
+	self._labelConstraint.Parent = label
 	label.Parent = content
 	self._label = label
 
@@ -246,23 +261,24 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 
 	self._label.FontFace = theme.Fonts.Button
 	self._label.TextColor3 = textColor
-	-- Icon AND label both scale with the button's real height instead of a
-	-- fixed pixel size — a flat theme TextSize stayed constant regardless of
-	-- how small/large the button rendered at different viewport sizes (the
-	-- button itself is Scale-sized, but its text wasn't). Concrete TextSize
-	-- (not TextScaled — see the _Build comment on why: TextScaled silently
-	-- computes a degenerate size that draws nothing on a small RichText-
-	-- enabled box) computed from AbsoluteSize.Y instead, same safe pattern
-	-- the icon already used. Clamped so text never gets comically large/tiny.
+	if self._labelConstraint then
+		self._labelConstraint.MaxTextSize = TextScaleConfig.ScaledCap(theme.TextSizes.Button)
+	end
+	-- Icon scales with the button's real height instead of a fixed pixel size —
+	-- a flat theme TextSize stayed constant regardless of how small/large the
+	-- button rendered at different viewport sizes. Concrete TextSize (not
+	-- TextScaled — see the _Build comment on why: TextScaled silently computes
+	-- a degenerate size that draws nothing on a small RichText-enabled box)
+	-- computed from AbsoluteSize.Y instead. Clamped so it never gets comically
+	-- large/tiny. The label uses TextScaled instead (see _Build) — confirmed
+	-- via a live Studio test that TextScaled renders correctly at this box
+	-- size, unlike the much smaller icon box.
 	local buttonH = self.Root.AbsoluteSize.Y
 	if buttonH > 0 then
 		local iconSize = math.clamp(buttonH * 0.55, 16, 40)
 		self._icon.Size = UDim2.fromOffset(iconSize, iconSize)
 		self._iconImage.Size = UDim2.fromOffset(iconSize, iconSize)
 		self._icon.TextSize = math.floor(iconSize * 0.85)
-		self._label.TextSize = math.clamp(math.floor(buttonH * 0.42), 10, theme.TextSizes.Button)
-	else
-		self._label.TextSize = theme.TextSizes.Button
 	end
 	-- FontFace was never assigned, so the icon silently fell back to the engine
 	-- default (LegacyArial) — a font with NO emoji glyph coverage at all, so

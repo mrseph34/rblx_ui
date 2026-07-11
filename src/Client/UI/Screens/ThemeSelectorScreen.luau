@@ -23,6 +23,7 @@ local ThemeSerializer = require(script.Parent.Parent.Themes.ThemeSerializer)
 local PackExporter = require(script.Parent.Parent.PackExporter)
 local LayoutPresetConfig = require(script.Parent.Parent.Config.LayoutPresetConfig)
 local PanelAnimConfig = require(script.Parent.Parent.Config.PanelAnimConfig)
+local TextScaleConfig = require(script.Parent.Parent.Config.TextScaleConfig)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
@@ -304,6 +305,26 @@ function ThemeSelectorScreen:_LoadWorking(theme: Types.UITheme, apply: boolean)
 		})
 		table.insert(self._sliders, slider)
 	end
+
+	-- Not a theme property (TextScaleConfig is a standalone module, not part of
+	-- the working theme object), so it's read/written directly instead of via
+	-- _ReadNumeric/_WriteNumeric — but _ApplyWorking still refreshes every
+	-- registered component's _Style, which re-reads TextScaleConfig fresh each
+	-- time, so this slider's change takes effect the same way theme sliders do.
+	self:_ScreenLabel(self._editorScroll, "Text Scaling", "Accent", "Subtitle", nextOrder())
+	local textScaleSlider = UISliderComponent.new()
+	textScaleSlider:Create(self._editorScroll, {
+		label = "Secondary Text Size",
+		min = 0.5, max = 1.5, step = 0.05,
+		value = TextScaleConfig.MaxSizeMultiplier,
+		decimals = 2,
+		layoutOrder = nextOrder(),
+		onChanged = function(value: number)
+			TextScaleConfig.MaxSizeMultiplier = value
+			self:_ApplyWorking()
+		end,
+	})
+	table.insert(self._sliders, textScaleSlider)
 
 	if apply then
 		self:_ApplyWorking()
