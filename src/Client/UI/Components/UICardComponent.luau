@@ -751,7 +751,7 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	-- for CenterStrip, just price — the name already lives in the strip above),
 	-- and a compact Buy sits to the right so nothing overflows the card's edge.
 	local infoBottomInset = 10
-	local infoH = useCenterStrip and 34 or 48
+	local infoH = useCenterStrip and 34 or 47
 
 	-- CenterStrip already showed the name up in the middle strip, so the bottom
 	-- footer here only needs price+buy — and since it has no scrim behind it,
@@ -782,8 +782,10 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	info.Parent = surface
 
 	if not useCenterStrip then
-		local name = self:_MakeName(info, 26)
-		name.Size = UDim2.new(1, -70, 0, 26)
+		-- Title takes the FULL width on its own row, above price+buy — not
+		-- squeezed to leave room for the buy button beside it.
+		local name = self:_MakeName(info, 20, true)
+		name.Size = UDim2.new(1, 0, 0, 20)
 		name.Position = UDim2.fromOffset(0, 0)
 		name.ZIndex = 5
 	end
@@ -792,15 +794,25 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		price.Size = UDim2.new(1, -70, 1, 0)
 		price.Position = UDim2.fromOffset(0, 0)
 	else
-		price.Size = UDim2.new(1, -70, 0, 17)
-		price.Position = UDim2.fromOffset(0, 29)
+		-- Second row, left side: price on the left, buy on the right (below).
+		price.Size = UDim2.new(0.55, 0, 0, 17)
+		price.Position = UDim2.fromOffset(0, 26)
+		price.TextYAlignment = Enum.TextYAlignment.Center
 	end
 	price.ZIndex = 5
-	-- Compact Buy button, right-aligned, vertically centred over the text rows.
+	-- Buy button: thinner (was 28px tall) and pinned to the BOTTOM-RIGHT corner
+	-- of the info block — same row as price, not vertically centred across both
+	-- text rows anymore, now that the name has its own row above.
 	local buy = self:_MakeBuy(info)
-	buy.AnchorPoint = Vector2.new(1, 0.5)
-	buy.Position = UDim2.new(1, 0, 0.5, 0)
-	buy.Size = UDim2.fromOffset(56, 28)
+	if useCenterStrip then
+		buy.AnchorPoint = Vector2.new(1, 0.5)
+		buy.Position = UDim2.new(1, 0, 0.5, 0)
+		buy.Size = UDim2.fromOffset(56, 28)
+	else
+		buy.AnchorPoint = Vector2.new(1, 1)
+		buy.Position = UDim2.new(1, 0, 1, 0)
+		buy.Size = UDim2.fromOffset(56, 22)
+	end
 	for _, d in buy:GetDescendants() do
 		if d:IsA("GuiObject") then
 			d.ZIndex = math.max(d.ZIndex, 5)
