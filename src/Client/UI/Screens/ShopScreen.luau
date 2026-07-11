@@ -211,8 +211,9 @@ function ShopScreen:_RebuildLayout()
 			else
 				-- CardTop: square (or spec aspect) image over a text strip below.
 				-- Exact height of everything below the image (matches the renderer:
-				-- surface pad 20 + tags 18 + name 22 + price 20 + spacer + buy +
-				-- ~30 for the 6px ListLayout gaps). Kept accurate so Buy never clips.
+				-- surface pad 8+8, name wraps up to 2 lines (32px) instead of ever
+				-- ellipsis-truncating, tags 15, price 17, thinner buy). Kept accurate
+				-- so Buy never clips and there's never dead space either.
 				local external = spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle"
 				local textBlock
 				if external then
@@ -221,14 +222,16 @@ function ShopScreen:_RebuildLayout()
 					-- with a small 4px pad instead of a buy row, and the reserved
 					-- space for the external button is added on top, outside the
 					-- surface's own content height.
-					local items = 3 + (spec.showTags and 1 or 0) -- image, [tags], name, price, pad
-					local gaps = (items) * 6 -- +1 for the trailing pad's own gap
-					local reserve = spec.buyStyle == "Straddle" and 20 or 48
-					textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + 4 + gaps + reserve
+					local stackItems = 4 + (spec.showTags and 1 or 0) -- image, [tags], name, price, pad
+					local gaps = (stackItems - 1) * 5
+					local reserve = spec.buyStyle == "Straddle" and 16 or 40
+					textBlock = 16 + (spec.showTags and 15 or 0) + 32 + 17 + 4 + gaps + reserve
 				else
-					local buyH = spec.buyStyle == "Pill" and 32 or 38
-					local spacerH = spec.buyStyle == "Pill" and 12 or 2
-					textBlock = 20 + (spec.showTags and 18 or 0) + 22 + 20 + spacerH + buyH + 30
+					local buyH = spec.buyStyle == "Pill" and 26 or 30
+					local spacerH = spec.buyStyle == "Pill" and 8 or 2
+					local stackItems = 4 + (spec.showTags and 1 or 0) -- image, [tags], name, price, spacer, buy
+					local gaps = stackItems * 5
+					textBlock = 16 + (spec.showTags and 15 or 0) + 32 + 17 + spacerH + buyH + gaps
 				end
 				if spec.imageFillWidth then
 					-- Image fills the card content width edge-to-edge (no side margin).
@@ -257,18 +260,18 @@ function ShopScreen:_RebuildLayout()
 			-- while the image side filled edge-to-edge — computed to match the
 			-- renderer exactly (_BuildSplit) so there's never a gap either way.
 			self._cardImageSizePx = nil
-			local rows = 2 -- name + buy always present
-			local rowsH = 24 + 38
+			local rows = 2 -- name (wrap-capable) + buy always present
+			local rowsH = 30 + 30
 			if spec.showTags then
 				rows += 1
-				rowsH += 18
+				rowsH += 15
 			end
 			if spec.showDescription then
 				rows += 1
 				rowsH += 44
 			end
 			rows += 2 -- price + spacer, always present
-			rowsH += 20 + 2
+			rowsH += 17 + 2
 			local gaps = (rows - 1) * 6
 			cardHeight = math.floor(20 + rowsH + gaps) -- 20 = surface top+bottom padding
 		else

@@ -73,7 +73,7 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 		and (spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle")
 	-- OutsideBelow reserves a full button + gap; Straddle only reserves HALF a
 	-- button's height (the other half overlaps the surface on top of it).
-	local externalReserve = externalBuy and (spec.buyStyle == "Straddle" and 20 or 48) or 0
+	local externalReserve = externalBuy and (spec.buyStyle == "Straddle" and 16 or 40) or 0
 	self._externalReserve = externalReserve
 
 	-- Surface = fixed footprint's visual layer; hover/press scale this, not the
@@ -143,7 +143,7 @@ function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.
 	-- Default: as wide as the box itself (matches the card, edge to edge) — a
 	-- per-spec buttonSize can override this later if a narrower/fixed width is
 	-- ever wanted, but the out-of-the-box default spans the full card width.
-	local buttonH = straddle and 40 or 38
+	local buttonH = straddle and 32 or 30
 	local size = UDim2.new(1, 0, 0, buttonH)
 	buy:Create(root, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -219,10 +219,20 @@ function UICardComponent:_MakeName(parent: Instance, height: number): TextLabel
 	local name = UIStyler.TextLabel("Name")
 	name.Size = UDim2.new(1, 0, 0, height)
 	name.TextXAlignment = self._spec.nameAlign
-	name.TextTruncate = Enum.TextTruncate.AtEnd
+	name.TextYAlignment = Enum.TextYAlignment.Center
+	-- Never ellipsis-truncate a name — instead wrap onto a second line and let
+	-- the text itself shrink to fit. TextWrapped+TextScaled inside a fixed-size
+	-- box is the idiom: short names render at (up to) the theme's normal size,
+	-- long ones wrap and/or shrink, and a UITextSizeConstraint (min set here,
+	-- max set in _Style once the theme's normal size is known) stops short
+	-- names from blowing up past the theme's normal look.
+	name.TextWrapped = true
+	name.TextScaled = true
 	name.Text = TextConfig.Resolve(self._item.nameKey)
 	name.Parent = parent
 	self._name = name
+	self._nameConstraint = UIStyler.TextSizeConstraint(20, 9)
+	self._nameConstraint.Parent = name
 	return name
 end
 
@@ -244,7 +254,7 @@ end
 
 function UICardComponent:_MakePrice(parent: Instance): TextLabel
 	local price = UIStyler.TextLabel("Price")
-	price.Size = UDim2.new(1, 0, 0, 20)
+	price.Size = UDim2.new(1, 0, 0, 17)
 	price.TextXAlignment = self._spec.nameAlign
 	price.Text = string.format("%s %s", self.Props.currencyIcon or "", tostring(self._item.price))
 	price.Parent = parent
@@ -263,7 +273,7 @@ function UICardComponent:_MakeTags(parent: Instance): Frame?
 	local item = self._item
 	local tagRow = UIStyler.Frame("Tags")
 	tagRow.BackgroundTransparency = 1
-	tagRow.Size = UDim2.new(1, 0, 0, 18)
+	tagRow.Size = UDim2.new(1, 0, 0, 15)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = self._spec.nameAlign == Enum.TextXAlignment.Center
@@ -300,15 +310,15 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 		-- right-hand column is always >=92px wide, so this is a no-op there.
 		local availableW = parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
 		local w = availableW > 0 and math.min(92, availableW) or 92
-		size = UDim2.new(0, w, 0, 34)
+		size = UDim2.new(0, w, 0, 28)
 	elseif spec.buyStyle == "IconRight" then
-		size = UDim2.new(0, 40, 0, 34)
+		size = UDim2.new(0, 36, 0, 28)
 	elseif spec.buyStyle == "Pill" then
 		-- Smaller, rounder, centred — deliberately NOT flush with the image box
 		-- above it (the caller adds real spacing before this).
-		size = UDim2.new(0, 116, 0, 32)
+		size = UDim2.new(0, 110, 0, 26)
 	else
-		size = UDim2.new(1, 0, 0, 38)
+		size = UDim2.new(1, 0, 0, 30)
 	end
 	buy:Create(parent, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -380,8 +390,8 @@ end
 
 -- Image on top, text stacked below. Standard grid card / image-focal.
 function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
-	UIStyler.Padding(10).Parent = surface
-	local col = stack("Content", 6, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
+	UIStyler.Padding(8).Parent = surface
+	local col = stack("Content", 5, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
 	col.Size = UDim2.fromScale(1, 1)
 	col.Parent = surface
 
@@ -413,7 +423,7 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if tags then
 		next_(tags)
 	end
-	next_(self:_MakeName(col, 22))
+	next_(self:_MakeName(col, 32))
 	local price = self:_MakePrice(col)
 	next_(price)
 	-- "OutsideBelow"/"Straddle": the real button is built externally (see
@@ -438,7 +448,7 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if layout then
 		-- Pill buttons get real breathing room so they read as a separate element
 		-- below the image box, not flush against the price row like a normal buy.
-		spacer.Size = UDim2.new(1, 0, 0, spec.buyStyle == "Pill" and 12 or 2)
+		spacer.Size = UDim2.new(1, 0, 0, spec.buyStyle == "Pill" and 8 or 2)
 	end
 	local buy = self:_MakeBuy(col)
 	buy.LayoutOrder = 999
@@ -446,13 +456,16 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	-- column's own HorizontalAlignment already centres a narrower button like this.)
 end
 
--- Full-bleed image with the text OVERLAID on it (name/price/tags/buy). Two
+-- Full-bleed image with the text OVERLAID on it (name/price/tags/buy). Three
 -- readability treatments, picked by spec.overlayBg:
---   "Scrim" (default) — a dark gradient fading up from the bottom edge, behind
---                        the whole text band.
---   "Flat"             — no gradient/shadow at all: a small rounded, translucent
---                        flat-colour panel sits directly behind JUST the text,
---                        so the rest of the image stays completely clean.
+--   "Scrim"       (default) — a dark gradient fading up from the bottom edge,
+--                  behind the whole text band.
+--   "Flat"        — no gradient/shadow at all: a small rounded, translucent
+--                  flat-colour panel sits directly behind JUST the text, so
+--                  the rest of the image stays completely clean.
+--   "CenterStrip" — no scrim either: a translucent strip crosses the vertical
+--                  MIDDLE of the image holding ONLY the name (poster/title-card
+--                  look); price+buy get their own small translucent footer.
 -- Either way the card IS the image (no text block below) — compact and premium.
 function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
 	-- Image fills the entire card.
@@ -486,8 +499,24 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	end
 
 	local useFlat = spec.overlayBg == "Flat"
+	local useCenterStrip = spec.overlayBg == "CenterStrip"
 
-	if not useFlat then
+	if useCenterStrip then
+		-- No scrim/darkening at all — the image stays fully clean except for one
+		-- translucent strip crossing the vertical middle, holding ONLY the name.
+		local strip = UIStyler.Frame("NameStrip")
+		strip.AnchorPoint = Vector2.new(0, 0.5)
+		strip.Position = UDim2.fromScale(0, 0.5)
+		strip.Size = UDim2.new(1, 0, 0, 34)
+		strip.ZIndex = 4
+		strip.Parent = surface
+		self._nameStrip = strip
+		local name = self:_MakeName(strip, 34)
+		name.AnchorPoint = Vector2.new(0, 0)
+		name.Position = UDim2.fromOffset(8, 0)
+		name.Size = UDim2.new(1, -16, 1, 0)
+		name.ZIndex = 5
+	elseif not useFlat then
 		-- Bottom scrim: a dark gradient fading from transparent (top) to opaque
 		-- (bottom) so overlaid text reads over bright art without hiding the image.
 		-- The frame spans the FULL card (not just the bottom fraction) so its
@@ -547,29 +576,53 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		end
 	end
 
-	-- Text column pinned to the bottom over the scrim. Name + price stack, and a
-	-- compact Buy sits to the right so nothing overflows the card's bottom edge.
+	-- CenterStrip already showed the name up in the middle strip, so the bottom
+	-- footer here only needs price+buy — and since it has no scrim behind it,
+	-- it gets its own small translucent panel (reusing the Flat styling path).
+	if useCenterStrip then
+		local footerBg = UIStyler.Frame("FooterBg")
+		footerBg.AnchorPoint = Vector2.new(0, 1)
+		footerBg.Position = UDim2.new(0, 4, 1, -4)
+		footerBg.Size = UDim2.new(1, -8, 0, 40)
+		footerBg.ZIndex = 4
+		footerBg.Parent = surface
+		self._flatBg = footerBg
+		local footerCorner = UIStyler.Corner(10)
+		footerCorner.Parent = footerBg
+		self._flatBgCorner = footerCorner
+	end
+
+	-- Text column pinned to the bottom over the scrim. Name + price stack (or,
+	-- for CenterStrip, just price — the name already lives in the strip above),
+	-- and a compact Buy sits to the right so nothing overflows the card's edge.
 	local info = UIStyler.Frame("Info")
 	info.BackgroundTransparency = 1
 	info.AnchorPoint = Vector2.new(0, 1)
 	info.Position = UDim2.new(0, 10, 1, -10)
-	info.Size = UDim2.new(1, -20, 0, 44)
+	info.Size = UDim2.new(1, -20, 0, useCenterStrip and 34 or 48)
 	info.ZIndex = 5
 	info.Parent = surface
 
-	local name = self:_MakeName(info, 20)
-	name.Size = UDim2.new(1, -70, 0, 20)
-	name.Position = UDim2.fromOffset(0, 0)
-	name.ZIndex = 5
+	if not useCenterStrip then
+		local name = self:_MakeName(info, 26)
+		name.Size = UDim2.new(1, -70, 0, 26)
+		name.Position = UDim2.fromOffset(0, 0)
+		name.ZIndex = 5
+	end
 	local price = self:_MakePrice(info)
-	price.Size = UDim2.new(1, -70, 0, 20)
-	price.Position = UDim2.fromOffset(0, 22)
+	if useCenterStrip then
+		price.Size = UDim2.new(1, -70, 1, 0)
+		price.Position = UDim2.fromOffset(0, 0)
+	else
+		price.Size = UDim2.new(1, -70, 0, 17)
+		price.Position = UDim2.fromOffset(0, 29)
+	end
 	price.ZIndex = 5
-	-- Compact Buy button, right-aligned, vertically centred over the two text rows.
+	-- Compact Buy button, right-aligned, vertically centred over the text rows.
 	local buy = self:_MakeBuy(info)
 	buy.AnchorPoint = Vector2.new(1, 0.5)
 	buy.Position = UDim2.new(1, 0, 0.5, 0)
-	buy.Size = UDim2.fromOffset(60, 34)
+	buy.Size = UDim2.fromOffset(56, 28)
 	for _, d in buy:GetDescendants() do
 		if d:IsA("GuiObject") then
 			d.ZIndex = math.max(d.ZIndex, 5)
@@ -599,7 +652,7 @@ function UICardComponent:_BuildRow(surface: Frame, spec: EntryLayoutConfig.Entry
 	middle.Size = UDim2.new(1, -(imageSize + 10 + 140), 1, 0)
 	middle.LayoutOrder = 2
 	middle.Parent = row
-	self:_MakeName(middle, 22).LayoutOrder = 1
+	self:_MakeName(middle, 26).LayoutOrder = 1
 	local tags = self:_MakeTags(middle)
 	if tags then
 		tags.LayoutOrder = 2
@@ -610,7 +663,7 @@ function UICardComponent:_BuildRow(surface: Frame, spec: EntryLayoutConfig.Entry
 	right.LayoutOrder = 3
 	right.Parent = row
 	local price = self:_MakePrice(right)
-	price.Size = UDim2.new(1, 0, 0, 20)
+	price.Size = UDim2.new(1, 0, 0, 17)
 	price.TextXAlignment = Enum.TextXAlignment.Right
 	price.LayoutOrder = 1
 	local buy = self:_MakeBuy(right)
@@ -641,7 +694,7 @@ function UICardComponent:_BuildSplit(surface: Frame, spec: EntryLayoutConfig.Ent
 	right.Parent = row
 	local o = 0
 	local function next_(g: GuiObject) o += 1; g.LayoutOrder = o end
-	next_(self:_MakeName(right, 24))
+	next_(self:_MakeName(right, 30))
 	local tags = self:_MakeTags(right)
 	if tags then next_(tags) end
 	local desc = self:_MakeDescription(right)
@@ -695,7 +748,7 @@ function UICardComponent:_BuildTextFirst(surface: Frame, spec: EntryLayoutConfig
 	local buy = self:_MakeBuy(footer)
 	buy.AnchorPoint = Vector2.new(1, 0.5)
 	buy.Position = UDim2.new(1, 0, 0.5, 0)
-	buy.Size = UDim2.new(0, 130, 0, 36)
+	buy.Size = UDim2.new(0, 130, 0, 30)
 end
 
 -- ========================================================================
@@ -749,10 +802,21 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	-- (nothing to identify/price when it's just "how many do I own"), so both
 	-- are nil-guarded here.
 	local overlay = self._spec.arrangement == "Overlay"
+	-- CenterStrip's name sits on its OWN translucent strip (not directly on the
+	-- image), so it reads fine in the theme's normal text colour — forcing white
+	-- there (like Scrim/Flat, which sit closer to raw image content) could go
+	-- unreadable against a light theme's pale strip colour.
+	local forceWhiteName = overlay and self._spec.overlayBg ~= "CenterStrip"
 	if self._name then
 		self._name.FontFace = theme.Fonts.Subtitle
-		self._name.TextSize = theme.TextSizes.Subtitle
-		self._name.TextColor3 = overlay and Color3.new(1, 1, 1) or c.TextPrimary
+		self._name.TextColor3 = forceWhiteName and Color3.new(1, 1, 1) or c.TextPrimary
+	end
+	if self._nameConstraint then
+		self._nameConstraint.MaxTextSize = theme.TextSizes.Subtitle
+	end
+	if self._nameStrip then
+		self._nameStrip.BackgroundColor3 = c.Background
+		self._nameStrip.BackgroundTransparency = 0.32
 	end
 
 	if self._price then

@@ -61,8 +61,11 @@ export type EntrySpec = {
 	-- Overlay only: "Scrim" (default) = dark gradient fading up from the bottom
 	-- edge behind the text. "Flat" = no gradient/shadow at all — just a small
 	-- rounded, semi-transparent flat-colour panel sitting directly behind the
-	-- text block, so the rest of the image stays completely clean.
-	overlayBg: ("Scrim" | "Flat")?,
+	-- text block, so the rest of the image stays completely clean. "CenterStrip"
+	-- = no scrim either — just a translucent full-width strip crossing the
+	-- vertical middle of the image holding ONLY the name (poster/title-card
+	-- look); price+buy get their own small translucent footer at the bottom.
+	overlayBg: ("Scrim" | "Flat" | "CenterStrip")?,
 }
 
 EntryLayoutConfig.Specs = {
@@ -255,6 +258,19 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
+		nameAlign = Enum.TextXAlignment.Center,
+	},
+	-- Full-bleed image, completely clean except for one translucent strip
+	-- crossing the vertical middle that holds ONLY the name — a poster/title-
+	-- card look. Price+buy sit in their own small translucent footer at the
+	-- bottom so the rest of the art (top + most of the middle) stays untouched.
+	CenterStripCard = {
+		arrangement = "Overlay",
+		imageAspect = 1,
+		overlayBg = "CenterStrip",
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Compact",
 		nameAlign = Enum.TextXAlignment.Center,
 	},
 	-- Compact icon+name chip row, buy as a tiny icon — settings/menu list feel.

@@ -19,10 +19,10 @@ UIPackConfig.Packs = {
 	{
 		Id = "Standard",
 		DisplayName = "Standard",
-		-- The default pack, so it gets extra density: the panel is narrower now,
-		-- and 4 columns of squares in it would look sparse. 5 keeps cards a good
-		-- size while filling more of the panel at once instead of wasting space.
-		Shop = { Container = "Grid", Columns = 5, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
+		-- The default pack, so it gets extra density. Was 5 columns, but that made
+		-- cards cramped enough to force ellipsis-truncated names; 4 gives each card
+		-- enough width for the text to wrap/scale cleanly instead.
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -90,9 +90,9 @@ UIPackConfig.Packs = {
 	{
 		Id = "IconGrid",
 		DisplayName = "Icon Grid",
-		-- The panel is narrower now, so 6 columns made cards uncomfortably tiny —
-		-- 5 still comfortably clears the "at least 4" density bar.
-		Shop = { Container = "Grid", Columns = 5, CardHeight = 236, EntryLayout = "IconTile", ShowCategoryBar = true },
+		-- Was 6, then 5 as the panel narrowed; settled on 4 to match the rest of
+		-- the packs and keep tiles comfortably sized, not cramped.
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 236, EntryLayout = "IconTile", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Top" },
 		Tutorial = { ShowStepList = true },
@@ -104,7 +104,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "SquareShowcase",
 		DisplayName = "Square Showcase",
-		Shop = { Container = "Grid", Columns = 5, CardHeight = 316, EntryLayout = "SquareShowcase", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 316, EntryLayout = "SquareShowcase", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1.05, MoneyRegion = "TopCenter", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -137,7 +137,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Roster",
 		DisplayName = "Roster (Portrait)",
-		Shop = { Container = "Grid", Columns = 5, CardHeight = 324, EntryLayout = "Portrait", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 324, EntryLayout = "Portrait", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
@@ -209,7 +209,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "MyItemsGrid",
 		DisplayName = "My Items (Grid)",
-		Shop = { Container = "Grid", Columns = 5, CardHeight = 236, EntryLayout = "QuantityTile", ShowCategoryBar = true },
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 236, EntryLayout = "QuantityTile", ShowCategoryBar = true },
 		HUD = { Compact = true, ShowObjectives = false, Scale = 0.95, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Top" },
 		Tutorial = { ShowStepList = false },
@@ -238,6 +238,19 @@ UIPackConfig.Packs = {
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },
 		Modal = { WidthScale = 0.44 },
+	},
+
+	-- Minimalist "poster" look: the card IS the image, clean everywhere except
+	-- one translucent strip crossing the vertical middle with just the name.
+	-- Price/buy sit in a small translucent footer at the bottom.
+	{
+		Id = "CenterStrip",
+		DisplayName = "Center Strip",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 236, EntryLayout = "CenterStripCard", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.42 },
 	},
 } :: { Types.UIPack }
 
