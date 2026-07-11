@@ -219,39 +219,23 @@ function UICardComponent:_MakeImage(parent: Instance, size: UDim2, fillWidth: bo
 	return holder
 end
 
--- oneLine=true -> grid-card mode: a small FIXED text size (Body) that AUTO-SIZES
---   its height. A typical name fits on one line and the box hugs it tightly
---   (~1 line, no dead space above/below — the gap that made cards look too
---   tall); only a genuinely long name wraps to a 2nd line. `height` is a minimum
---   so 1-line names all share the same tidy height. No TextScaled (which
---   unreliably shrank text to a fraction of the size that actually fit).
--- oneLine=false -> a FIXED-height box with TextScaled + wrap, for the taller
---   load-bearing slots (overlay bottom strip, list rows) where a long name
---   should shrink/wrap within the reserved box rather than grow it.
+-- Names NEVER wrap to a 2nd line — TextScaled shrinks the text to fit the
+-- fixed box width/height instead (a size constraint caps how far it can
+-- shrink so it never goes illegibly small). `height` is the fixed row height
+-- the caller reserves; `oneLine` only affects that height (grid-card rows use
+-- a small fixed height, load-bearing slots use a taller one) — wrapping is
+-- off either way.
 function UICardComponent:_MakeName(parent: Instance, height: number, oneLine: boolean?): TextLabel
 	local name = UIStyler.TextLabel("Name")
 	name.Size = UDim2.new(1, 0, 0, height)
 	name.TextXAlignment = self._spec.nameAlign
 	name.TextYAlignment = Enum.TextYAlignment.Center
-	-- Never ellipsis-truncate a name — wrap to a second line instead.
 	name.TextTruncate = Enum.TextTruncate.None
-	name.TextWrapped = true
+	name.TextWrapped = false
+	name.TextScaled = true
 	name.Text = TextConfig.Resolve(self._item.nameKey)
-	if oneLine then
-		-- NOT AutomaticSize — confirmed by measurement it does not reliably
-		-- shrink this box to the real glyph height (same class of unreliable
-		-- "smart sizing" as the TextScaled bug found elsewhere in this file):
-		-- the box stayed at its initial `height` regardless of the shorter
-		-- actual text, and Bottom/Top alignment then pushed the visible glyph
-		-- away from the box edge, reading as extra dead space. `height` is now
-		-- a small FIXED value the caller tunes to hug the Body text size exactly
-		-- (Center-aligned — no more Bottom/Top alignment tricks needed).
-	else
-		name.TextScaled = true
-		name.TextWrapped = true -- (re-assert after TextScaled, which toggles it)
-		self._nameConstraint = UIStyler.TextSizeConstraint(20, 9)
-		self._nameConstraint.Parent = name
-	end
+	self._nameConstraint = UIStyler.TextSizeConstraint(oneLine and 16 or 20, 9)
+	self._nameConstraint.Parent = name
 	name.Parent = parent
 	self._name = name
 	self._nameOneLine = oneLine or false
@@ -1000,14 +984,12 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	if self._name then
 		self._name.FontFace = theme.Fonts.Subtitle
 		self._name.TextColor3 = forceWhiteName and Color3.new(1, 1, 1) or c.TextPrimary
-		-- Grid names render at the smaller Body size (fixed, not scaled) so a
-		-- typical name fits on one line; the auto-height box then hugs it.
-		if self._nameOneLine then
-			self._name.TextSize = theme.TextSizes.Body
-		end
 	end
 	if self._nameConstraint then
-		self._nameConstraint.MaxTextSize = theme.TextSizes.Subtitle
+		-- Grid names cap out at the smaller Body size (never grow past a
+		-- typical 1-line name's size); other slots cap at Subtitle. Actual
+		-- rendered size still shrinks below the cap via TextScaled to fit.
+		self._nameConstraint.MaxTextSize = self._nameOneLine and theme.TextSizes.Body or theme.TextSizes.Subtitle
 	end
 	if self._nameStrip then
 		self._nameStrip.BackgroundColor3 = c.Background
