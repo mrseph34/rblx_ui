@@ -40,6 +40,7 @@ function SettingsScreen:_BuildContent()
 
 	local panel = UIPanelComponent.new()
 	self._panel = panel
+	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		titleKey = "settings.title",
 		size = UDim2.fromScale(0.5, 0.8),
@@ -149,7 +150,7 @@ function SettingsScreen:GetState(): { [string]: any }
 end
 
 function SettingsScreen:_OnShow()
-	self._panel:PlayAnimation("Appear")
+	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 end
 
 return SettingsScreen

@@ -53,6 +53,7 @@ function ShopScreen:_BuildContent()
 
 	local panel = UIPanelComponent.new()
 	self._panel = panel
+	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		titleKey = "shop.title",
 		-- Narrower than before (was 0.72 wide — a "super wide" panel that wasted
@@ -211,10 +212,10 @@ function ShopScreen:_RebuildLayout()
 			else
 				-- CardTop: square (or spec aspect) image over a text strip below.
 				-- Exact height of everything below the image (matches the renderer:
-				-- surface pad 8+8, 4px stack gaps, name AUTO-SIZES to ~1 line so
-				-- there's no dead space (reserve ~22px), tags 15, price 17, thin
-				-- buy 28). Kept accurate so Buy never clips and there's no gap.
-				local nameH = 22 -- ~1 line of the Subtitle size (auto-grows for long names)
+				-- surface pad 8+8, 3px stack gaps, name box 20 (auto-grows for long
+				-- names), tags 15, price 17, thin buy 25). Name bottom-aligns and
+				-- price top-aligns so they read close together with no dead space.
+				local nameH = 20
 				local external = spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle"
 				local textBlock
 				if external then
@@ -224,14 +225,21 @@ function ShopScreen:_RebuildLayout()
 					-- space for the external button is added on top, outside the
 					-- surface's own content height.
 					local stackItems = 4 + (spec.showTags and 1 or 0) -- image, [tags], name, price, pad
-					local gaps = (stackItems - 1) * 4
-					local reserve = spec.buyStyle == "Straddle" and 16 or 38
+					local gaps = (stackItems - 1) * 3
+					local reserve = spec.buyStyle == "Straddle" and 15 or 36
 					textBlock = 16 + (spec.showTags and 15 or 0) + nameH + 17 + 4 + gaps + reserve
+				elseif spec.priceWithTags then
+					-- Standard 2.0: image, name, [tags+price on one 18px row], spacer,
+					-- buy. No separate tags/price rows.
+					local buyH = 25
+					local stackItems = 4 -- image, name, tagPriceRow, spacer, buy
+					local gaps = stackItems * 3
+					textBlock = 16 + nameH + 18 + 2 + buyH + gaps
 				else
-					local buyH = spec.buyStyle == "Pill" and 26 or 28
+					local buyH = spec.buyStyle == "Pill" and 24 or 25
 					local spacerH = spec.buyStyle == "Pill" and 8 or 2
 					local stackItems = 4 + (spec.showTags and 1 or 0) -- image, [tags], name, price, spacer, buy
-					local gaps = stackItems * 4
+					local gaps = stackItems * 3
 					textBlock = 16 + (spec.showTags and 15 or 0) + nameH + 17 + spacerH + buyH + gaps
 				end
 				if spec.imageFillWidth then
@@ -429,7 +437,7 @@ function ShopScreen:_OnShow(data: any?)
 		-- Cheap and infrequent (screen open), unlike a per-tick balance update.
 		self:_RebuildLayout()
 	end
-	self._panel:PlayAnimation("Appear")
+	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 end
 
 function ShopScreen:Update(data: any)

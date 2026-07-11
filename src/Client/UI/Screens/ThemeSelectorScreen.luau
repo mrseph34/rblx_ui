@@ -22,6 +22,7 @@ local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local ThemeSerializer = require(script.Parent.Parent.Themes.ThemeSerializer)
 local PackExporter = require(script.Parent.Parent.PackExporter)
 local LayoutPresetConfig = require(script.Parent.Parent.Config.LayoutPresetConfig)
+local PanelAnimConfig = require(script.Parent.Parent.Config.PanelAnimConfig)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
@@ -90,6 +91,7 @@ function ThemeSelectorScreen:_BuildContent()
 
 	local panel = UIPanelComponent.new()
 	self._panel = panel
+	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		titleKey = "theme.editor.title",
 		size = UDim2.fromScale(0.62, 0.82),
@@ -124,6 +126,14 @@ function ThemeSelectorScreen:_BuildContent()
 		size = UDim2.new(1, -6, 0, 42), layoutOrder = -19,
 		onClick = function()
 			self:_OpenLayoutPicker()
+		end,
+	})
+	self._animButton = UIButtonComponent.new()
+	self._animButton:Create(leftScroll, {
+		text = "Open/Close Animation", icon = "🎞️", variant = "Secondary",
+		size = UDim2.new(1, -6, 0, 42), layoutOrder = -18.5,
+		onClick = function()
+			self:_OpenAnimPicker()
 		end,
 	})
 	self._testAllButton = UIButtonComponent.new()
@@ -551,6 +561,100 @@ function ThemeSelectorScreen:_EnsureLayoutPicker()
 	self._layoutPicker = overlay
 end
 
+-- ---- open/close animation picker --------------------------------------
+
+function ThemeSelectorScreen:_OpenAnimPicker()
+	self:_EnsureAnimPicker()
+	self._animPicker.Visible = true
+end
+
+function ThemeSelectorScreen:_EnsureAnimPicker()
+	if self._animPicker then
+		return
+	end
+	local theme = self:GetTheme()
+	local overlay = UIStyler.Frame("AnimPicker")
+	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	overlay.BackgroundTransparency = 0.4
+	overlay.Visible = false
+	overlay.ZIndex = 60
+	overlay.Parent = self.Root
+
+	local card = UIStyler.Frame("Card")
+	card.Size = UDim2.fromScale(0.4, 0.56)
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.fromScale(0.5, 0.5)
+	card.BackgroundColor3 = theme.Colors.Surface
+	card.ZIndex = 61
+	UIStyler.Corner(12).Parent = card
+	UIStyler.Padding(14).Parent = card
+	card.Parent = overlay
+
+	local title = UIStyler.TextLabel("Title")
+	title.Size = UDim2.new(1, -36, 0, 28)
+	title.Text = "🎞️ Open/Close Animation — applies to every menu"
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.FontFace = theme.Fonts.Title
+	title.TextSize = theme.TextSizes.Subtitle
+	title.TextColor3 = theme.Colors.TextPrimary
+	title.ZIndex = 62
+	title.Parent = card
+
+	local list = Instance.new("ScrollingFrame")
+	list.Size = UDim2.new(1, 0, 1, -40)
+	list.Position = UDim2.fromOffset(0, 36)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.CanvasSize = UDim2.new()
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollBarThickness = 6
+	list.ZIndex = 62
+	UIStyler.ListLayout({ Padding = UDim.new(0, 6) }).Parent = list
+	list.Parent = card
+
+	self._animButtons = {}
+	for i, pack in PanelAnimConfig.Packs do
+		local button = UIButtonComponent.new()
+		button:Create(list, {
+			text = pack.displayName,
+			icon = pack.icon,
+			variant = pack.id == PanelAnimConfig.ActiveId and "Primary" or "Ghost",
+			size = UDim2.new(1, -6, 0, 44),
+			layoutOrder = i,
+			onClick = function()
+				PanelAnimConfig.SetActive(pack.id)
+				-- Re-open this very editor so the choice is instantly demonstrated
+				-- with the new intro animation.
+				overlay.Visible = false
+				self.ScreenController:HideScreen("themeSelector")
+				task.delay(0.28, function()
+					self.ScreenController:ShowScreen("themeSelector")
+				end)
+			end,
+		})
+		table.insert(self._animButtons, button)
+	end
+
+	local close = Instance.new("TextButton")
+	close.Name = "Close"
+	close.Size = UDim2.fromOffset(28, 28)
+	close.AnchorPoint = Vector2.new(1, 0)
+	close.Position = UDim2.fromScale(1, 0)
+	close.Text = "✖"
+	close.TextScaled = true
+	close.BackgroundColor3 = theme.Colors.Error
+	close.TextColor3 = theme.Colors.TextOnPrimary
+	close.ZIndex = 63
+	UIStyler.Corner(1000).Parent = close
+	UIStyler.Padding(6).Parent = close
+	close.Activated:Connect(function()
+		overlay.Visible = false
+	end)
+	close.Parent = card
+
+	self._animPicker = overlay
+end
+
 function ThemeSelectorScreen:_Import()
 	self:_EnsureOverlays()
 	self._importOverlay.Visible = true
@@ -699,7 +803,7 @@ end
 
 function ThemeSelectorScreen:_OnShow()
 	self:_LoadWorking(self.ThemeController:GetTheme(), false)
-	self._panel:PlayAnimation("Appear")
+	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 end
 
 return ThemeSelectorScreen

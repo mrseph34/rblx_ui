@@ -29,6 +29,18 @@ UIPackConfig.Packs = {
 		Modal = { WidthScale = 0.42 },
 	},
 
+	-- Standard 2.0: like Standard, but the price rides on the RIGHT of the tag
+	-- row (name above, buy below); badges shrink so they never reach the price.
+	{
+		Id = "StandardPlus",
+		DisplayName = "Standard 2.0",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 288, EntryLayout = "StandardCardPlus", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.42 },
+	},
+
 	-- Image is the hero: fewer, larger cards, centred text. Premium storefront.
 	{
 		Id = "ImageShowcase",

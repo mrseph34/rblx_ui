@@ -21,9 +21,11 @@ NavConfig.Spacing = 10
 NavConfig.EdgeOffset = 12 -- px gap from the screen edge
 NavConfig.FillDirection = "Vertical" :: "Vertical" | "Horizontal"
 
--- Global toggle: false = ignore every button's `label` and render the whole
--- rail as compact icon-only squares (flip this one flag for the minimal look).
-NavConfig.ShowLabels = true
+-- Global toggle: DEFAULT false = the rail is compact icon-only SQUARES, each with
+-- an emoji placeholder (the normal "open shop" GUI-button look). Flip to true to
+-- opt the whole rail into the wider labelled buttons instead. Individual buttons
+-- keep their `label`/`iconId` data either way; this just decides if labels show.
+NavConfig.ShowLabels = false
 
 -- Per-button definitions. Each button can show an emoji `icon`, an `iconId`
 -- image, a text `label`, or any combination — that's the "emoji, text, or

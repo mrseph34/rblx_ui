@@ -32,6 +32,7 @@ function ModalScreen:_BuildContent()
 	local pack = self.ThemeController:GetPack()
 	local panel = UIPanelComponent.new()
 	self._panel = panel
+	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		title = "",
 		showClose = false,
@@ -116,7 +117,7 @@ function ModalScreen:_OnShow(data: any?)
 		self._cancelButton:SetContent({ textKey = data.cancelKey or "modal.cancel" })
 	end
 
-	self._panel:PlayAnimation("Appear")
+	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 end
 
 return ModalScreen

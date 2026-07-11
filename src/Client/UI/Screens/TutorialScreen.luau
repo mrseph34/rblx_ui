@@ -44,6 +44,7 @@ function TutorialScreen:_BuildContent()
 	-- Popup panel (bottom center).
 	local panel = UIPanelComponent.new()
 	self._panel = panel
+	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		title = "",
 		showClose = true,
@@ -109,7 +110,7 @@ function TutorialScreen:_ShowStep()
 	self._nextButton:SetContent({ text = isLast and TextConfig.Resolve("modal.ok") or "Next →" })
 
 	self:_PositionRing(step)
-	self._panel:PlayAnimation("Appear")
+	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 end
 
 -- Move the highlight ring over the step's registered target, if any.

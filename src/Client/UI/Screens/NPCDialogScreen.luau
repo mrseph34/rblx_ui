@@ -34,6 +34,7 @@ end
 function NPCDialogScreen:_BuildContent()
 	local panel = UIPanelComponent.new()
 	self._panel = panel
+	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		title = "",
 		showClose = true,
@@ -246,7 +247,7 @@ function NPCDialogScreen:_OnShow(data: any?)
 	self._defaultSpeed = sequence.defaultTypeSpeed or 45
 	self._onChoice = data and data.onChoice or nil
 	self._index = 1
-	self._panel:PlayAnimation("Appear")
+	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 	self:_RenderLine(self._lines[1])
 end
 

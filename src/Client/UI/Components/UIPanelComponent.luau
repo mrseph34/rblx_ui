@@ -12,6 +12,7 @@ local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
+local PanelAnimConfig = require(script.Parent.Parent.Config.PanelAnimConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 
 local UIPanelComponent = setmetatable({}, { __index = UIComponentBase })
@@ -29,6 +30,8 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	if not props.position then
 		root.Position = UDim2.fromScale(0.5, 0.5)
 	end
+	-- Resting position the intro/outro animations tween to/from.
+	self._restPosition = root.Position
 	if not props.size then
 		root.Size = UDim2.fromScale(0.42, 0.5)
 		self._baseSize = root.Size
@@ -101,6 +104,52 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	body.ZIndex = 2
 	body.Parent = root
 	self.Body = body
+end
+
+-- Animate the panel IN using the active PanelAnimConfig pack: start from the
+-- pack's transform (scaled down, or slid off to a side) and tween to rest. On
+-- close, AnimateOut plays the same transform in reverse. Returns the driving
+-- Tween so callers (screens) can wait on Completed.
+function UIPanelComponent:AnimateIn(): Tween?
+	local theme = self.Theme
+	if not theme then
+		self.Root.Visible = true
+		return nil
+	end
+	local pack = PanelAnimConfig.Active()
+	self.Root.Visible = true
+	if pack.mode == "Slide" then
+		local offset = pack.offset or UDim2.new()
+		self.Root.Position = self._restPosition + offset
+		-- Ensure the scale is neutral (a previous Scale pack may have left it <1).
+		local scale = self:_EnsureScale()
+		scale.Scale = 1
+		return self:_Tween(self.Root, theme.Animations.Appear, { Position = self._restPosition })
+	else
+		-- Scale (grow/pop). Reset any slide offset first.
+		self.Root.Position = self._restPosition
+		local scale = self:_EnsureScale()
+		scale.Scale = pack.scale or 0.85
+		return self:_Tween(scale, theme.Animations.Appear, { Scale = 1 })
+	end
+end
+
+-- Reverse of AnimateIn: tween back to the pack's start transform, so the panel
+-- leaves the way it came instead of vanishing. Returns the Tween so the screen
+-- can disable its Gui only once the exit finishes.
+function UIPanelComponent:AnimateOut(): Tween?
+	local theme = self.Theme
+	if not theme then
+		return nil
+	end
+	local pack = PanelAnimConfig.Active()
+	if pack.mode == "Slide" then
+		local offset = pack.offset or UDim2.new()
+		return self:_Tween(self.Root, theme.Animations.Disappear, { Position = self._restPosition + offset })
+	else
+		local scale = self:_EnsureScale()
+		return self:_Tween(scale, theme.Animations.Disappear, { Scale = pack.scale or 0.85 })
+	end
 end
 
 function UIPanelComponent:_Style(theme: Types.UITheme)

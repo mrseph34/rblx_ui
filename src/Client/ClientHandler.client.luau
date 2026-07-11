@@ -20,6 +20,7 @@ local DevConfig = require(UI.Config.DevConfig)
 local HUDConfig = require(UI.Config.HUDConfig)
 local NavConfig = require(UI.Config.NavConfig)
 local LayoutPresetConfig = require(UI.Config.LayoutPresetConfig)
+local PanelAnimConfig = require(UI.Config.PanelAnimConfig)
 local TutorialConfig = require(UI.Config.TutorialConfig)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local Remotes = require(ReplicatedStorage.Shared.Net.Remotes)
@@ -184,6 +185,9 @@ local function buildNavRail()
 	UIStyler.ListLayout({
 		FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
 		Padding = UDim.new(0, NavConfig.Spacing),
+		-- Centre the buttons within the rail's column so mixed square/labelled
+		-- widths still line up on a shared centre line instead of jumping edges.
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		VerticalAlignment = vAnchor == 1 and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top,
 	}).Parent = rail
 	rail.Parent = gui
@@ -385,6 +389,16 @@ if game:GetService("RunService"):IsStudio() then
 	end)
 	bind("ApplyLayout", function(presetId: string)
 		return layoutController:Apply(presetId)
+	end)
+	bind("SetAnimPack", function(packId: string)
+		return PanelAnimConfig.SetActive(packId)
+	end)
+	bind("ListAnimPacks", function()
+		local ids = {}
+		for _, p in PanelAnimConfig.Packs do
+			table.insert(ids, p.id)
+		end
+		return table.concat(ids, ",")
 	end)
 	bind("ListLayouts", function()
 		local ids = {}

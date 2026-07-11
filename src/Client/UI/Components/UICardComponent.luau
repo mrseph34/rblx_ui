@@ -304,6 +304,70 @@ function UICardComponent:_MakeTags(parent: Instance): Frame?
 	return tagRow
 end
 
+-- A single row holding the tag badges on the LEFT and the price pinned to the
+-- RIGHT (Standard 2.0). The badges live in a clipped flex frame that fills the
+-- space left of the price, so no matter how many/long the badges are they get
+-- clipped at the price's edge and never overlap it. The price is measured and
+-- reserves exactly its own width on the right.
+function UICardComponent:_MakeTagPriceRow(parent: Instance): Frame
+	local row = UIStyler.Frame("TagPriceRow")
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.new(1, 0, 0, 18)
+	row.Parent = parent
+
+	-- Price pinned to the right; AutomaticSize.X so it's exactly as wide as it
+	-- needs, and the badge area fills everything to its left.
+	local price = UIStyler.TextLabel("Price")
+	price.AnchorPoint = Vector2.new(1, 0.5)
+	price.Position = UDim2.fromScale(1, 0.5)
+	price.Size = UDim2.fromScale(0, 1)
+	price.AutomaticSize = Enum.AutomaticSize.X
+	price.TextXAlignment = Enum.TextXAlignment.Right
+	price.Text = string.format("%s %s", self.Props.currencyIcon or "", tostring(self._item.price))
+	price.Parent = row
+	self._price = price
+
+	-- Badge flex area: everything left of the price, minus a small gap. Clipped so
+	-- a long stack of badges is cut off at the price instead of running into it.
+	local badgeArea = UIStyler.Frame("Badges")
+	badgeArea.BackgroundTransparency = 1
+	badgeArea.ClipsDescendants = true
+	badgeArea.AnchorPoint = Vector2.new(0, 0.5)
+	badgeArea.Position = UDim2.fromScale(0, 0.5)
+	-- Width is resolved after the price width is known (deferred a frame); until
+	-- then it fills the row and clips, which is already safe.
+	badgeArea.Size = UDim2.new(1, 0, 1, 0)
+	UIStyler.ListLayout({
+		FillDirection = Enum.FillDirection.Horizontal,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		HorizontalAlignment = Enum.HorizontalAlignment.Left,
+		Padding = UDim.new(0, 4),
+	}).Parent = badgeArea
+	badgeArea.Parent = row
+
+	if self._item.tags then
+		for i, tag in self._item.tags do
+			local badge = UIBadgeComponent.new()
+			badge:Create(badgeArea, { text = tag, variant = tag, layoutOrder = i })
+			table.insert(self._badges, badge)
+		end
+	end
+
+	-- Once sizes resolve, shrink the badge area so it ends a gap before the price
+	-- (keeps a clean margin between the last badge and the money).
+	task.defer(function()
+		if not row.Parent then
+			return
+		end
+		local priceW = price.AbsoluteSize.X
+		if priceW > 0 then
+			badgeArea.Size = UDim2.new(1, -(priceW + 8), 1, 0)
+		end
+	end)
+
+	return row
+end
+
 function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 	local props = self.Props
 	local spec = self._spec
@@ -322,15 +386,15 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 		-- right-hand column is always >=92px wide, so this is a no-op there.
 		local availableW = parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
 		local w = availableW > 0 and math.min(92, availableW) or 92
-		size = UDim2.new(0, w, 0, 28)
+		size = UDim2.new(0, w, 0, 26)
 	elseif spec.buyStyle == "IconRight" then
-		size = UDim2.new(0, 36, 0, 28)
+		size = UDim2.new(0, 34, 0, 26)
 	elseif spec.buyStyle == "Pill" then
 		-- Smaller, rounder, centred — deliberately NOT flush with the image box
 		-- above it (the caller adds real spacing before this).
-		size = UDim2.new(0, 110, 0, 26)
+		size = UDim2.new(0, 110, 0, 24)
 	else
-		size = UDim2.new(1, 0, 0, 28)
+		size = UDim2.new(1, 0, 0, 25)
 	end
 	buy:Create(parent, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -403,7 +467,10 @@ end
 -- Image on top, text stacked below. Standard grid card / image-focal.
 function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
 	UIStyler.Padding(8).Parent = surface
-	local col = stack("Content", 4, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
+	-- 3px column gap (tight). Name and price then sit close together because the
+	-- name text bottom-aligns to its box and the price text top-aligns to its box
+	-- (set below), so the only space between the two words is this small gap.
+	local col = stack("Content", 3, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
 	col.Size = UDim2.fromScale(1, 1)
 	col.Parent = surface
 
@@ -431,13 +498,27 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	local img = self:_MakeImage(wrap, UDim2.fromOffset(imgW, imgH), true)
 	img.AnchorPoint = Vector2.new(0.5, 0)
 	img.Position = UDim2.fromScale(0.5, 0)
-	local tags = self:_MakeTags(col)
-	if tags then
-		next_(tags)
+	-- Standard 2.0: price rides on the RIGHT of the tag row (name above it, buy
+	-- below). Otherwise: tags row, then name, then price on its own row.
+	if spec.priceWithTags then
+		local name = self:_MakeName(col, 20, true)
+		name.TextYAlignment = Enum.TextYAlignment.Bottom
+		next_(name)
+		next_(self:_MakeTagPriceRow(col))
+	else
+		local tags = self:_MakeTags(col)
+		if tags then
+			next_(tags)
+		end
+		local name = self:_MakeName(col, 20, true)
+		-- Bottom-align the name so its baseline sits just above the price row.
+		name.TextYAlignment = Enum.TextYAlignment.Bottom
+		next_(name)
+		local price = self:_MakePrice(col)
+		-- Top-align the price so it hugs right under the name (no centred dead space).
+		price.TextYAlignment = Enum.TextYAlignment.Top
+		next_(price)
 	end
-	next_(self:_MakeName(col, 22, true))
-	local price = self:_MakePrice(col)
-	next_(price)
 	-- "OutsideBelow"/"Straddle": the real button is built externally (see
 	-- _Build/_BuildExternalBuy) as a sibling of the surface, so it's never
 	-- clipped — just close out the column with a little bottom padding here so

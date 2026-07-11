@@ -58,6 +58,14 @@ function UIScreenBase.new(name: string, displayOrder: number?)
 	return self
 end
 
+-- A screen with a main UIPanelComponent registers it here so the base can drive
+-- a consistent intro on show and a REVERSE outro on hide (the panel leaves the
+-- way it came), instead of the old instant fade-out. The panel's animation pack
+-- (grow/slide/…) is chosen globally in PanelAnimConfig.
+function UIScreenBase:_SetAnimatedPanel(panel: any)
+	self._animatedPanel = panel
+end
+
 function UIScreenBase:SetControllers(themeController: any, screenController: any)
 	self.ThemeController = themeController
 	self.ScreenController = screenController
@@ -141,6 +149,11 @@ function UIScreenBase:Show(data: any?)
 	-- Fade the root in; individual components animate themselves on build.
 	UIStyler.Tween(self.Root, theme.Animations.Appear, { BackgroundTransparency = 1 })
 	self:_OnShow(data)
+	-- Drive the registered panel's intro centrally (grow/slide per the active
+	-- animation pack). Screens no longer call PlayAnimation("Appear") themselves.
+	if self._animatedPanel then
+		self._animatedPanel:AnimateIn()
+	end
 end
 
 function UIScreenBase:Hide()
@@ -150,6 +163,21 @@ function UIScreenBase:Hide()
 	self._visible = false
 	self:_OnHide()
 	local theme = self:GetTheme()
+	-- If this screen has an animated panel, play its outro (reverse of the intro)
+	-- and only disable the Gui once that exit finishes — so the panel visibly
+	-- leaves (shrinks/slides back out) instead of just blinking off.
+	if self._animatedPanel then
+		local out = self._animatedPanel:AnimateOut()
+		UIStyler.Tween(self.Root, theme.Animations.Disappear, { BackgroundTransparency = 1 })
+		if out then
+			out.Completed:Once(function()
+				if not self._visible then
+					self.Gui.Enabled = false
+				end
+			end)
+			return
+		end
+	end
 	local fade = UIStyler.Tween(self.Root, theme.Animations.Disappear, { BackgroundTransparency = 1 })
 	fade.Completed:Once(function()
 		if not self._visible then

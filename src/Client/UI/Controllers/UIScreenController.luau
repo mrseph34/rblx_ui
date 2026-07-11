@@ -13,6 +13,18 @@ local UISignal = require(script.Parent.Parent.UISignal)
 local UIScreenController = {}
 UIScreenController.__index = UIScreenController
 
+-- Panel screens that own the centre of the screen: only ONE may be open at a
+-- time, so opening any of these first closes whichever other one is up. This is
+-- the "open a new menu -> the previous one closes" consistency. The modal slot,
+-- HUD, chat bar and toasts are NOT in this set (they layer independently).
+local EXCLUSIVE_PANELS = {
+	shop = true,
+	themeSelector = true,
+	settings = true,
+	npcDialog = true,
+	tutorial = true,
+}
+
 function UIScreenController.new(themeController: any)
 	local self = setmetatable({}, UIScreenController)
 	self._themeController = themeController
@@ -50,6 +62,15 @@ function UIScreenController:ShowScreen(id: string, data: any?)
 	if not screen then
 		warn("[UIScreenController] Unknown screen: " .. id)
 		return
+	end
+	-- Single-panel rule: opening one exclusive panel closes any other open one,
+	-- so its outro (reverse animation) plays as the new panel animates in.
+	if EXCLUSIVE_PANELS[id] then
+		for otherId in EXCLUSIVE_PANELS do
+			if otherId ~= id and self._visible[otherId] then
+				self:HideScreen(otherId)
+			end
+		end
 	end
 	self._visible[id] = true
 	screen:Show(data)

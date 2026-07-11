@@ -45,6 +45,10 @@ export type EntrySpec = {
 	imageFillWidth: boolean?,
 	showTags: boolean,
 	showDescription: boolean,
+	-- CardTop only. true = render the price on the RIGHT end of the tag-badge row
+	-- (name above, buy below), instead of price on its own row under the name.
+	-- The badges occupy a flex area that shrinks so they never overlap the price.
+	priceWithTags: boolean?,
 	-- "Full" wide button, "Compact" small right-aligned, "IconRight" tiny,
 	-- "Pill" a smaller centred rounded button with extra breathing room BELOW the
 	-- image box (still inside the same card surface), "Quantity" shows an
@@ -55,7 +59,11 @@ export type EntrySpec = {
 	-- "Straddle" centres the button ON the box's bottom edge — half overlapping
 	-- inside, half hanging out below.
 	buyStyle: "Full" | "Compact" | "IconRight" | "Pill" | "Quantity" | "OutsideBelow" | "Straddle",
-	nameAlign: Enum.TextXAlignment,
+	-- Text alignment for the name/price/tags. OPTIONAL — omit it (or nil) and the
+	-- entry is LEFT-aligned, the house default (see EntryLayoutConfig.Get). Set it
+	-- to Enum.TextXAlignment.Center or .Right only when a look deliberately wants
+	-- centred/right-aligned text.
+	nameAlign: Enum.TextXAlignment?,
 	-- Split only: put the image on the RIGHT and the text column on the left.
 	mirror: boolean?,
 	-- Overlay only: "Scrim" (default) = dark gradient fading up from the bottom
@@ -76,7 +84,19 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
-		nameAlign = Enum.TextXAlignment.Left,
+		-- Left-aligned by default (house style).
+	},
+	-- Standard 2.0: like StandardCard, but the price sits on the RIGHT end of the
+	-- SAME row as the tag badges (name above, buy below). The badges live in a
+	-- flex area that shrinks so they never run into the price on the right.
+	StandardCardPlus = {
+		arrangement = "CardTop",
+		imageAspect = 1,
+		imageFillWidth = true,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Full",
+		priceWithTags = true, -- price shares the tag row, pinned right
 	},
 	-- Image showcase: full-bleed square art with name/price/tags/buy OVERLAID on a
 	-- bottom scrim so the text reads over the image. The card IS the image (compact).
@@ -122,7 +142,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Pill",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	-- Inventory view: a row with a square thumbnail and an OWNED-COUNT badge in
 	-- the bottom-right instead of a buy button — for showing what you have, not
@@ -157,7 +177,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "OutsideBelow",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	-- Square image in a clean box; the buy button straddles the box's bottom
 	-- edge — half overlapping inside the box, half hanging out below it.
@@ -168,7 +188,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Straddle",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	ListRow = {
 		arrangement = "Row",
@@ -217,7 +237,7 @@ EntryLayoutConfig.Specs = {
 		showTags = false,
 		showDescription = false,
 		buyStyle = "Compact",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	-- Big square hero card: large square image, centred name/price, full buy.
 	SquareShowcase = {
@@ -227,7 +247,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	-- Dense list row with description — inventory / quest-log feel.
 	DetailRow = {
@@ -258,7 +278,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	-- Full-bleed image, completely clean except for one translucent strip
 	-- crossing the vertical middle that holds ONLY the name — a poster/title-
@@ -271,7 +291,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Compact",
-		nameAlign = Enum.TextXAlignment.Center,
+		-- Left by default (house style). Set nameAlign = Center to re-centre.
 	},
 	-- Compact icon+name chip row, buy as a tiny icon — settings/menu list feel.
 	MenuRow = {
@@ -285,8 +305,21 @@ EntryLayoutConfig.Specs = {
 	},
 } :: { [string]: EntrySpec }
 
+-- Fetch a spec, normalising alignment: anything is LEFT-aligned by default (the
+-- house style), and a spec opts into Center/Right explicitly. A missing
+-- nameAlign therefore means Left, and this is the single place that default is
+-- enforced so no spec can silently ship centered. To make a spec centred/right,
+-- set nameAlign = Enum.TextXAlignment.Center (or .Right).
 function EntryLayoutConfig.Get(id: string): EntrySpec
-	return EntryLayoutConfig.Specs[id] or EntryLayoutConfig.Specs.StandardCard
+	local spec = EntryLayoutConfig.Specs[id] or EntryLayoutConfig.Specs.StandardCard
+	if spec.nameAlign == nil then
+		-- Return a shallow copy with the default filled in, so we never mutate the
+		-- shared spec table (a spec is reused across every card in a pack).
+		local copy = table.clone(spec)
+		copy.nameAlign = Enum.TextXAlignment.Left
+		return copy
+	end
+	return spec
 end
 
 return EntryLayoutConfig
