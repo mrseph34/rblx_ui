@@ -231,8 +231,11 @@ function UICardComponent:_MakeName(parent: Instance, height: number, oneLine: bo
 	name.TextXAlignment = self._spec.nameAlign
 	name.TextYAlignment = Enum.TextYAlignment.Center
 	name.TextTruncate = Enum.TextTruncate.None
-	name.TextWrapped = false
+	-- TextScaled implicitly forces TextWrapped = true as a side effect when set,
+	-- so TextWrapped must be re-asserted false AFTER assigning TextScaled or it
+	-- silently gets flipped back on and the text wraps despite this line.
 	name.TextScaled = true
+	name.TextWrapped = false
 	name.Text = TextConfig.Resolve(self._item.nameKey)
 	self._nameConstraint = UIStyler.TextSizeConstraint(oneLine and 16 or 20, 9)
 	self._nameConstraint.Parent = name
