@@ -49,6 +49,13 @@ export type EntrySpec = {
 	-- (name above, buy below), instead of price on its own row under the name.
 	-- The badges occupy a flex area that shrinks so they never overlap the price.
 	priceWithTags: boolean?,
+	-- CardTop only. true = the tag badges (Sale/New/Popular/…) straddle the
+	-- image's TOP edge — half overlapping onto the image, half hanging above it
+	-- — instead of sitting in their own row below the image in the text column.
+	-- A poster/movie-banner look for the same tags data, no renderer changes
+	-- needed elsewhere: the badges are still the same _MakeTags output, just
+	-- parented/positioned differently.
+	tagStraddle: boolean?,
 	-- "Full" wide button, "Compact" small right-aligned, "IconRight" tiny,
 	-- "Pill" a smaller centred rounded button with extra breathing room BELOW the
 	-- image box (still inside the same card surface), "Quantity" shows an
@@ -97,6 +104,18 @@ EntryLayoutConfig.Specs = {
 		showDescription = false,
 		buyStyle = "Full",
 		priceWithTags = true, -- price shares the tag row, pinned right
+	},
+	-- Standard, but the tag badges (Sale/New/Popular/…) straddle the TOP edge of
+	-- the image — half overlapping onto the art, half hanging above it — instead
+	-- of sitting in the text column below the image. A poster/banner look.
+	StandardCardBanner = {
+		arrangement = "CardTop",
+		imageAspect = 1,
+		imageFillWidth = true,
+		showTags = true,
+		showDescription = false,
+		buyStyle = "Full",
+		tagStraddle = true,
 	},
 	-- Image showcase: full-bleed square art with name/price/tags/buy OVERLAID on a
 	-- bottom scrim so the text reads over the image. The card IS the image (compact).
@@ -172,8 +191,8 @@ EntryLayoutConfig.Specs = {
 	-- the Pill style, which still sits inside the same rounded surface.
 	OutsideCard = {
 		arrangement = "CardTop",
-		imageHeight = 150,
 		imageAspect = 1,
+		imageFillWidth = true, -- image spans the full card width, no side gap
 		showTags = true,
 		showDescription = false,
 		buyStyle = "OutsideBelow",
@@ -183,8 +202,8 @@ EntryLayoutConfig.Specs = {
 	-- edge — half overlapping inside the box, half hanging out below it.
 	StraddleCard = {
 		arrangement = "CardTop",
-		imageHeight = 150,
 		imageAspect = 1,
+		imageFillWidth = true, -- image spans the full card width, no side gap
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Straddle",

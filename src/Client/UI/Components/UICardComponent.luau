@@ -73,7 +73,7 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 		and (spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle")
 	-- OutsideBelow reserves a full button + gap; Straddle only reserves HALF a
 	-- button's height (the other half overlaps the surface on top of it).
-	local externalReserve = externalBuy and (spec.buyStyle == "Straddle" and 16 or 40) or 0
+	local externalReserve = externalBuy and (spec.buyStyle == "Straddle" and 13 or 34) or 0
 	self._externalReserve = externalReserve
 
 	-- Surface = fixed footprint's visual layer; hover/press scale this, not the
@@ -143,7 +143,9 @@ function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.
 	-- Default: as wide as the box itself (matches the card, edge to edge) — a
 	-- per-spec buttonSize can override this later if a narrower/fixed width is
 	-- ever wanted, but the out-of-the-box default spans the full card width.
-	local buttonH = straddle and 32 or 30
+	-- Thinner than the in-box buy (26, was 30-32) — "half in the box" reads
+	-- better as a slim strap across the edge, not a full-size button hanging off.
+	local buttonH = 26
 	local size = UDim2.new(1, 0, 0, buttonH)
 	buy:Create(root, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -234,8 +236,14 @@ function UICardComponent:_MakeName(parent: Instance, height: number, oneLine: bo
 	name.TextWrapped = true
 	name.Text = TextConfig.Resolve(self._item.nameKey)
 	if oneLine then
-		-- Fixed Body size (set in _Style) + hug-the-text height.
-		name.AutomaticSize = Enum.AutomaticSize.Y
+		-- NOT AutomaticSize — confirmed by measurement it does not reliably
+		-- shrink this box to the real glyph height (same class of unreliable
+		-- "smart sizing" as the TextScaled bug found elsewhere in this file):
+		-- the box stayed at its initial `height` regardless of the shorter
+		-- actual text, and Bottom/Top alignment then pushed the visible glyph
+		-- away from the box edge, reading as extra dead space. `height` is now
+		-- a small FIXED value the caller tunes to hug the Body text size exactly
+		-- (Center-aligned — no more Bottom/Top alignment tricks needed).
 	else
 		name.TextScaled = true
 		name.TextWrapped = true -- (re-assert after TextScaled, which toggles it)
@@ -286,6 +294,7 @@ function UICardComponent:_MakeTags(parent: Instance): Frame?
 	local tagRow = UIStyler.Frame("Tags")
 	tagRow.BackgroundTransparency = 1
 	tagRow.Size = UDim2.new(1, 0, 0, 15)
+	-- (Matches the badge's own 15px height exactly — no slack above/below it.)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = self._spec.nameAlign == Enum.TextXAlignment.Center
@@ -467,10 +476,10 @@ end
 -- Image on top, text stacked below. Standard grid card / image-focal.
 function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
 	UIStyler.Padding(8).Parent = surface
-	-- 3px column gap (tight). Name and price then sit close together because the
+	-- 2px column gap (very tight). Name and price sit close together because the
 	-- name text bottom-aligns to its box and the price text top-aligns to its box
 	-- (set below), so the only space between the two words is this small gap.
-	local col = stack("Content", 3, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
+	local col = stack("Content", 2, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
 	col.Size = UDim2.fromScale(1, 1)
 	col.Parent = surface
 
@@ -498,25 +507,36 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	local img = self:_MakeImage(wrap, UDim2.fromOffset(imgW, imgH), true)
 	img.AnchorPoint = Vector2.new(0.5, 0)
 	img.Position = UDim2.fromScale(0.5, 0)
+	-- Banner look: the tag badges straddle the image's TOP edge — a later
+	-- sibling of the image inside the same wrap, so it renders on top of it
+	-- without needing any ZIndex bump — half overlapping onto the art, half
+	-- hanging above it, instead of taking a row in the text column below.
+	if spec.tagStraddle and spec.showTags then
+		local straddleTags = self:_MakeTags(wrap)
+		if straddleTags then
+			straddleTags.AnchorPoint = Vector2.new(0, 0)
+			straddleTags.Position = UDim2.new(0, 8, 0, -8) -- half of the 15px badge
+			straddleTags.Size = UDim2.new(1, -16, 0, 15)
+		end
+	end
 	-- Standard 2.0: price rides on the RIGHT of the tag row (name above it, buy
 	-- below). Otherwise: tags row, then name, then price on its own row.
 	if spec.priceWithTags then
-		local name = self:_MakeName(col, 20, true)
-		name.TextYAlignment = Enum.TextYAlignment.Bottom
+		local name = self:_MakeName(col, 17, true)
 		next_(name)
 		next_(self:_MakeTagPriceRow(col))
 	else
-		local tags = self:_MakeTags(col)
+		-- tagStraddle already placed the badges on the image — don't also give
+		-- them a row in the text column below.
+		local tags = not spec.tagStraddle and self:_MakeTags(col) or nil
 		if tags then
 			next_(tags)
 		end
-		local name = self:_MakeName(col, 20, true)
-		-- Bottom-align the name so its baseline sits just above the price row.
-		name.TextYAlignment = Enum.TextYAlignment.Bottom
+		-- 17px is a tight fit for the Body text size (measures ~16px tall) — the
+		-- box now hugs the glyph directly, no Bottom/Top alignment trick needed.
+		local name = self:_MakeName(col, 17, true)
 		next_(name)
 		local price = self:_MakePrice(col)
-		-- Top-align the price so it hugs right under the name (no centred dead space).
-		price.TextYAlignment = Enum.TextYAlignment.Top
 		next_(price)
 	end
 	-- "OutsideBelow"/"Straddle": the real button is built externally (see
@@ -541,7 +561,9 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if layout then
 		-- Pill buttons get real breathing room so they read as a separate element
 		-- below the image box, not flush against the price row like a normal buy.
-		spacer.Size = UDim2.new(1, 0, 0, spec.buyStyle == "Pill" and 8 or 2)
+		-- The default (non-Pill) buy sits right under the price now — 0 extra
+		-- spacer, just the column's own 2px gap on either side of it.
+		spacer.Size = UDim2.new(1, 0, 0, spec.buyStyle == "Pill" and 8 or 0)
 	end
 	local buy = self:_MakeBuy(col)
 	buy.LayoutOrder = 999

@@ -41,6 +41,19 @@ UIPackConfig.Packs = {
 		Modal = { WidthScale = 0.42 },
 	},
 
+	-- Standard, but the tag badges (Sale/New/Popular/…) straddle the image's TOP
+	-- edge — half overlapping onto the art, half hanging above it — instead of
+	-- sitting in the text column below. A poster/movie-banner feel.
+	{
+		Id = "StandardBanner",
+		DisplayName = "Standard (Banner on Image)",
+		Shop = { Container = "Grid", Columns = 4, CardHeight = 288, EntryLayout = "StandardCardBanner", ShowCategoryBar = true },
+		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
+		Nav = { Side = "Left", Vertical = "Center" },
+		Tutorial = { ShowStepList = true },
+		Modal = { WidthScale = 0.42 },
+	},
+
 	-- Image is the hero: fewer, larger cards, centred text. Premium storefront.
 	{
 		Id = "ImageShowcase",
