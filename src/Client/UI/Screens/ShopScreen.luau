@@ -211,9 +211,10 @@ function ShopScreen:_RebuildLayout()
 			else
 				-- CardTop: square (or spec aspect) image over a text strip below.
 				-- Exact height of everything below the image (matches the renderer:
-				-- surface pad 8+8, name wraps up to 2 lines (32px) instead of ever
-				-- ellipsis-truncating, tags 15, price 17, thinner buy). Kept accurate
-				-- so Buy never clips and there's never dead space either.
+				-- surface pad 8+8, 4px stack gaps, name AUTO-SIZES to ~1 line so
+				-- there's no dead space (reserve ~22px), tags 15, price 17, thin
+				-- buy 28). Kept accurate so Buy never clips and there's no gap.
+				local nameH = 22 -- ~1 line of the Subtitle size (auto-grows for long names)
 				local external = spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle"
 				local textBlock
 				if external then
@@ -223,15 +224,15 @@ function ShopScreen:_RebuildLayout()
 					-- space for the external button is added on top, outside the
 					-- surface's own content height.
 					local stackItems = 4 + (spec.showTags and 1 or 0) -- image, [tags], name, price, pad
-					local gaps = (stackItems - 1) * 5
-					local reserve = spec.buyStyle == "Straddle" and 16 or 40
-					textBlock = 16 + (spec.showTags and 15 or 0) + 32 + 17 + 4 + gaps + reserve
+					local gaps = (stackItems - 1) * 4
+					local reserve = spec.buyStyle == "Straddle" and 16 or 38
+					textBlock = 16 + (spec.showTags and 15 or 0) + nameH + 17 + 4 + gaps + reserve
 				else
-					local buyH = spec.buyStyle == "Pill" and 26 or 30
+					local buyH = spec.buyStyle == "Pill" and 26 or 28
 					local spacerH = spec.buyStyle == "Pill" and 8 or 2
 					local stackItems = 4 + (spec.showTags and 1 or 0) -- image, [tags], name, price, spacer, buy
-					local gaps = stackItems * 5
-					textBlock = 16 + (spec.showTags and 15 or 0) + 32 + 17 + spacerH + buyH + gaps
+					local gaps = stackItems * 4
+					textBlock = 16 + (spec.showTags and 15 or 0) + nameH + 17 + spacerH + buyH + gaps
 				end
 				if spec.imageFillWidth then
 					-- Image fills the card content width edge-to-edge (no side margin).

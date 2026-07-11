@@ -215,24 +215,36 @@ function UICardComponent:_MakeImage(parent: Instance, size: UDim2, fillWidth: bo
 	return holder
 end
 
-function UICardComponent:_MakeName(parent: Instance, height: number): TextLabel
+-- oneLine=true -> grid-card mode: a small FIXED text size (Body) that AUTO-SIZES
+--   its height. A typical name fits on one line and the box hugs it tightly
+--   (~1 line, no dead space above/below — the gap that made cards look too
+--   tall); only a genuinely long name wraps to a 2nd line. `height` is a minimum
+--   so 1-line names all share the same tidy height. No TextScaled (which
+--   unreliably shrank text to a fraction of the size that actually fit).
+-- oneLine=false -> a FIXED-height box with TextScaled + wrap, for the taller
+--   load-bearing slots (overlay bottom strip, list rows) where a long name
+--   should shrink/wrap within the reserved box rather than grow it.
+function UICardComponent:_MakeName(parent: Instance, height: number, oneLine: boolean?): TextLabel
 	local name = UIStyler.TextLabel("Name")
 	name.Size = UDim2.new(1, 0, 0, height)
 	name.TextXAlignment = self._spec.nameAlign
 	name.TextYAlignment = Enum.TextYAlignment.Center
-	-- Never ellipsis-truncate a name — instead wrap onto a second line and let
-	-- the text itself shrink to fit. TextWrapped+TextScaled inside a fixed-size
-	-- box is the idiom: short names render at (up to) the theme's normal size,
-	-- long ones wrap and/or shrink, and a UITextSizeConstraint (min set here,
-	-- max set in _Style once the theme's normal size is known) stops short
-	-- names from blowing up past the theme's normal look.
+	-- Never ellipsis-truncate a name — wrap to a second line instead.
+	name.TextTruncate = Enum.TextTruncate.None
 	name.TextWrapped = true
-	name.TextScaled = true
 	name.Text = TextConfig.Resolve(self._item.nameKey)
+	if oneLine then
+		-- Fixed Body size (set in _Style) + hug-the-text height.
+		name.AutomaticSize = Enum.AutomaticSize.Y
+	else
+		name.TextScaled = true
+		name.TextWrapped = true -- (re-assert after TextScaled, which toggles it)
+		self._nameConstraint = UIStyler.TextSizeConstraint(20, 9)
+		self._nameConstraint.Parent = name
+	end
 	name.Parent = parent
 	self._name = name
-	self._nameConstraint = UIStyler.TextSizeConstraint(20, 9)
-	self._nameConstraint.Parent = name
+	self._nameOneLine = oneLine or false
 	return name
 end
 
@@ -318,7 +330,7 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 		-- above it (the caller adds real spacing before this).
 		size = UDim2.new(0, 110, 0, 26)
 	else
-		size = UDim2.new(1, 0, 0, 30)
+		size = UDim2.new(1, 0, 0, 28)
 	end
 	buy:Create(parent, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -391,7 +403,7 @@ end
 -- Image on top, text stacked below. Standard grid card / image-focal.
 function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
 	UIStyler.Padding(8).Parent = surface
-	local col = stack("Content", 5, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
+	local col = stack("Content", 4, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
 	col.Size = UDim2.fromScale(1, 1)
 	col.Parent = surface
 
@@ -423,7 +435,7 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if tags then
 		next_(tags)
 	end
-	next_(self:_MakeName(col, 32))
+	next_(self:_MakeName(col, 22, true))
 	local price = self:_MakePrice(col)
 	next_(price)
 	-- "OutsideBelow"/"Straddle": the real button is built externally (see
@@ -810,6 +822,11 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	if self._name then
 		self._name.FontFace = theme.Fonts.Subtitle
 		self._name.TextColor3 = forceWhiteName and Color3.new(1, 1, 1) or c.TextPrimary
+		-- Grid names render at the smaller Body size (fixed, not scaled) so a
+		-- typical name fits on one line; the auto-height box then hugs it.
+		if self._nameOneLine then
+			self._name.TextSize = theme.TextSizes.Body
+		end
 	end
 	if self._nameConstraint then
 		self._nameConstraint.MaxTextSize = theme.TextSizes.Subtitle

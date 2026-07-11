@@ -86,6 +86,26 @@ function GameHUDScreen:SetElementRegion(elementId: string, region: string)
 	self:Rebuild()
 end
 
+-- Apply a whole layout-preset's HUD block in ONE rebuild: relocate the money
+-- chips, apply any per-element region overrides, and (optionally) override the
+-- HUD scale. Used by UILayoutController so switching presets is a single
+-- relayout instead of one rebuild per moved element.
+function GameHUDScreen:ApplyLayout(opts: { money: string?, regions: { [string]: string }?, scaleOverride: number? })
+	self._regionOverrides = {} -- a preset fully defines placement; start clean
+	if opts.money then
+		self._regionOverrides.coins = opts.money
+		self._regionOverrides.gems = opts.money
+	end
+	if opts.regions then
+		for id, region in opts.regions do
+			self._regionOverrides[id] = region
+		end
+	end
+	-- nil clears any earlier override so the pack's own scale takes back over.
+	self._scaleOverride = opts.scaleOverride
+	self:Rebuild()
+end
+
 -- Tear down and rebuild HUD content from the current pack (used when the pack
 -- changes at runtime, e.g. the Theme Editor's pack picker / test harness).
 function GameHUDScreen:Rebuild()
@@ -350,7 +370,9 @@ end
 function GameHUDScreen:_ApplyPackScale()
 	local pack = self.ThemeController:GetPack()
 	if self._scale then
-		self._scale.Scale = pack.HUD.Scale
+		-- A layout preset can override the pack's HUD scale (Compact/Cinematic
+		-- shrink it for more play space); nil falls back to the pack's own scale.
+		self._scale.Scale = self._scaleOverride or pack.HUD.Scale
 	end
 	if self._objectivesHolder then
 		self._objectivesHolder.Visible = pack.HUD.ShowObjectives

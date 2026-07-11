@@ -91,6 +91,17 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	icon.Parent = content
 	self._icon = icon
 
+	-- Image variant of the icon (used when props.iconId is an asset id instead of
+	-- an emoji). Same slot/order as the emoji icon; only one is ever visible.
+	local iconImage = Instance.new("ImageLabel")
+	iconImage.Name = "IconImage"
+	iconImage.BackgroundTransparency = 1
+	iconImage.Size = UDim2.fromOffset(24, 24)
+	iconImage.LayoutOrder = 1
+	iconImage.Visible = false
+	iconImage.Parent = content
+	self._iconImage = iconImage
+
 	local label = UIStyler.TextLabel("Label")
 	label.AutomaticSize = Enum.AutomaticSize.X
 	label.Size = UDim2.fromScale(0, 1)
@@ -106,6 +117,10 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	button.Size = UDim2.fromScale(1, 1)
 	button.Text = ""
 	button.AutoButtonColor = false
+	-- Selectable so a gamepad/console can navigate to and A-press this button;
+	-- Activated (bound in _BindInteractions) fires for mouse, touch AND gamepad,
+	-- so one code path serves PC, mobile and console.
+	button.Selectable = true
 	button.ZIndex = 5
 	button.Parent = root
 	self._button = button
@@ -114,20 +129,26 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	self:SetContent(props)
 end
 
--- Update text/icon after construction without rebuilding.
+-- Update text/icon after construction without rebuilding. Supports an emoji
+-- `icon`, an image `iconId`, a text label, or any combination — an icon-only
+-- button, a text-only button, and an icon+text button all come from here.
 function UIButtonComponent:SetContent(props: Types.UIComponentProps)
 	local text = TextConfig.Resolve(props.textKey or props.text)
 	self._label.Text = text
 	self._label.Visible = text ~= ""
-	if props.icon then
+	if props.icon and props.icon ~= "" then
+		-- Emoji glyph.
 		self._icon.Text = props.icon
 		self._icon.Visible = true
-	elseif props.iconId then
-		-- Swap the emoji label for an image if an asset id is given later.
-		self._icon.Text = ""
-		self._icon.Visible = true
+		self._iconImage.Visible = false
+	elseif props.iconId and props.iconId ~= "" then
+		-- Image asset.
+		self._iconImage.Image = props.iconId
+		self._iconImage.Visible = true
+		self._icon.Visible = false
 	else
 		self._icon.Visible = false
+		self._iconImage.Visible = false
 	end
 end
 
@@ -221,9 +242,11 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 	if buttonH > 0 then
 		local iconSize = math.clamp(buttonH * 0.55, 16, 40)
 		self._icon.Size = UDim2.fromOffset(iconSize, iconSize)
+		self._iconImage.Size = UDim2.fromOffset(iconSize, iconSize)
 	end
 	self._icon.TextColor3 = textColor
 	self._button.Active = enabled
+	self._button.Selectable = enabled -- disabled buttons drop out of gamepad nav
 	self._button.AutoButtonColor = false
 end
 
