@@ -17,8 +17,11 @@ CardSpacing.SurfacePadding = 8
 -- why these are fixed instead of AutomaticSize).
 CardSpacing.Height = {
 	TagRow = 15, -- matches UIBadgeComponent's own height exactly, no slack
-	Name = 17, -- tight fit for the Body text size (~16px glyph)
-	Price = 17,
+	-- Name/Price: 16, exactly matching the Body text's measured TextBounds (no
+	-- slack at all — Center-aligned text in a box this tight leaves no visible
+	-- padding above or below the glyph).
+	Name = 16,
+	Price = 16,
 	BuyFull = 26,
 	BuyCompact = 26,
 	BuyPill = 24,
@@ -30,12 +33,9 @@ CardSpacing.Height = {
 -- LAYOUT ORDER. Each is independently tunable — set any one to 0 to make that
 -- specific pair touch, without affecting any other gap.
 CardSpacing.Gap = {
-	ImageToTags = 2, -- image bottom -> tag badges (kept small on purpose)
-	-- Flush (0) was tried and looked wrong in practice — badge touching the name
-	-- text with zero breathing room read as cramped, not clean. Matches
-	-- ImageToTags exactly so the badge has the SAME small gap on both sides.
-	TagsToName = 2,
-	ImageToName = 2, -- image bottom -> item name, when there are no tags
+	ImageToTags = 1, -- image bottom -> tag badges (kept minimal on purpose)
+	TagsToName = 1, -- tag badges -> item name — SAME small gap as ImageToTags
+	ImageToName = 1, -- image bottom -> item name, when there are no tags
 	NameToPrice = 2, -- item name -> price
 	PriceToBuy = 0, -- price -> buy button
 	BuyToPill = 8, -- price -> buy button, ONLY for the Pill buy style (more
