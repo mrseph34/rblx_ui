@@ -80,10 +80,8 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	headerSquareBottom.Parent = headerBg
 	self._headerSquareBottom = headerSquareBottom
 
-	-- Header padding is a SCALE fraction of the header's own height (not a
-	-- fixed pixel inset), so title/close positioning scales with the rest of
-	-- the UI instead of the X drifting inward by a constant amount at any size.
-	UIStyler.PaddingScale(0.14).Parent = header
+	-- No header padding — title/close position themselves directly with
+	-- explicit Scale offsets instead of relying on a UIPadding inset.
 
 	local title = UIStyler.TextLabel("Title")
 	-- Leaves room for the close button (a Scale fraction of header width, not a
@@ -93,7 +91,7 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	-- if the box is tall enough to fit one (confirmed via a live Studio test),
 	-- so a short box is what makes it shrink-to-fit-one-line instead.
 	title.AnchorPoint = Vector2.new(0, 0.5)
-	title.Position = UDim2.new(0, 0, 0.5, 0)
+	title.Position = UDim2.new(0.02, 0, 0.5, 0)
 	title.Size = UDim2.new(props.showClose ~= false and 0.82 or 1, 0, 0.55, 0)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = TextConfig.Resolve(props.titleKey or props.title)
@@ -112,11 +110,9 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 		local close = Instance.new("TextButton")
 		close.Name = "Close"
 		close.AnchorPoint = Vector2.new(1, 0.5)
-		-- Pinned to the FAR right edge of the header (Scale, not a header-padding-
-		-- eaten pixel inset) — a small POSITIVE X offset re-escapes header's own
-		-- UIPadding so the X sits flush near the true panel edge, not inset by
-		-- the same padding the title/content use.
-		close.Position = UDim2.new(1, 12, 0.5, 0)
+		-- Pinned near the far right edge of the header with a small Scale inset
+		-- (no header padding anymore — this is the only thing positioning it).
+		close.Position = UDim2.new(0.98, 0, 0.5, 0)
 		-- Placeholder; _Style computes the real SQUARE size from header's actual
 		-- AbsoluteSize.Y once resolvable — an AspectRatioConstraint here would
 		-- collapse to 0x0 (Size.X starts at Scale=0 with no offset, and

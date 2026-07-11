@@ -72,8 +72,10 @@ function ShopScreen:_BuildContent()
 	local currencyBar = UIStyler.Frame("Currencies")
 	currencyBar.BackgroundTransparency = 1
 	currencyBar.AnchorPoint = Vector2.new(1, 0.5)
-	currencyBar.Position = UDim2.new(1, -34, 0.5, 0)
-	currencyBar.Size = UDim2.new(0.5, 0, 0.72, 0)
+	-- Pure Scale: sits left of the close button (which is pinned at 0.98) with
+	-- a small Scale gap — never a pixel Offset.
+	currencyBar.Position = UDim2.new(0.9, 0, 0.5, 0)
+	currencyBar.Size = UDim2.new(0.45, 0, 0.72, 0)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Right,
