@@ -153,10 +153,10 @@ function ShopScreen:_BuildContent()
 	-- A SCALE fraction of the scroll's own size, applied once; per-render we
 	-- rebuild only the layout object, not this.
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0.02, 0)
-	pad.PaddingBottom = UDim.new(0.035, 0)
+	pad.PaddingTop = UDim.new(-0.018, 0)
+	pad.PaddingBottom = UDim.new(0, 0)
 	pad.PaddingLeft = UDim.new(0.015, 0)
-	pad.PaddingRight = UDim.new(0.03, 0)
+	pad.PaddingRight = UDim.new(0.011, 0)
 	pad.Parent = scroll
 	self._scrollPad = pad
 
@@ -216,21 +216,12 @@ function ShopScreen:_RebuildLayout()
 		-- pixel measurement, no per-pass height computation, no ShopScreen/
 		-- CardSpacingConfig cross-referencing needed for this arrangement anymore.
 		self._cardImageSizePx = nil
-		local cols = shopLayout.Columns
-		local cellPad = 10
-		local colFrac = 1 / cols
-		-- The scroll frame's own width:height ratio is NOT 1:1, so a cell height
-		-- Scale fraction must convert through the scroll's real AbsoluteSize once
-		-- here (this is the only pixel read in the whole CardTop path — a single
-		-- one-time-per-layout-pass conversion, not a per-card/per-element one).
-		-- Colonies of cards keep being pure Scale internally either way, this just
-		-- picks the right Scale NUMBER for the cell height.
-		local scrollSize = self._scroll.AbsoluteSize
-		local scrollAspect = (scrollSize.X > 0 and scrollSize.Y > 0) and (scrollSize.X / scrollSize.Y) or (16 / 9)
-		local cellHFrac = (colFrac * scrollAspect) / CardSpacing.CardTop.AspectRatio
+		-- Pure Scale cell size/padding — hand-tuned to look right in Studio
+		-- (see CardSpacingConfig.GridCell for the editable values) instead of
+		-- computed from column count + a pixel gap.
 		local cell = UIStyler.GridLayout(
-			UDim2.new(colFrac, -cellPad, cellHFrac, -cellPad),
-			UDim2.fromOffset(cellPad, cellPad)
+			UDim2.fromScale(CardSpacing.GridCell.CellSizeX, CardSpacing.GridCell.CellSizeY),
+			UDim2.fromScale(CardSpacing.GridCell.CellPaddingX, CardSpacing.GridCell.CellPaddingY)
 		)
 		cell.Parent = self._scroll
 	elseif shopLayout.Container == "Grid" then

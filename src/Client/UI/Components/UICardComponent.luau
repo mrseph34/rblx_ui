@@ -699,6 +699,13 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	buy.LayoutOrder = 999
 	-- (Pill buttons are meant for a CENTRED spec — nameAlign = Center — so the
 	-- column's own HorizontalAlignment already centres a narrower button like this.)
+	-- A small bottom margin so the button doesn't sit flush against the
+	-- surface's own clipped bottom edge.
+	local bottomPad = UIStyler.Frame("BottomPad")
+	bottomPad.BackgroundTransparency = 1
+	bottomPad.Size = UDim2.new(1, 0, CardSpacing.Gap.PriceToBuy, 0)
+	bottomPad.LayoutOrder = 1000
+	bottomPad.Parent = col
 end
 
 -- Full-bleed image with the text OVERLAID on it (name/price/tags/buy). Three

@@ -31,6 +31,18 @@ CardSpacing.CardTop = {
 	AspectRatio = 0.7058823529411765,
 }
 
+-- The shop grid's UIGridLayout CellSize/CellPadding, pure Scale (fraction of
+-- the scroll frame), hand-tuned live in Studio rather than derived from
+-- column count + a pixel gap. Editing these directly controls how many
+-- columns actually fit and how tightly cards pack — CellSizeX * columns +
+-- CellPaddingX * (columns - 1) roughly fills the row width.
+CardSpacing.GridCell = {
+	CellSizeX = 0.23,
+	CellSizeY = 0.65,
+	CellPaddingX = 0.015,
+	CellPaddingY = -0.05,
+}
+
 -- Surface (the card's visible box) inner padding, as a fraction of the card's
 -- OWN full height (this one IS relative to the outer card, not col — it's
 -- what carves col's content area out of the card in the first place).

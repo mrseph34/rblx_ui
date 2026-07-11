@@ -47,10 +47,11 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 
 	self._corner = UIStyler.Corner(1000)
 	self._corner.Parent = root
-	-- Scale padding (a fraction of the badge's own resolved height) instead of
-	-- a fixed pixel inset, so the chip's proportions stay consistent whether
-	-- its row is 7px or 22px tall at different viewport sizes.
-	UIStyler.PaddingScale(0.12).Parent = root
+	-- NO UIPadding here: root is AutomaticSize.X off the label, and the label
+	-- is ALSO AutomaticSize.X — a UIPadding on root fighting that combination
+	-- produced unstable/incorrect sizing (confirmed by direct testing across
+	-- packs). The label is instead given a bit of extra horizontal room
+	-- directly via its own Size below.
 
 	local label = UIStyler.TextLabel("Label")
 	-- AutomaticSize.X stays (root itself AutomaticSizes off this label's real
