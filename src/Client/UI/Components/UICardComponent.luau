@@ -22,6 +22,7 @@ local UIStyler = require(script.Parent.Parent.UIStyler)
 local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local EntryLayoutConfig = require(script.Parent.Parent.Config.EntryLayoutConfig)
+local CardSpacing = require(script.Parent.Parent.Config.CardSpacingConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 local UIButtonComponent = require(script.Parent.UIButtonComponent)
 local UIBadgeComponent = require(script.Parent.UIBadgeComponent)
@@ -274,7 +275,7 @@ end
 
 function UICardComponent:_MakePrice(parent: Instance): TextLabel
 	local price = UIStyler.TextLabel("Price")
-	price.Size = UDim2.new(1, 0, 0, 17)
+	price.Size = UDim2.new(1, 0, 0, CardSpacing.Height.Price)
 	price.TextXAlignment = self._spec.nameAlign
 	price.Text = string.format("%s %s", self.Props.currencyIcon or "", tostring(self._item.price))
 	price.Parent = parent
@@ -293,8 +294,8 @@ function UICardComponent:_MakeTags(parent: Instance): Frame?
 	local item = self._item
 	local tagRow = UIStyler.Frame("Tags")
 	tagRow.BackgroundTransparency = 1
-	tagRow.Size = UDim2.new(1, 0, 0, 15)
-	-- (Matches the badge's own 15px height exactly — no slack above/below it.)
+	tagRow.Size = UDim2.new(1, 0, 0, CardSpacing.Height.TagRow)
+	-- (Matches the badge's own height exactly — no slack above/below it.)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = self._spec.nameAlign == Enum.TextXAlignment.Center
@@ -321,7 +322,7 @@ end
 function UICardComponent:_MakeTagPriceRow(parent: Instance): Frame
 	local row = UIStyler.Frame("TagPriceRow")
 	row.BackgroundTransparency = 1
-	row.Size = UDim2.new(1, 0, 0, 18)
+	row.Size = UDim2.new(1, 0, 0, CardSpacing.Height.TagPriceRow)
 	row.Parent = parent
 
 	-- Price pinned to the right; AutomaticSize.X so it's exactly as wide as it
@@ -395,15 +396,15 @@ function UICardComponent:_MakeBuy(parent: Instance): GuiObject
 		-- right-hand column is always >=92px wide, so this is a no-op there.
 		local availableW = parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
 		local w = availableW > 0 and math.min(92, availableW) or 92
-		size = UDim2.new(0, w, 0, 26)
+		size = UDim2.new(0, w, 0, CardSpacing.Height.BuyCompact)
 	elseif spec.buyStyle == "IconRight" then
-		size = UDim2.new(0, 34, 0, 26)
+		size = UDim2.new(0, 34, 0, CardSpacing.Height.BuyIconRight)
 	elseif spec.buyStyle == "Pill" then
 		-- Smaller, rounder, centred — deliberately NOT flush with the image box
 		-- above it (the caller adds real spacing before this).
-		size = UDim2.new(0, 110, 0, 24)
+		size = UDim2.new(0, 110, 0, CardSpacing.Height.BuyPill)
 	else
-		size = UDim2.new(1, 0, 0, 25)
+		size = UDim2.new(1, 0, 0, CardSpacing.Height.BuyFull)
 	end
 	buy:Create(parent, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -474,12 +475,15 @@ end
 -- ========================================================================
 
 -- Image on top, text stacked below. Standard grid card / image-focal.
+--
+-- Gaps between elements are EXPLICIT spacer frames sized from CardSpacingConfig
+-- (the column's own UIListLayout gap is 0) instead of one uniform padding value
+-- — that's what lets "make X touch Y" be a single-line config edit instead of a
+-- renderer-code hunt, and lets each pair (image->tags, tags->name, name->price,
+-- price->buy) have its own independently-tunable gap.
 function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.EntrySpec)
-	UIStyler.Padding(8).Parent = surface
-	-- 2px column gap (very tight). Name and price sit close together because the
-	-- name text bottom-aligns to its box and the price text top-aligns to its box
-	-- (set below), so the only space between the two words is this small gap.
-	local col = stack("Content", 2, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
+	UIStyler.Padding(CardSpacing.SurfacePadding).Parent = surface
+	local col = stack("Content", 0, spec.nameAlign == Enum.TextXAlignment.Center and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left)
 	col.Size = UDim2.fromScale(1, 1)
 	col.Parent = surface
 
@@ -488,6 +492,18 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		order += 1
 		o.LayoutOrder = order
 	end
+	-- A zero-height frame just for spacing — its Size.Y IS the gap.
+	local function gap(px: number)
+		if px <= 0 then
+			return
+		end
+		local spacer = UIStyler.Frame("Gap")
+		spacer.BackgroundTransparency = 1
+		spacer.Size = UDim2.new(1, 0, 0, px)
+		spacer.Parent = col
+		next_(spacer)
+	end
+
 	-- Image is a CENTRED square (or spec aspect) whose size ShopScreen computed to
 	-- keep the whole card compact & roughly square (AAA tiles, not long strips).
 	-- imageSizePx = the square's SIDE (width); height = side / aspect. It's centred
@@ -515,15 +531,17 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		local straddleTags = self:_MakeTags(wrap)
 		if straddleTags then
 			straddleTags.AnchorPoint = Vector2.new(0, 0)
-			straddleTags.Position = UDim2.new(0, 8, 0, -8) -- half of the 15px badge
-			straddleTags.Size = UDim2.new(1, -16, 0, 15)
+			straddleTags.Position = UDim2.new(0, 8, 0, CardSpacing.BannerStraddleOffset)
+			straddleTags.Size = UDim2.new(1, -16, 0, CardSpacing.Height.TagRow)
 		end
 	end
 	-- Standard 2.0: price rides on the RIGHT of the tag row (name above it, buy
 	-- below). Otherwise: tags row, then name, then price on its own row.
 	if spec.priceWithTags then
-		local name = self:_MakeName(col, 17, true)
+		gap(CardSpacing.Gap.ImageToName)
+		local name = self:_MakeName(col, CardSpacing.Height.Name, true)
 		next_(name)
+		gap(CardSpacing.Gap.NameToPrice)
 		next_(self:_MakeTagPriceRow(col))
 	else
 		-- tagStraddle already placed the badges on the image — don't also give
@@ -531,11 +549,13 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		local tags = not spec.tagStraddle and self:_MakeTags(col) or nil
 		if tags then
 			next_(tags)
+			gap(CardSpacing.Gap.TagsToName)
+		else
+			gap(CardSpacing.Gap.ImageToName)
 		end
-		-- 17px is a tight fit for the Body text size (measures ~16px tall) — the
-		-- box now hugs the glyph directly, no Bottom/Top alignment trick needed.
-		local name = self:_MakeName(col, 17, true)
+		local name = self:_MakeName(col, CardSpacing.Height.Name, true)
 		next_(name)
+		gap(CardSpacing.Gap.NameToPrice)
 		local price = self:_MakePrice(col)
 		next_(price)
 	end
@@ -551,20 +571,9 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		pad.Parent = col
 		return
 	end
-	-- Spacer pushes buy to the bottom.
-	local spacer = UIStyler.Frame("Spacer")
-	spacer.BackgroundTransparency = 1
-	spacer.Size = UDim2.new(1, 0, 0, 0)
-	spacer.LayoutOrder = 900
-	spacer.Parent = col
-	local layout = col:FindFirstChildOfClass("UIListLayout")
-	if layout then
-		-- Pill buttons get real breathing room so they read as a separate element
-		-- below the image box, not flush against the price row like a normal buy.
-		-- The default (non-Pill) buy sits right under the price now — 0 extra
-		-- spacer, just the column's own 2px gap on either side of it.
-		spacer.Size = UDim2.new(1, 0, 0, spec.buyStyle == "Pill" and 8 or 0)
-	end
+	-- Pill buttons get real breathing room so they read as a separate element
+	-- below the image box, not flush against the price row like a normal buy.
+	gap(spec.buyStyle == "Pill" and CardSpacing.Gap.BuyToPill or CardSpacing.Gap.PriceToBuy)
 	local buy = self:_MakeBuy(col)
 	buy.LayoutOrder = 999
 	-- (Pill buttons are meant for a CENTRED spec — nameAlign = Center — so the

@@ -14,6 +14,7 @@ local SharedTypes = require(ReplicatedStorage.Shared.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local EntryLayoutConfig = require(script.Parent.Parent.Config.EntryLayoutConfig)
+local CardSpacing = require(script.Parent.Parent.Config.CardSpacingConfig)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
@@ -211,13 +212,15 @@ function ShopScreen:_RebuildLayout()
 				cardHeight = math.floor(cellW / aspect)
 			else
 				-- CardTop: square (or spec aspect) image over a text strip below.
-				-- Exact height of everything below the image (matches the renderer:
-				-- surface pad 8+8, 2px stack gaps, name box 17 — a TIGHT fixed fit
-				-- for the Body text, not auto-grown — tags 15, price 17, thin buy
-				-- 25). Name/price are both tight fixed boxes now (no Bottom/Top
-				-- alignment hacks needed), and the buy button sits right under
-				-- price with zero extra spacer.
-				local nameH = 17
+				-- Exact height of everything below the image — built from the SAME
+				-- CardSpacingConfig values UICardComponent._BuildCardTop reads, term
+				-- for term, so this can never silently drift out of sync with the
+				-- renderer again (a real bug class hit repeatedly before this config
+				-- existed). Each `+ CardSpacing.Gap.X` below is one explicit spacer
+				-- frame the renderer inserts; tune spacing by editing the config, not
+				-- by hunting for matching magic numbers in two files.
+				local H, G = CardSpacing.Height, CardSpacing.Gap
+				local surfacePad = CardSpacing.SurfacePadding * 2
 				-- tagStraddle puts the badges ON the image (a sibling of it, not a row
 				-- in the text column below) — so it never occupies text-column height,
 				-- same as if showTags were false for THIS purpose.
@@ -229,26 +232,23 @@ function ShopScreen:_RebuildLayout()
 					-- UICardComponent._BuildExternalBuy) — the internal column ends
 					-- with a small 4px pad instead of a buy row, and the reserved
 					-- space for the external button is added on top, outside the
-					-- surface's own content height. Buy is 26px now (was 30-32);
-					-- reserve is half of that for Straddle (13), or buttonH+gap (34)
-					-- for OutsideBelow.
-					local stackItems = 4 + (tagsInColumn and 1 or 0) -- image, [tags], name, price, pad
-					local gaps = (stackItems - 1) * 2
+					-- surface's own content height. Reserve is half the external buy
+					-- height for Straddle, or buttonH+gap for OutsideBelow (both
+					-- computed in UICardComponent._Build/_BuildExternalBuy).
+					local tagsBlock = tagsInColumn and (H.TagRow + G.TagsToName) or G.ImageToName
 					local reserve = spec.buyStyle == "Straddle" and 13 or 34
-					textBlock = 16 + (tagsInColumn and 15 or 0) + nameH + 17 + 4 + gaps + reserve
+					textBlock = surfacePad + tagsBlock + H.Name + G.NameToPrice + H.Price + 4 + reserve
 				elseif spec.priceWithTags then
-					-- Standard 2.0: image, name, [tags+price on one 18px row], spacer,
-					-- buy. No separate tags/price rows.
-					local buyH = 25
-					local stackItems = 4 -- image, name, tagPriceRow, spacer, buy
-					local gaps = stackItems * 2
-					textBlock = 16 + nameH + 18 + 2 + buyH + gaps
+					-- Standard 2.0: image, name, [tags+price on one row], buy.
+					-- No separate tags/price rows.
+					local buyH = spec.buyStyle == "Pill" and H.BuyPill or H.BuyFull
+					local buyGap = spec.buyStyle == "Pill" and G.BuyToPill or G.PriceToBuy
+					textBlock = surfacePad + G.ImageToName + H.Name + G.NameToPrice + H.TagPriceRow + buyGap + buyH
 				else
-					local buyH = spec.buyStyle == "Pill" and 24 or 25
-					local spacerH = spec.buyStyle == "Pill" and 8 or 0
-					local stackItems = 4 + (tagsInColumn and 1 or 0) -- image, [tags], name, price, spacer, buy
-					local gaps = stackItems * 2
-					textBlock = 16 + (tagsInColumn and 15 or 0) + nameH + 17 + spacerH + buyH + gaps
+					local tagsBlock = tagsInColumn and (H.TagRow + G.TagsToName) or G.ImageToName
+					local buyH = spec.buyStyle == "Pill" and H.BuyPill or H.BuyFull
+					local buyGap = spec.buyStyle == "Pill" and G.BuyToPill or G.PriceToBuy
+					textBlock = surfacePad + tagsBlock + H.Name + G.NameToPrice + H.Price + buyGap + buyH
 				end
 				if spec.imageFillWidth then
 					-- Image fills the card content width edge-to-edge (no side margin).

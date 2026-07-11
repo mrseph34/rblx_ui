@@ -10,6 +10,7 @@
 local Types = require(script.Parent.Parent.Types)
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
+local CardSpacing = require(script.Parent.Parent.Config.CardSpacingConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 
 local UIBadgeComponent = setmetatable({}, { __index = UIComponentBase })
@@ -35,10 +36,12 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 	root.AutomaticSize = Enum.AutomaticSize.X
 	if not props.size then
 		-- Compact chip: the colour already makes it pop, so it stays small and
-		-- doesn't crowd the more important name/price/buy. Slightly smaller than
-		-- before (18->15) — badges are secondary, the colour already carries them.
-		root.Size = UDim2.fromOffset(0, 15)
-		self._baseSize = UDim2.fromOffset(40, 15)
+		-- doesn't crowd the more important name/price/buy. Height comes from
+		-- CardSpacingConfig — this MUST match CardSpacing.Height.TagRow exactly
+		-- (the card's tag row is sized to fit this badge with zero slack).
+		local h = CardSpacing.Height.TagRow
+		root.Size = UDim2.fromOffset(0, h)
+		self._baseSize = UDim2.fromOffset(40, h)
 	end
 
 	self._corner = UIStyler.Corner(1000)
