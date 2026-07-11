@@ -31,7 +31,10 @@ CardSpacing.Height = {
 -- specific pair touch, without affecting any other gap.
 CardSpacing.Gap = {
 	ImageToTags = 2, -- image bottom -> tag badges (kept small on purpose)
-	TagsToName = 0, -- tag badges -> item name (flush — no gap wanted here)
+	-- Flush (0) was tried and looked wrong in practice — badge touching the name
+	-- text with zero breathing room read as cramped, not clean. Matches
+	-- ImageToTags exactly so the badge has the SAME small gap on both sides.
+	TagsToName = 2,
 	ImageToName = 2, -- image bottom -> item name, when there are no tags
 	NameToPrice = 2, -- item name -> price
 	PriceToBuy = 0, -- price -> buy button
@@ -42,5 +45,16 @@ CardSpacing.Gap = {
 -- Straddle-banner mode (tagStraddle spec flag): how far the tag row overlaps
 -- UP over the image's top edge. Half the badge height reads as "straddling".
 CardSpacing.BannerStraddleOffset = -8
+
+-- External buy button (OutsideBelow/Straddle buyStyle — the button escapes the
+-- card's own clipped box and floats as a Root-level sibling; see
+-- UICardComponent._BuildExternalBuy).
+CardSpacing.ExternalBuy = {
+	Height = 26,
+	BottomPad = 4, -- inside the box: price -> the box's own clipped bottom edge
+	-- OutsideBelow: the visible air gap between the box's bottom edge and the
+	-- floating button below it (kept small — "outside" still means "close by").
+	BelowGap = 4,
+}
 
 return CardSpacing

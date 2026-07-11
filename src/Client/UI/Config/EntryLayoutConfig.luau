@@ -49,6 +49,11 @@ export type EntrySpec = {
 	-- (name above, buy below), instead of price on its own row under the name.
 	-- The badges occupy a flex area that shrinks so they never overlap the price.
 	priceWithTags: boolean?,
+	-- CardTop only. true = tag badges overlay the image's TOP-LEFT corner and the
+	-- price overlays the image's BOTTOM-RIGHT corner (both fully INSIDE the image
+	-- bounds, in a small themed chip for legibility) instead of living in the
+	-- text column below the image. The text column then holds only Name + Buy.
+	overlayBadgeAndPrice: boolean?,
 	-- CardTop only. true = the tag badges (Sale/New/Popular/…) straddle the
 	-- image's TOP edge — half overlapping onto the image, half hanging above it
 	-- — instead of sitting in their own row below the image in the text column.
@@ -93,9 +98,10 @@ EntryLayoutConfig.Specs = {
 		buyStyle = "Full",
 		-- Left-aligned by default (house style).
 	},
-	-- Standard 2.0: like StandardCard, but the price sits on the RIGHT end of the
-	-- SAME row as the tag badges (name above, buy below). The badges live in a
-	-- flex area that shrinks so they never run into the price on the right.
+	-- Standard 2.0: like StandardCard, but the tag badges overlay the image's
+	-- top-left corner and the price overlays its bottom-right corner (both
+	-- inside the art, in a small themed chip) — the text column below just
+	-- holds the name and buy button.
 	StandardCardPlus = {
 		arrangement = "CardTop",
 		imageAspect = 1,
@@ -103,7 +109,7 @@ EntryLayoutConfig.Specs = {
 		showTags = true,
 		showDescription = false,
 		buyStyle = "Full",
-		priceWithTags = true, -- price shares the tag row, pinned right
+		overlayBadgeAndPrice = true,
 	},
 	-- Standard, but the tag badges (Sale/New/Popular/…) straddle the TOP edge of
 	-- the image — half overlapping onto the art, half hanging above it — instead

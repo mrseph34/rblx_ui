@@ -235,15 +235,22 @@ function ShopScreen:_RebuildLayout()
 					-- surface's own content height. Reserve is half the external buy
 					-- height for Straddle, or buttonH+gap for OutsideBelow (both
 					-- computed in UICardComponent._Build/_BuildExternalBuy).
+					local EB = CardSpacing.ExternalBuy
 					local tagsBlock = tagsInColumn and (H.TagRow + G.TagsToName) or G.ImageToName
-					local reserve = spec.buyStyle == "Straddle" and 13 or 34
-					textBlock = surfacePad + tagsBlock + H.Name + G.NameToPrice + H.Price + 4 + reserve
+					local reserve = spec.buyStyle == "Straddle" and math.floor(EB.Height / 2) or (EB.Height + EB.BelowGap)
+					textBlock = surfacePad + tagsBlock + H.Name + G.NameToPrice + H.Price + EB.BottomPad + reserve
 				elseif spec.priceWithTags then
 					-- Standard 2.0: image, name, [tags+price on one row], buy.
 					-- No separate tags/price rows.
 					local buyH = spec.buyStyle == "Pill" and H.BuyPill or H.BuyFull
 					local buyGap = spec.buyStyle == "Pill" and G.BuyToPill or G.PriceToBuy
 					textBlock = surfacePad + G.ImageToName + H.Name + G.NameToPrice + H.TagPriceRow + buyGap + buyH
+				elseif spec.overlayBadgeAndPrice then
+					-- Standard 2.0: badges + price both overlay the image itself, so
+					-- the text column below is just Name + Buy — no tags/price rows.
+					local buyH = spec.buyStyle == "Pill" and H.BuyPill or H.BuyFull
+					local buyGap = spec.buyStyle == "Pill" and G.BuyToPill or G.PriceToBuy
+					textBlock = surfacePad + G.ImageToName + H.Name + buyGap + buyH
 				else
 					local tagsBlock = tagsInColumn and (H.TagRow + G.TagsToName) or G.ImageToName
 					local buyH = spec.buyStyle == "Pill" and H.BuyPill or H.BuyFull

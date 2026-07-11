@@ -74,7 +74,10 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 		and (spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle")
 	-- OutsideBelow reserves a full button + gap; Straddle only reserves HALF a
 	-- button's height (the other half overlaps the surface on top of it).
-	local externalReserve = externalBuy and (spec.buyStyle == "Straddle" and 13 or 34) or 0
+	local externalReserve = externalBuy
+		and (spec.buyStyle == "Straddle" and math.floor(CardSpacing.ExternalBuy.Height / 2)
+			or (CardSpacing.ExternalBuy.Height + CardSpacing.ExternalBuy.BelowGap))
+		or 0
 	self._externalReserve = externalReserve
 
 	-- Surface = fixed footprint's visual layer; hover/press scale this, not the
@@ -144,9 +147,7 @@ function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.
 	-- Default: as wide as the box itself (matches the card, edge to edge) — a
 	-- per-spec buttonSize can override this later if a narrower/fixed width is
 	-- ever wanted, but the out-of-the-box default spans the full card width.
-	-- Thinner than the in-box buy (26, was 30-32) — "half in the box" reads
-	-- better as a slim strap across the edge, not a full-size button hanging off.
-	local buttonH = 26
+	local buttonH = CardSpacing.ExternalBuy.Height
 	local size = UDim2.new(1, 0, 0, buttonH)
 	buy:Create(root, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -459,6 +460,27 @@ function UICardComponent:_MakeQuantityBadge(parent: Instance): Frame
 	return chip
 end
 
+-- Themed pill chip showing the price, for overlaying DIRECTLY ON the image
+-- (overlayBadgeAndPrice spec flag) — a solid themed background so the price
+-- stays legible over any art, unlike the plain _MakePrice text used when price
+-- sits in the (already-dark) text column below the image.
+function UICardComponent:_MakePriceChip(parent: Instance): Frame
+	local chip = UIStyler.Frame("PriceChip")
+	chip.Size = UDim2.fromOffset(0, 24)
+	chip.AutomaticSize = Enum.AutomaticSize.X
+	self._priceChipCorner = UIStyler.Corner(1000)
+	self._priceChipCorner.Parent = chip
+	UIStyler.PaddingXY(10, 3).Parent = chip
+	local label = UIStyler.TextLabel("Value")
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.Size = UDim2.fromScale(0, 1)
+	label.Text = string.format("%s %s", self.Props.currencyIcon or "", tostring(self._item.price))
+	label.Parent = chip
+	self._priceChipLabel = label
+	chip.Parent = parent
+	return chip
+end
+
 -- Small helper: a transparent vertical stack container.
 local function stack(name: string, padding: number, align: Enum.HorizontalAlignment?): Frame
 	local frame = UIStyler.Frame(name)
@@ -535,6 +557,23 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 			straddleTags.Size = UDim2.new(1, -16, 0, CardSpacing.Height.TagRow)
 		end
 	end
+	-- Standard 2.0: badges overlay the image's top-left corner, price overlays
+	-- its bottom-right corner (both fully inside the art) — both later siblings
+	-- of the image inside the same wrap, so they render on top with no ZIndex
+	-- bump needed. Text column below only gets Name + Buy.
+	if spec.overlayBadgeAndPrice then
+		if spec.showTags then
+			local overlayTags = self:_MakeTags(wrap)
+			if overlayTags then
+				overlayTags.AnchorPoint = Vector2.new(0, 0)
+				overlayTags.Position = UDim2.fromOffset(8, 8)
+				overlayTags.Size = UDim2.new(1, -16, 0, CardSpacing.Height.TagRow)
+			end
+		end
+		local priceChip = self:_MakePriceChip(wrap)
+		priceChip.AnchorPoint = Vector2.new(1, 1)
+		priceChip.Position = UDim2.new(1, -8, 1, -8)
+	end
 	-- Standard 2.0: price rides on the RIGHT of the tag row (name above it, buy
 	-- below). Otherwise: tags row, then name, then price on its own row.
 	if spec.priceWithTags then
@@ -543,6 +582,11 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		next_(name)
 		gap(CardSpacing.Gap.NameToPrice)
 		next_(self:_MakeTagPriceRow(col))
+	elseif spec.overlayBadgeAndPrice then
+		-- Badges + price already placed on the image — text column is just Name.
+		gap(CardSpacing.Gap.ImageToName)
+		local name = self:_MakeName(col, CardSpacing.Height.Name, true)
+		next_(name)
 	else
 		-- tagStraddle already placed the badges on the image — don't also give
 		-- them a row in the text column below.
@@ -566,7 +610,7 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle" then
 		local pad = UIStyler.Frame("BottomPad")
 		pad.BackgroundTransparency = 1
-		pad.Size = UDim2.new(1, 0, 0, 4)
+		pad.Size = UDim2.new(1, 0, 0, CardSpacing.ExternalBuy.BottomPad)
 		pad.LayoutOrder = 900
 		pad.Parent = col
 		return
@@ -700,14 +744,24 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		end
 	end
 
+	-- Text column pinned to the bottom over the scrim. Name + price stack (or,
+	-- for CenterStrip, just price — the name already lives in the strip above),
+	-- and a compact Buy sits to the right so nothing overflows the card's edge.
+	local infoBottomInset = 10
+	local infoH = useCenterStrip and 34 or 48
+
 	-- CenterStrip already showed the name up in the middle strip, so the bottom
 	-- footer here only needs price+buy — and since it has no scrim behind it,
 	-- it gets its own small translucent panel (reusing the Flat styling path).
+	-- Sized to hug `info` (below) with a small uniform margin — it used to be a
+	-- fixed height taller than info's actual content, leaving a dead strip of
+	-- translucent panel below the buy button with nothing in it.
 	if useCenterStrip then
+		local margin = 4
 		local footerBg = UIStyler.Frame("FooterBg")
 		footerBg.AnchorPoint = Vector2.new(0, 1)
-		footerBg.Position = UDim2.new(0, 4, 1, -4)
-		footerBg.Size = UDim2.new(1, -8, 0, 40)
+		footerBg.Position = UDim2.new(0, 4, 1, -(infoBottomInset - margin))
+		footerBg.Size = UDim2.new(1, -8, 0, infoH + margin * 2)
 		footerBg.ZIndex = 4
 		footerBg.Parent = surface
 		self._flatBg = footerBg
@@ -716,14 +770,11 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		self._flatBgCorner = footerCorner
 	end
 
-	-- Text column pinned to the bottom over the scrim. Name + price stack (or,
-	-- for CenterStrip, just price — the name already lives in the strip above),
-	-- and a compact Buy sits to the right so nothing overflows the card's edge.
 	local info = UIStyler.Frame("Info")
 	info.BackgroundTransparency = 1
 	info.AnchorPoint = Vector2.new(0, 1)
-	info.Position = UDim2.new(0, 10, 1, -10)
-	info.Size = UDim2.new(1, -20, 0, useCenterStrip and 34 or 48)
+	info.Position = UDim2.new(0, 10, 1, -infoBottomInset)
+	info.Size = UDim2.new(1, -20, 0, infoH)
 	info.ZIndex = 5
 	info.Parent = surface
 
@@ -981,6 +1032,18 @@ function UICardComponent:_Style(theme: Types.UITheme)
 		self._qtyLabel.FontFace = theme.Fonts.Numeric
 		self._qtyLabel.TextSize = theme.TextSizes.Small
 		self._qtyLabel.TextColor3 = c.TextSecondary
+	end
+
+	-- Price chip (overlayBadgeAndPrice): an Accent-coloured pill so it pops
+	-- against the image the way the plain in-column price pops against the
+	-- theme's flat background.
+	if self._priceChipLabel then
+		self._priceChipCorner.CornerRadius = UDim.new(1, 0)
+		local priceChip = self._priceChipLabel.Parent :: Frame
+		self:_SetColor(priceChip, "BackgroundColor3", c.Accent)
+		self._priceChipLabel.FontFace = theme.Fonts.Numeric
+		self._priceChipLabel.TextSize = theme.TextSizes.Small
+		self._priceChipLabel.TextColor3 = c.TextOnPrimary
 	end
 end
 
