@@ -236,7 +236,7 @@ function ShopScreen:_RebuildLayout()
 					-- height for Straddle, or buttonH+gap for OutsideBelow (both
 					-- computed in UICardComponent._Build/_BuildExternalBuy).
 					local EB = CardSpacing.ExternalBuy
-					local tagsBlock = tagsInColumn and (H.TagRow + G.TagsToName) or G.ImageToName
+					local tagsBlock = tagsInColumn and (G.ImageToTags + H.TagRow + G.TagsToName) or G.ImageToName
 					local reserve = spec.buyStyle == "Straddle" and math.floor(EB.Height / 2) or (EB.Height + EB.BelowGap)
 					textBlock = surfacePad + tagsBlock + H.Name + G.NameToPrice + H.Price + EB.BottomPad + reserve
 				elseif spec.priceWithTags then
@@ -252,7 +252,7 @@ function ShopScreen:_RebuildLayout()
 					local buyGap = spec.buyStyle == "Pill" and G.BuyToPill or G.PriceToBuy
 					textBlock = surfacePad + G.ImageToName + H.Name + buyGap + buyH
 				else
-					local tagsBlock = tagsInColumn and (H.TagRow + G.TagsToName) or G.ImageToName
+					local tagsBlock = tagsInColumn and (G.ImageToTags + H.TagRow + G.TagsToName) or G.ImageToName
 					local buyH = spec.buyStyle == "Pill" and H.BuyPill or H.BuyFull
 					local buyGap = spec.buyStyle == "Pill" and G.BuyToPill or G.PriceToBuy
 					textBlock = surfacePad + tagsBlock + H.Name + G.NameToPrice + H.Price + buyGap + buyH

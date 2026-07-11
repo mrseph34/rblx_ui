@@ -33,11 +33,20 @@ CardSpacing.Height = {
 -- LAYOUT ORDER. Each is independently tunable — set any one to 0 to make that
 -- specific pair touch, without affecting any other gap.
 CardSpacing.Gap = {
-	ImageToTags = 1, -- image bottom -> tag badges (kept minimal on purpose)
-	TagsToName = 1, -- tag badges -> item name — SAME small gap as ImageToTags
-	ImageToName = 1, -- image bottom -> item name, when there are no tags
+	-- REAL BUG (found via live testing): this value existed in config but was
+	-- never actually inserted by the renderer — there was NO gap frame between
+	-- the image and the tag badges at all, regardless of this number. Badges
+	-- always sat flush (0px, not 1px) against the image. Now wired in for real.
+	ImageToTags = 2,
+	-- Removed (was a separate 2px gap here too) — with ImageToTags now actually
+	-- present, an ADDITIONAL gap below the badge made the name sit too far away.
+	-- One small gap above the badge is enough breathing room.
+	TagsToName = 0,
+	ImageToName = 2, -- image bottom -> item name, when there are no tags
 	NameToPrice = 2, -- item name -> price
-	PriceToBuy = 0, -- price -> buy button
+	-- Always present now (was 0 — the in-box buy button sat flush against the
+	-- price with zero breathing room, which read as wrong once actually seen).
+	PriceToBuy = 2,
 	BuyToPill = 8, -- price -> buy button, ONLY for the Pill buy style (more
 	-- breathing room so a Pill button reads as a separate element)
 }

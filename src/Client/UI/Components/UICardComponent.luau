@@ -592,6 +592,9 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		-- them a row in the text column below.
 		local tags = not spec.tagStraddle and self:_MakeTags(col) or nil
 		if tags then
+			-- The missing gap: this was never inserted before, so the badge
+			-- always sat flush against the image regardless of the config value.
+			gap(CardSpacing.Gap.ImageToTags)
 			next_(tags)
 			gap(CardSpacing.Gap.TagsToName)
 		else
