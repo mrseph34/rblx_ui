@@ -1,17 +1,23 @@
 --!strict
 -- Every gap/height inside a shop card, as a SCALE FRACTION of the card's own
--- height (never a pixel Offset) — the same pattern proven in the reference
--- MainGui/Shop: an element's Size is always a fraction of its parent's real
--- AbsoluteSize, so Roblox's own layout engine resolves the correct pixel size
--- at ANY viewport with zero runtime scale math, zero UIScale, and text that
--- shrinks/grows via TextScaled in lockstep automatically.
+-- CONTENT area — i.e. of `col` (the padded column every element stacks in),
+-- NOT of the outer card's full height. This distinction matters: `col` fills
+-- exactly the space left over after SurfacePadding is subtracted from both
+-- the top and bottom, so a value meant to occupy a fraction of THAT space
+-- must be expressed relative to it, not to the outer card. Getting this
+-- backwards (fractions summed to their pre-conversion pixel-formula ratios,
+-- but applied directly against `col`) is what caused a real, confirmed bug:
+-- content underfilled `col` by ~3%, leaving an asymmetric empty gap below the
+-- buy button (top gap ~3px, bottom gap ~5.7px on a live measured card) even
+-- though every element rendered at the right individual size.
+--
+-- Every Height.*/Gap.* value below is "this many multiples of col's own
+-- height," and the whole set is derived to sum to EXACTLY 1.0 (image + every
+-- gap + every row), so col's content always exactly fills col with no leftover
+-- space at the bottom, at any card size.
 --
 -- CardTop.AspectRatio (width:height) is the card's own fixed shape, applied
 -- via a UIAspectRatioConstraint on the card surface (see UICardComponent).
--- Every Height.*/Gap.* value below is "this many multiples of the card's own
--- height" — so changing AspectRatio alone re-proportions everything at once,
--- and tuning one gap never drifts out of sync with anything else (there is
--- only one source of truth; ShopScreen no longer duplicates this math).
 --
 -- Names describe the GAP, not a generic index, so "make X touch Y" is a
 -- single line: find CardSpacing.Gap.TagsToName, set it to 0.
@@ -26,43 +32,45 @@ CardSpacing.CardTop = {
 }
 
 -- Surface (the card's visible box) inner padding, as a fraction of the card's
--- own height, applied equally to all four sides via UIStyler.Padding-style use.
+-- OWN full height (this one IS relative to the outer card, not col — it's
+-- what carves col's content area out of the card in the first place).
 CardSpacing.SurfacePadding = 0.03137254901960784
 
--- Element heights, as fractions of the card's own height.
+-- Element heights, as fractions of col's own height (see the module doc above
+-- for why this is col, not the outer card).
 CardSpacing.Height = {
-	TagRow = 0.058823529411764705,
-	Name = 0.06274509803921569,
-	Price = 0.06274509803921569,
-	BuyFull = 0.10196078431372549,
-	BuyCompact = 0.10196078431372549,
-	BuyPill = 0.09411764705882353, -- 24/255
-	BuyIconRight = 0.10196078431372549,
-	TagPriceRow = 0.07058823529411765, -- 18/255
+	TagRow = 0.06276150627615062,
+	Name = 0.06694560669456066,
+	Price = 0.06694560669456066,
+	BuyFull = 0.1087866108786611,
+	BuyCompact = 0.1087866108786611,
+	BuyPill = 0.1004184100418410, -- 24/239
+	BuyIconRight = 0.1087866108786611,
+	TagPriceRow = 0.0753138075313807, -- 18/239
 }
 
 -- Gaps BETWEEN specific pairs of elements in the CardTop text column, in
--- LAYOUT ORDER, as fractions of the card's own height. Each is independently
+-- LAYOUT ORDER, as fractions of col's own height. Each is independently
 -- tunable — set any one to 0 to make that specific pair touch.
 CardSpacing.Gap = {
-	ImageToTags = 0.00784313725490196,
+	ImageToTags = 0.008368200836820083,
 	TagsToName = 0,
-	ImageToName = 0.00784313725490196, -- image bottom -> item name, when no tags
-	NameToPrice = 0.00784313725490196,
-	PriceToBuy = 0.00784313725490196,
-	BuyToPill = 0.03137254901960784, -- price -> buy button, Pill style only (8/255)
+	ImageToName = 0.008368200836820083, -- image bottom -> item name, when no tags
+	NameToPrice = 0.008368200836820083,
+	PriceToBuy = 0.008368200836820083,
+	BuyToPill = 0.03347280334728033, -- price -> buy button, Pill style only (8/239)
 }
 
 -- Straddle-banner mode (tagStraddle spec flag): how far the tag row overlaps
--- UP over the image's top edge, as a fraction of the card height.
-CardSpacing.BannerStraddleOffset = -0.03137254901960784
+-- UP over the image's top edge, as a fraction of col's own height.
+CardSpacing.BannerStraddleOffset = -0.03347280334728033
 
--- External buy button (OutsideBelow/Straddle buyStyle), as fractions of the
--- card's own height.
+-- External buy button (OutsideBelow/Straddle buyStyle), as fractions of col's
+-- own height.
 CardSpacing.ExternalBuy = {
-	Height = 0.10196078431372549,
-	BottomPad = 0.01568627450980392,
-	BelowGap = 0.01568627450980392,
+	Height = 0.1087866108786611,
+	BottomPad = 0.016736401673640166,
+	BelowGap = 0.016736401673640166,
 }
 
 return CardSpacing

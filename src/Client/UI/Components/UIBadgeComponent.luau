@@ -46,7 +46,10 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 
 	self._corner = UIStyler.Corner(1000)
 	self._corner.Parent = root
-	UIStyler.PaddingXY(5, 1).Parent = root
+	-- Scale padding (a fraction of the badge's own resolved height) instead of
+	-- a fixed pixel inset, so the chip's proportions stay consistent whether
+	-- its row is 7px or 22px tall at different viewport sizes.
+	UIStyler.PaddingScale(0.12).Parent = root
 
 	local label = UIStyler.TextLabel("Label")
 	label.AutomaticSize = Enum.AutomaticSize.X
@@ -73,8 +76,13 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 	self.Root.BackgroundColor3 = fill
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
 	self._label.FontFace = theme.Fonts.Button
-	-- Smaller than Small — badges are secondary info; colour carries them.
-	self._label.TextSize = math.max(9, theme.TextSizes.Small - 3)
+	-- Text scales with the badge's own resolved height instead of a fixed
+	-- theme pixel size, so it shrinks/grows in lockstep with the badge at any
+	-- viewport (same safe AbsoluteSize-derived pattern as UIButtonComponent's
+	-- label — not TextScaled, which degenerates on small RichText boxes).
+	local badgeH = self.Root.AbsoluteSize.Y
+	local cap = math.max(9, theme.TextSizes.Small - 3)
+	self._label.TextSize = badgeH > 0 and math.clamp(math.floor(badgeH * 0.62), 6, cap) or cap
 	self._label.TextColor3 = c.TextOnPrimary
 end
 

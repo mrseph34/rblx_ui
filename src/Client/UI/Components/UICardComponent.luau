@@ -74,10 +74,16 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 		and (spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle")
 	-- OutsideBelow reserves a full button + gap; Straddle only reserves HALF a
 	-- button's height (the other half overlaps the surface on top of it). Both
-	-- are SCALE fractions of Root's own height (Root = the full card cell).
+	-- are SCALE fractions of Root's own height (Root = the full card cell) —
+	-- CardSpacing.ExternalBuy.* values are col-relative fractions (see
+	-- CardSpacingConfig's module doc), so they're converted to card-relative
+	-- here by multiplying by colFactor (col's own fraction of the card).
+	local colFactorForExternal = 1 - CardSpacing.SurfacePadding * 2
+	local externalHeightOfCard = CardSpacing.ExternalBuy.Height * colFactorForExternal
+	local externalGapOfCard = CardSpacing.ExternalBuy.BelowGap * colFactorForExternal
 	local externalReserve = externalBuy
-		and (spec.buyStyle == "Straddle" and (CardSpacing.ExternalBuy.Height / 2)
-			or (CardSpacing.ExternalBuy.Height + CardSpacing.ExternalBuy.BelowGap))
+		and (spec.buyStyle == "Straddle" and (externalHeightOfCard / 2)
+			or (externalHeightOfCard + externalGapOfCard))
 		or 0
 	self._externalReserve = externalReserve
 
@@ -159,8 +165,11 @@ function UICardComponent:_BuildExternalBuy(root: Frame, spec: EntryLayoutConfig.
 	-- per-spec buttonSize can override this later if a narrower/fixed width is
 	-- ever wanted, but the out-of-the-box default spans the full card width.
 	-- Height is a Scale fraction of Root (the full card cell), like everything
-	-- else — never a pixel Offset.
-	local buttonH = CardSpacing.ExternalBuy.Height
+	-- else — never a pixel Offset. CardSpacing.ExternalBuy.Height is a
+	-- col-relative fraction (see CardSpacingConfig's module doc); converted to
+	-- card-relative here the same way _Build's externalReserve is.
+	local colFactorForExternal = 1 - CardSpacing.SurfacePadding * 2
+	local buttonH = CardSpacing.ExternalBuy.Height * colFactorForExternal
 	local size = UDim2.new(1, 0, buttonH, 0)
 	buy:Create(root, {
 		textKey = props.owned and "shop.owned" or "shop.buy",
@@ -576,11 +585,18 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	end
 	local contentW = 1 - CardSpacing.SurfacePadding * 2 -- fraction of card WIDTH
 	local cardAspect = CardSpacing.CardTop.AspectRatio -- card WIDTH / card HEIGHT
-	-- imgH (fraction of card HEIGHT) = imgW(px) / aspect, expressed in the same
-	-- units as cardHeight: imgW(px) = contentW * cardWidth(px); cardHeight(px) =
-	-- cardWidth(px) / cardAspect. imgH_frac = imgW(px)/aspect / cardHeight(px)
-	--                                       = contentW * cardAspect / aspect.
-	local imgHFrac = (contentW * cardAspect) / aspect
+	-- imgH as a fraction of the CARD's own height first (imgW(px) = contentW *
+	-- cardWidth(px); cardHeight(px) = cardWidth(px) / cardAspect; imgH_frac =
+	-- imgW(px)/aspect / cardHeight(px) = contentW * cardAspect / aspect) — then
+	-- converted to a fraction of `col` (what `wrap` is actually parented in,
+	-- and what Scale resolves against) by dividing by colFactor, the same
+	-- correction CardSpacingConfig's OWN fractions already bake in. Getting
+	-- this wrong is what caused the confirmed "extra space under the buy
+	-- button" bug — col's content undersized itself relative to its real
+	-- available space.
+	local imgHFracOfCard = (contentW * cardAspect) / aspect
+	local colFactor = 1 - CardSpacing.SurfacePadding * 2
+	local imgHFrac = imgHFracOfCard / colFactor
 	local wrap = UIStyler.Frame("ImageWrap")
 	wrap.BackgroundTransparency = 1
 	wrap.Size = UDim2.new(1, 0, imgHFrac, 0)

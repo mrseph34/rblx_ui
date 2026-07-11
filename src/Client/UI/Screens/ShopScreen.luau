@@ -57,53 +57,68 @@ function ShopScreen:_BuildContent()
 	self:_SetAnimatedPanel(panel)
 	panel:Create(self.Root, {
 		titleKey = "shop.title",
-		-- Narrower than before (was 0.72 wide — a "super wide" panel that wasted
-		-- horizontal space); taller relative to its width so it reads as a normal
-		-- shop window, not a landscape banner.
-		size = UDim2.fromScale(0.5, 0.86),
+		-- Slightly wider, slightly shorter than before (0.5 x 0.86) — reads less
+		-- like a tall column and gives the grid a bit more horizontal breathing
+		-- room per row.
+		size = UDim2.fromScale(0.56, 0.8),
 		onClose = function()
 			self.ScreenController:HideScreen("shop")
 		end,
 	})
 
-	-- Currency header (top-right of body).
+	-- Currency chips live in the HEADER now (next to the close button), not
+	-- their own row in Body — a Scale-sized row anchored left of Close, filling
+	-- the header height exactly so it scales with everything else in it.
 	local currencyBar = UIStyler.Frame("Currencies")
 	currencyBar.BackgroundTransparency = 1
-	currencyBar.Size = UDim2.new(1, -20, 0, 34)
-	currencyBar.Position = UDim2.fromOffset(10, 6)
+	currencyBar.AnchorPoint = Vector2.new(1, 0.5)
+	currencyBar.Position = UDim2.new(1, -34, 0.5, 0)
+	currencyBar.Size = UDim2.new(0.5, 0, 0.72, 0)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Right,
-		Padding = UDim.new(0, 10),
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0.06, 0),
 	}).Parent = currencyBar
-	currencyBar.Parent = panel.Body
+	currencyBar.ZIndex = 2
+	currencyBar.Parent = panel.Header
 	for _, currency in ShopConfig.GetOrderedCurrencies() do
 		local chip = UIStyler.TextLabel(currency.id)
 		chip.AutomaticSize = Enum.AutomaticSize.X
 		chip.Size = UDim2.fromScale(0, 1)
 		chip.TextXAlignment = Enum.TextXAlignment.Right
+		chip.TextScaled = true
+		chip.ZIndex = 2
+		local constraint = UIStyler.TextSizeConstraint(18, 9)
+		constraint.Parent = chip
 		chip.Parent = currencyBar
 		self._currencyLabels[currency.id] = chip
 	end
 
-	-- Category bar.
+	-- Category bar — a horizontal UIListLayout of Scale-sized, evenly-spaced
+	-- tab buttons (same structural idea as the reference MainGui's Featured/
+	-- Boosts/Cosmetics tabs: one list, no per-button fixed pixel width, so it
+	-- always keeps consistent spacing/sizing at any panel size).
 	local categoryBar = UIStyler.Frame("Categories")
 	categoryBar.BackgroundTransparency = 1
-	categoryBar.Size = UDim2.new(1, -20, 0, 40)
-	categoryBar.Position = UDim2.fromOffset(10, 44)
+	categoryBar.Size = UDim2.new(1, 0, 0.08, 0)
+	categoryBar.Position = UDim2.new(0, 0, 0.02, 0)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Left,
-		Padding = UDim.new(0, 8),
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0.015, 0),
 	}).Parent = categoryBar
 	categoryBar.Parent = panel.Body
 	self._categoryBar = categoryBar
-	for i, category in ShopConfig.GetOrderedCategories() do
+	local categories = ShopConfig.GetOrderedCategories()
+	local categoryWFrac = #categories > 0 and ((1 - 0.015 * (#categories - 1)) / #categories) or 1
+	for i, category in categories do
 		local button = UIButtonComponent.new()
 		button:Create(categoryBar, {
 			textKey = category.nameKey,
 			variant = category.id == self._categoryId and "Primary" or "Ghost",
-			size = UDim2.new(0, 130, 1, 0),
+			size = UDim2.new(categoryWFrac, 0, 1, 0),
 			layoutOrder = i,
 			onClick = function()
 				self:_SelectCategory(category.id)
@@ -112,13 +127,14 @@ function ShopScreen:_BuildContent()
 		self._categoryButtons[category.id] = button
 	end
 
-	-- Scrolling item container.
+	-- Scrolling item container — Scale-sized, filling the rest of Body below
+	-- the category bar.
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "Items"
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
-	scroll.Size = UDim2.new(1, -20, 1, -96)
-	scroll.Position = UDim2.fromOffset(10, 90)
+	scroll.Size = UDim2.new(1, 0, 0.88, 0)
+	scroll.Position = UDim2.new(0, 0, 0.12, 0)
 	scroll.CanvasSize = UDim2.new()
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.ScrollBarThickness = 6
@@ -130,12 +146,13 @@ function ShopScreen:_BuildContent()
 	-- Inner padding so the first row/column and the last row don't touch the
 	-- scroll edges (where the hover "pop" would otherwise clip), so the last row
 	-- is never cut, and so the automatic canvas height includes a bottom margin.
-	-- Applied once; per-render we rebuild only the layout object, not this.
+	-- A SCALE fraction of the scroll's own size, applied once; per-render we
+	-- rebuild only the layout object, not this.
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0, 8)
-	pad.PaddingBottom = UDim.new(0, 14)
-	pad.PaddingLeft = UDim.new(0, 6)
-	pad.PaddingRight = UDim.new(0, 12)
+	pad.PaddingTop = UDim.new(0.02, 0)
+	pad.PaddingBottom = UDim.new(0.035, 0)
+	pad.PaddingLeft = UDim.new(0.015, 0)
+	pad.PaddingRight = UDim.new(0.03, 0)
 	pad.Parent = scroll
 	self._scrollPad = pad
 

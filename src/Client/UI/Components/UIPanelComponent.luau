@@ -42,38 +42,83 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
 	self._stroke.Parent = root
 
-	-- Header.
+	-- Header. A plain rectangular BG frame behind it draws ONLY the top two
+	-- corners rounded (via a UICorner ONLY it has) so the header's own BOTTOM
+	-- edge — an interior seam against Body, not the panel's outer edge — never
+	-- shows a rounded "border" there. Header itself stays square so its
+	-- children (title/close) lay out against simple edges.
 	local header = UIStyler.Frame("Header")
 	header.Size = UDim2.new(1, 0, 0, 44)
-	header.BackgroundTransparency = 0
+	header.BackgroundTransparency = 1
 	header.ZIndex = 2
-	self._headerCorner = UIStyler.Corner(16)
-	self._headerCorner.Parent = header
-	UIStyler.PaddingXY(14, 0).Parent = header
 	header.Parent = root
 	self._header = header
+	-- Public (like Body): a screen can parent extra header-row content here
+	-- (e.g. ShopScreen's currency chips, so money sits next to the close
+	-- button instead of eating its own separate row in Body).
+	self.Header = header
+
+	local headerBg = UIStyler.Frame("HeaderBg")
+	headerBg.Size = UDim2.fromScale(1, 1)
+	headerBg.BackgroundTransparency = 0
+	headerBg.ZIndex = 1
+	headerBg.Parent = header
+	self._headerBg = headerBg
+	-- Rounded on all 4 corners, but only the TOP two are ever visible: the
+	-- bottom half of headerBg is clipped by a taller plain rect stacked under
+	-- it that covers the bottom-left/right rounding without covering the top.
+	self._headerCorner = UIStyler.Corner(16)
+	self._headerCorner.Parent = headerBg
+	local headerSquareBottom = UIStyler.Frame("SquareBottom")
+	headerSquareBottom.AnchorPoint = Vector2.new(0, 1)
+	headerSquareBottom.Position = UDim2.fromScale(0, 1)
+	headerSquareBottom.Size = UDim2.new(1, 0, 0.5, 0)
+	headerSquareBottom.BackgroundTransparency = 0
+	headerSquareBottom.ZIndex = 1
+	headerSquareBottom.Parent = headerBg
+	self._headerSquareBottom = headerSquareBottom
+
+	-- Header padding is a SCALE fraction of the header's own height (not a
+	-- fixed pixel inset), so title/close positioning scales with the rest of
+	-- the UI instead of the X drifting inward by a constant amount at any size.
+	UIStyler.PaddingScale(0.14).Parent = header
 
 	local title = UIStyler.TextLabel("Title")
-	title.Size = UDim2.new(1, -40, 1, 0)
+	-- Leaves room for the close button (a Scale fraction of header width, not a
+	-- stale pixel reservation) when one is shown; full width otherwise.
+	title.Size = UDim2.new(props.showClose ~= false and 0.82 or 1, 0, 1, 0)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = TextConfig.Resolve(props.titleKey or props.title)
+	title.TextScaled = true
+	title.TextWrapped = false
 	title.ZIndex = 2
+	self._titleConstraint = UIStyler.TextSizeConstraint(28, 10)
+	self._titleConstraint.Parent = title
 	title.Parent = header
 	self._title = title
 
 	if props.showClose ~= false then
 		local close = Instance.new("TextButton")
 		close.Name = "Close"
-		close.Size = UDim2.fromOffset(30, 30)
 		close.AnchorPoint = Vector2.new(1, 0.5)
-		close.Position = UDim2.new(1, -6, 0.5, 0)
+		-- Pinned to the FAR right edge of the header (Scale, not a header-padding-
+		-- eaten pixel inset) — a small POSITIVE X offset re-escapes header's own
+		-- UIPadding so the X sits flush near the true panel edge, not inset by
+		-- the same padding the title/content use.
+		close.Position = UDim2.new(1, 12, 0.5, 0)
+		-- Placeholder; _Style computes the real SQUARE size from header's actual
+		-- AbsoluteSize.Y once resolvable — an AspectRatioConstraint here would
+		-- collapse to 0x0 (Size.X starts at Scale=0 with no offset, and
+		-- FitWithinMaxSize fits the ratio inside THAT zero-width box), the same
+		-- documented landmine UIButtonComponent's icon sizing already hit.
+		close.Size = UDim2.fromOffset(30, 30)
 		close.Text = "✖"
 		close.TextScaled = true
 		close.BackgroundTransparency = 0
 		close.AutoButtonColor = true
 		close.ZIndex = 3
 		UIStyler.Corner(1000).Parent = close
-		UIStyler.Padding(6).Parent = close
+		UIStyler.PaddingScale(0.2).Parent = close
 		close.Parent = header
 		self._close = close
 		self:_Connect(close.Activated, function()
@@ -142,7 +187,8 @@ end
 function UIPanelComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	self:_SetColor(self.Root, "BackgroundColor3", c.Surface)
-	self:_SetColor(self._header, "BackgroundColor3", c.SurfaceRaised)
+	self:_SetColor(self._headerBg, "BackgroundColor3", c.SurfaceRaised)
+	self:_SetColor(self._headerSquareBottom, "BackgroundColor3", c.SurfaceRaised)
 	local radius = ThemeShape.Radius(theme, theme.Radii.Large)
 	self._corner.CornerRadius = UDim.new(0, radius)
 	self._headerCorner.CornerRadius = UDim.new(0, radius)
@@ -151,12 +197,22 @@ function UIPanelComponent:_Style(theme: Types.UITheme)
 	self._stroke.Transparency = 0.3
 
 	self._title.FontFace = theme.Fonts.Title
-	self._title.TextSize = theme.TextSizes.Title
 	self._title.TextColor3 = c.TextPrimary
+	if self._titleConstraint then
+		self._titleConstraint.MaxTextSize = theme.TextSizes.Title
+	end
 	if self._close then
 		self._close.BackgroundColor3 = c.Error
 		self._close.TextColor3 = c.TextOnPrimary
 		self._close.FontFace = theme.Fonts.Button
+		-- Square, scaled from the header's real resolved height (not an
+		-- AspectRatioConstraint — see the _Build comment on why that collapses
+		-- to 0x0 here).
+		local headerH = self._header.AbsoluteSize.Y
+		if headerH > 0 then
+			local size = math.clamp(headerH * 0.6, 18, 40)
+			self._close.Size = UDim2.fromOffset(size, size)
+		end
 	end
 end
 

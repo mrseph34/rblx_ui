@@ -245,20 +245,24 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 	self._shadow.Position = UDim2.new(0.5, 0, 0.5, raised and (shape.Depth + 2) or 4)
 
 	self._label.FontFace = theme.Fonts.Button
-	self._label.TextSize = theme.TextSizes.Button
 	self._label.TextColor3 = textColor
-	-- Icon scales with the button's real height instead of a fixed small size —
-	-- a flat 24px icon was barely legible on a big 56-64px nav button (read as
-	-- "just a colored square" with no visible icon at a glance). Clamped so it
-	-- never gets comically large/tiny on unusual button sizes.
+	-- Icon AND label both scale with the button's real height instead of a
+	-- fixed pixel size — a flat theme TextSize stayed constant regardless of
+	-- how small/large the button rendered at different viewport sizes (the
+	-- button itself is Scale-sized, but its text wasn't). Concrete TextSize
+	-- (not TextScaled — see the _Build comment on why: TextScaled silently
+	-- computes a degenerate size that draws nothing on a small RichText-
+	-- enabled box) computed from AbsoluteSize.Y instead, same safe pattern
+	-- the icon already used. Clamped so text never gets comically large/tiny.
 	local buttonH = self.Root.AbsoluteSize.Y
 	if buttonH > 0 then
 		local iconSize = math.clamp(buttonH * 0.55, 16, 40)
 		self._icon.Size = UDim2.fromOffset(iconSize, iconSize)
 		self._iconImage.Size = UDim2.fromOffset(iconSize, iconSize)
-		-- Concrete TextSize (not TextScaled — see the _Build comment on why) so
-		-- the glyph actually renders at a size proportional to the box.
 		self._icon.TextSize = math.floor(iconSize * 0.85)
+		self._label.TextSize = math.clamp(math.floor(buttonH * 0.42), 10, theme.TextSizes.Button)
+	else
+		self._label.TextSize = theme.TextSizes.Button
 	end
 	-- FontFace was never assigned, so the icon silently fell back to the engine
 	-- default (LegacyArial) — a font with NO emoji glyph coverage at all, so
