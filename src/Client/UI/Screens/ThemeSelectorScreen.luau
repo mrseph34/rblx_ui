@@ -95,13 +95,14 @@ local function cloneTheme(theme: Types.UITheme): Types.UITheme
 end
 
 function ThemeSelectorScreen:_BuildContent()
-	-- Root (the outermost top-layer container this screen builds into) gets
-	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
-	-- the screen holds a consistent shape regardless of the real viewport's
-	-- own aspect ratio.
-	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
-	rootAspect.Parent = self.Root
-
+	-- The AspectRatioConstraint lives on the PANEL, not Root (see ShopScreen's
+	-- own note for the full explanation) — Root has AnchorPoint (0,0), so
+	-- constraining it directly shrinks it flush to the top-left instead of
+	-- centering, dragging the panel (which centers itself via its own
+	-- 0.5,0.5 anchor) left along with it. 1.429 reproduces the panel's own
+	-- previous effective shape exactly: it used to be 0.62 x 0.82 of a
+	-- 1.89-locked Root, i.e. 0.62/0.82 * 1.89 = 1.429 — same rendered size
+	-- and shape, just correctly centered now.
 	local panel = UIPanelComponent.new()
 	self._panel = panel
 	self:_SetAnimatedPanel(panel)
@@ -112,6 +113,8 @@ function ThemeSelectorScreen:_BuildContent()
 			self.ScreenController:HideScreen("themeSelector")
 		end,
 	})
+	local panelAspect = UIStyler.AspectRatio(0.62 / 0.82 * 1.89, Enum.DominantAxis.Width)
+	panelAspect.Parent = panel.Root
 
 	-- ---- left column: theme + pack pickers (built once) ----------------
 	local left = UIStyler.Frame("Left")

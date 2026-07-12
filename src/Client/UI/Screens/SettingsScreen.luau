@@ -33,13 +33,10 @@ function SettingsScreen:SetChangeHandler(fn: (string, any) -> ())
 end
 
 function SettingsScreen:_BuildContent()
-	-- Root (the outermost top-layer container this screen builds into) gets
-	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
-	-- the screen holds a consistent shape regardless of the real viewport's
-	-- own aspect ratio.
-	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
-	rootAspect.Parent = self.Root
-
+	-- The AspectRatioConstraint lives on the PANEL, not Root — see
+	-- ShopScreen's note for the full explanation. 0.5/0.8*1.89 reproduces the
+	-- panel's own previous effective shape (0.5 x 0.8 of a 1.89-locked Root)
+	-- exactly, just correctly centered now instead of dragged top-left.
 	local panel = UIPanelComponent.new()
 	self._panel = panel
 	self:_SetAnimatedPanel(panel)
@@ -50,6 +47,8 @@ function SettingsScreen:_BuildContent()
 			self.ScreenController:HideScreen("settings")
 		end,
 	})
+	local panelAspect = UIStyler.AspectRatio(0.5 / 0.8 * 1.89, Enum.DominantAxis.Width)
+	panelAspect.Parent = panel.Root
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "Sections"

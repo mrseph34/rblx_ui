@@ -19,12 +19,13 @@ function ModalScreen.new()
 end
 
 function ModalScreen:_BuildContent()
-	-- Root (the outermost top-layer container this screen builds into) gets
-	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
-	-- the screen holds a consistent shape regardless of the real viewport's
-	-- own aspect ratio.
-	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
-	rootAspect.Parent = self.Root
+	-- No Root-level AspectRatioConstraint here (unlike ShopScreen's pattern):
+	-- the backdrop below is a full-screen click-catcher that must cover the
+	-- TRUE viewport, not a design-locked box — Root has AnchorPoint (0,0), so
+	-- constraining it would shrink it flush to the top-left and leave part of
+	-- the real screen unprotected (clicks would pass through outside the
+	-- shrunk box). The panel below carries its own AspectRatioConstraint
+	-- instead, computed from the active pack's WidthScale.
 
 	-- Invisible click-catcher, not a dim overlay — blocks clicks from passing
 	-- through to whatever's behind the modal (the actual reason this exists),
@@ -48,6 +49,11 @@ function ModalScreen:_BuildContent()
 		showClose = false,
 		size = UDim2.fromScale(pack.Modal.WidthScale, 0.34),
 	})
+	-- pack.Modal.WidthScale/0.34*1.89 reproduces the panel's own previous
+	-- effective shape exactly (it used to be WidthScale x 0.34 of a
+	-- 1.89-locked Root), just correctly centered now.
+	local panelAspect = UIStyler.AspectRatio(pack.Modal.WidthScale / 0.34 * 1.89, Enum.DominantAxis.Width)
+	panelAspect.Parent = panel.Root
 
 	local body = UIStyler.TextLabel("Body")
 	body.Size = UDim2.fromScale(0.92, 0.72)

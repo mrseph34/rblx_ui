@@ -140,12 +140,18 @@ function GameHUDScreen:Rebuild()
 end
 
 function GameHUDScreen:_BuildContent()
-	-- Root (the outermost top-layer container this screen builds into) gets
-	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
-	-- the HUD holds a consistent shape regardless of the real viewport's own
-	-- aspect ratio.
-	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
-	rootAspect.Parent = self.Root
+	-- No AspectRatioConstraint on Root: unlike a centered panel (ShopScreen
+	-- etc.), every region below (TopLeft/TopRight/BottomLeft/…) is anchored
+	-- directly to one of ROOT'S OWN corners/edges via AnchorPoint + a Scale
+	-- position fraction. Root has AnchorPoint (0,0) — constraining IT would
+	-- shrink it flush to the top-left, dragging every non-top-left-anchored
+	-- region (TopRight, BottomRight, BottomCenter, …) away from the TRUE
+	-- screen's actual corner/edge along with it (confirmed: at this
+	-- viewport's aspect ratio a 1.89 lock left ~400px of unused screen on
+	-- the right, with TopRight/BottomRight rendering ~400px short of the
+	-- real edge). With Root left as the true full screen, each region's own
+	-- corner/edge anchor already does the right thing with no extra
+	-- constraint needed — the fix here is REMOVING the lock, not moving it.
 
 	-- Compensates a real, reproducible engine quirk in this environment (see
 	-- UINavRailController's own note on the same fix): even with

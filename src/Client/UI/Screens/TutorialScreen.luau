@@ -23,12 +23,12 @@ function TutorialScreen.new()
 end
 
 function TutorialScreen:_BuildContent()
-	-- Root (the outermost top-layer container this screen builds into) gets
-	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
-	-- the screen holds a consistent shape regardless of the real viewport's
-	-- own aspect ratio.
-	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
-	rootAspect.Parent = self.Root
+	-- No Root-level AspectRatioConstraint here (unlike ShopScreen's pattern):
+	-- the dim overlay below must cover the TRUE viewport, not a
+	-- design-locked box — Root has AnchorPoint (0,0), so constraining it
+	-- would shrink it flush to the top-left and leave part of the real
+	-- screen undimmed. The popup panel below carries its own
+	-- AspectRatioConstraint instead.
 
 	-- Dim overlay (four frames forming a border around a highlight hole; here
 	-- simplified to one translucent frame that we punch visually with a ring).
@@ -61,6 +61,11 @@ function TutorialScreen:_BuildContent()
 			self:_Finish(false)
 		end,
 	})
+	-- 0.42/0.26*1.89 reproduces the panel's own previous effective shape
+	-- exactly (it used to be 0.42 x 0.26 of a 1.89-locked Root), just
+	-- correctly anchored now instead of dragged top-left.
+	local panelAspect = UIStyler.AspectRatio(0.42 / 0.26 * 1.89, Enum.DominantAxis.Width)
+	panelAspect.Parent = panel.Root
 
 	local text = UIStyler.TextLabel("Text")
 	text.Size = UDim2.fromScale(0.92, 0.66)
