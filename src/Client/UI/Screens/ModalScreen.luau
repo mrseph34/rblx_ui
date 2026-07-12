@@ -19,13 +19,23 @@ function ModalScreen.new()
 end
 
 function ModalScreen:_BuildContent()
+	-- Root (the outermost top-layer container this screen builds into) gets
+	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
+	-- the screen holds a consistent shape regardless of the real viewport's
+	-- own aspect ratio.
+	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
+	rootAspect.Parent = self.Root
+
+	-- Invisible click-catcher, not a dim overlay — blocks clicks from passing
+	-- through to whatever's behind the modal (the actual reason this exists),
+	-- without the visible black tint the other screens' backdrops had (removed
+	-- there entirely as unneeded).
 	local backdrop = Instance.new("TextButton")
 	backdrop.Name = "Backdrop"
 	backdrop.Text = ""
 	backdrop.AutoButtonColor = false
 	backdrop.Size = UDim2.fromScale(1, 1)
-	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
-	backdrop.BackgroundTransparency = 0.5
+	backdrop.BackgroundTransparency = 1
 	backdrop.Parent = self.Root
 	self._backdrop = backdrop
 

@@ -162,7 +162,10 @@ end
 -- button, a text-only button, and an icon+text button all come from here.
 function UIButtonComponent:SetContent(props: Types.UIComponentProps)
 	local text = TextConfig.Resolve(props.textKey or props.text)
-	self._label.Text = text
+	-- Leading/trailing space: AutomaticSize.X off the label with no UIPadding
+	-- (a UIPadding fighting AutomaticSize.X produced unstable sizing), so the
+	-- padded string itself keeps the label off the button surface's edge.
+	self._label.Text = text ~= "" and (" " .. text .. " ") or ""
 	self._label.Visible = text ~= ""
 	if props.icon and props.icon ~= "" then
 		-- Emoji glyph.
@@ -218,10 +221,21 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 
 	self:_SetColor(self._surface, "BackgroundColor3", fill)
 	-- Bubbly style rounds toward a pill; otherwise scale the Medium radius.
-	local radius = shape.Style == "Bubbly"
-		and math.min(self.Root.AbsoluteSize.Y / 2, theme.Radii.Pill)
-		or ThemeShape.Radius(theme, theme.Radii.Medium)
-	self._corner.CornerRadius = UDim.new(0, radius)
+	-- Bubbly's radius is Scale-based (0.5 = Roblox's own "half of the
+	-- shorter side" UICorner semantic), NOT a pixel value computed from
+	-- AbsoluteSize — reading AbsoluteSize synchronously here is unreliable
+	-- before layout has fully resolved (confirmed elsewhere: this exact
+	-- pattern made badges render square by default, reading a stale/near-
+	-- zero size). A pure Scale radius adapts automatically with zero timing
+	-- risk and always yields a clean pill on any button size, matching every
+	-- theme's Radii.Pill = 1000 (always "make this maximally round").
+	local radius: UDim
+	if shape.Style == "Bubbly" then
+		radius = UDim.new(0.5, 0)
+	else
+		radius = UDim.new(0, ThemeShape.Radius(theme, theme.Radii.Medium))
+	end
+	self._corner.CornerRadius = radius
 	-- Ghost buttons normally get a coloured accent outline (so an unselected tab
 	-- still reads as clickable) — but that stayed on even when the button was
 	-- DISABLED (owned / can't-afford), leaving a bright accent-coloured ring

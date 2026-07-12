@@ -29,16 +29,13 @@ local CardSpacing = {}
 -- old pixel formula at a representative column width — see the commit that
 -- introduced this file for the derivation).
 CardSpacing.CardTop = {
-	-- The image row's fraction of col's own height at imageAspect=1, for
-	-- specs that DON'T reserve a BuyToBottom gap (buyStyle OutsideBelow/
-	-- Straddle) — i.e. 1.0 minus every OTHER row/gap in the Height/Gap tables
-	-- below (NOT including BuyToBottom: UICardComponent._BuildCardTop
-	-- separately subtracts BuyToBottom from this at runtime, ONLY for specs
-	-- that actually append that spacer — baking it in here too was a real,
-	-- confirmed bug: BuyToBottom got subtracted TWICE, leaving col's content
-	-- summing to 0.97 instead of 1.0, an unaccounted ~3% gap at the bottom of
-	-- every card. Recompute this whenever any Height.*/Gap.* value changes
-	-- (excluding BuyToBottom), or col's content will over/underfill col again.
+	-- The image row's fraction of col's own height for the FULL layout
+	-- (tags + name + price + BuyFull-style buy) — kept as a named constant
+	-- for readability/backwards-compat at call sites that only care about
+	-- the default square-image full-layout shape. Every OTHER shape (skipped
+	-- Tags/Price rows, Pill buyStyle, external buy) gets ITS OWN fraction via
+	-- ImageFracFor below — see that function's comment for why one shared
+	-- constant doesn't work for every spec.
 	ImageFracOfCol = 0.661402,
 }
 -- AspectRatio (card width:height at imageAspect=1) is just ImageFracOfCol at
@@ -74,8 +71,21 @@ end
 CardSpacing.GridCell = {
 	CellSizeX = 0.23,
 	CellSizeY = 0.65,
-	CellPaddingX = 0.015,
-	CellPaddingY = -0.05,
+	CellPaddingX = 0.02,
+	CellPaddingY = -0.06,
+}
+
+-- Overlay arrangement (the card IS the image, no text column below it) is
+-- much SHORTER than a CardTop card at the same width — CardTop's card aspect
+-- (width:height) is ~0.66 (image + text column), Overlay's is just the
+-- image's own aspect (~1 for a square). Reusing CardTop's CellSizeY left a
+-- huge unfilled gap below every Overlay row (confirmed via measurement: a
+-- ~71px gap between rows on a live card). A separate, smaller flat value —
+-- hand-tuned the same way as GridCell above — instead of one CellSizeY
+-- shared by both arrangements.
+CardSpacing.GridCellOverlay = {
+	CellSizeY = 0.43,
+	CellPaddingY = -0.04,
 }
 
 -- Surface (the card's visible box) inner padding, as a fraction of the card's
@@ -112,22 +122,90 @@ CardSpacing.Gap = {
 	NameToPrice = 0.008368200836820083,
 	PriceToBuy = 0.008368200836820083,
 	BuyToPill = 0.03347280334728033, -- price -> buy button, Pill style only (8/239)
-	-- Below the buy button, before the card's own clipped bottom edge — a
-	-- deliberately bigger gap than the other (very tight) inter-element gaps
-	-- above, so the button visibly doesn't sit flush against the card edge.
-	BuyToBottom = 0.03,
+	-- Buy sits flush against the card's own clipped bottom edge — no trailing
+	-- gap. ImageFracOfCol above was already derived EXCLUDING this value (see
+	-- its own comment), so zeroing it makes col's content sum to exactly 1.0
+	-- with zero leftover space below the button, instead of reserving a
+	-- deliberate gap there.
+	BuyToBottom = 0,
 }
+
+-- Computes ImageFracOfCol for ANY CardTop text-column shape — not every spec
+-- renders the same rows: tagStraddle, showTags=false, and
+-- overlayBadgeAndPrice all skip the Tags row; overlayBadgeAndPrice ALSO
+-- skips the Price row; buyStyle="Pill" uses a different gap+height
+-- (BuyToPill+BuyPill) than every other buyStyle (PriceToBuy+BuyFull); and
+-- buyStyle OutsideBelow/Straddle don't render Buy in col AT ALL (it's built
+-- as a Root-level sibling instead — see UICardComponent._BuildExternalBuy).
+-- Reusing ONE constant (ImageFracOfCol, tuned only for the full
+-- tags+price+BuyFull layout) for every spec forced every OTHER shape into a
+-- taller-or-shorter card than its actual content — leaving real dead space,
+-- needing fake padding gaps to avoid it, or slightly overflowing col's own
+-- bounds (all three confirmed, real bugs across different specs:
+-- StandardBanner/tagStraddle, StandardPlus/overlayBadgeAndPrice, IconGrid/
+-- showTags=false, StandardPro/Pill). This is the single source of truth:
+-- 1.0 minus ONLY the rows/gaps THIS spec's card actually renders in col, so
+-- every card shape is always exact — image, then whichever rows are
+-- present, each separated by just their normal small gap, no padding ever
+-- needed and nothing ever clipped.
+function CardSpacing.CardTop.ImageFracFor(spec: {
+	showTags: boolean?,
+	tagStraddle: boolean?,
+	overlayBadgeAndPrice: boolean?,
+	buyStyle: string?,
+}): number
+	local G, H = CardSpacing.Gap, CardSpacing.Height
+	local other = 0
+	local includeTags = spec.showTags and not spec.tagStraddle and not spec.overlayBadgeAndPrice
+	if includeTags then
+		other += G.ImageToTags + H.TagRow + G.TagsToName
+	else
+		other += G.ImageToName
+	end
+	other += H.Name
+	local includePrice = not spec.overlayBadgeAndPrice
+	if includePrice then
+		other += G.NameToPrice + H.Price
+	end
+	if spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle" then
+		-- Buy is NOT in col at all for external styles — nothing more to add
+		-- (see UICardComponent._BuildExternalBuy for where it actually goes).
+	elseif spec.buyStyle == "Pill" then
+		other += G.BuyToPill + H.BuyPill
+	else
+		other += G.PriceToBuy + H.BuyFull
+	end
+	return 1 - other
+end
+
+function CardSpacing.CardTop.AspectRatioForSpec(spec: { imageAspect: number? } & { [string]: any }): number
+	local aspect = spec.imageAspect
+	if not aspect or aspect <= 0 then
+		aspect = 1
+	end
+	return CardSpacing.CardTop.ImageFracFor(spec) * aspect
+end
 
 -- Straddle-banner mode (tagStraddle spec flag): how far the tag row overlaps
 -- UP over the image's top edge, as a fraction of col's own height.
 CardSpacing.BannerStraddleOffset = -0.03347280334728033
 
 -- External buy button (OutsideBelow/Straddle buyStyle), as fractions of col's
--- own height.
+-- own height. BottomPad is 0 (flush, matching Gap.BuyToBottom's fix above) —
+-- BelowGap/StraddleBelowGap stay nonzero since they're the deliberate visual
+-- separation that defines the OutsideBelow/Straddle LOOK itself (the button
+-- floating off the box), not leftover unaccounted space.
 CardSpacing.ExternalBuy = {
 	Height = 0.1087866108786611,
-	BottomPad = 0.016736401673640166,
-	BelowGap = 0.016736401673640166,
+	BottomPad = 0,
+	-- OutsideBelow: gap between the surface's own bottom edge and the top of
+	-- the floating button below it.
+	BelowGap = 0.03,
+	-- Straddle: the button is centred ON the surface's bottom edge (half
+	-- overlapping inside, half hanging out below) — this reserves a SMALL
+	-- extra gap below the button's own bottom edge so it doesn't sit flush
+	-- against the next row's card underneath it.
+	StraddleBelowGap = 0.025,
 }
 
 return CardSpacing

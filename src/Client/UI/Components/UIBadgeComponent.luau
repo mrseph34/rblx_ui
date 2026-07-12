@@ -77,7 +77,11 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 end
 
 function UIBadgeComponent:SetContent(props: Types.UIComponentProps)
-	self._label.Text = TextConfig.Resolve(props.textKey or props.text)
+	-- Leading/trailing space: the label has NO UIPadding (AutomaticSize.X off
+	-- an AutomaticSize.X root fights a UIPadding — see _Build's comment), so
+	-- the padded string itself is what keeps text off the pill's edge.
+	local text = TextConfig.Resolve(props.textKey or props.text)
+	self._label.Text = text ~= "" and (" " .. text .. " ") or ""
 	if self.Theme then
 		self:_Style(self.Theme)
 	end
@@ -90,7 +94,17 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 	local fill = (c :: any)[tokenName] or c.Primary
 
 	self.Root.BackgroundColor3 = fill
-	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
+	-- Scale-based (0.5 = Roblox's own "half of the shorter side" UICorner
+	-- semantic), NOT a pixel value computed from AbsoluteSize — reading
+	-- AbsoluteSize synchronously here is unreliable: _Style can run before a
+	-- freshly-created badge's AutomaticSize.X has resolved against its
+	-- label's real text width, reading a stale/near-zero size and computing
+	-- a near-zero radius — confirmed as the cause of tags rendering SQUARE
+	-- by default. A pure Scale radius adapts automatically with zero timing
+	-- risk and always yields a clean pill, matching every theme's
+	-- Radii.Pill = 1000 (always "make this maximally round," never a
+	-- moderate partial value, so no precision is lost by not reading it here).
+	self._corner.CornerRadius = UDim.new(0.5, 0)
 	self._label.FontFace = theme.Fonts.Button
 	self._label.TextColor3 = c.TextOnPrimary
 	if self._labelConstraint then

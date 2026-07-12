@@ -80,7 +80,7 @@ UIPackConfig.Packs = {
 	{
 		Id = "Detailed",
 		DisplayName = "Detailed / Text",
-		Shop = { Container = "List", Columns = 1, CardHeight = 200, EntryLayout = "TextHeavy", ShowCategoryBar = true },
+		Shop = { Container = "List", Columns = 1, CardHeight = 158, EntryLayout = "TextHeavy", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopLeft", MoneyIconSide = "Right" },
 		Nav = { Side = "Right", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },

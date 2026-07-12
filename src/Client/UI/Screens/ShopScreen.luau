@@ -53,13 +53,6 @@ function ShopScreen:_BuildContent()
 	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
 	rootAspect.Parent = self.Root
 
-	-- Dim backdrop.
-	local backdrop = UIStyler.Frame("Backdrop")
-	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
-	backdrop.BackgroundTransparency = 0.45
-	backdrop.Parent = self.Root
-	self._backdrop = backdrop
-
 	local panel = UIPanelComponent.new()
 	self._panel = panel
 	self:_SetAnimatedPanel(panel)
@@ -161,7 +154,7 @@ function ShopScreen:_BuildContent()
 	-- A SCALE fraction of the scroll's own size, applied once; per-render we
 	-- rebuild only the layout object, not this.
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(-0.018, 0)
+	pad.PaddingTop = UDim.new(-0.02, 0)
 	pad.PaddingBottom = UDim.new(0, 0)
 	pad.PaddingLeft = UDim.new(0.015, 0)
 	pad.PaddingRight = UDim.new(0.011, 0)
@@ -224,37 +217,43 @@ function ShopScreen:_RebuildLayout()
 		-- pixel measurement, no per-pass height computation, no ShopScreen/
 		-- CardSpacingConfig cross-referencing needed for either arrangement.
 		self._cardImageSizePx = nil
-		-- Pure Scale cell size/padding — hand-tuned to look right in Studio
-		-- (see CardSpacingConfig.GridCell for the editable values) instead of
-		-- computed from column count + a pixel gap.
-		--
-		-- CellPaddingY was tuned NEGATIVE against the default (imageAspect=1)
-		-- card, whose real fitted height (via FitWithinMaxSize + DominantAxis
-		-- Width) ends up SHORTER than the cell — the negative padding pulls
-		-- rows closer to use up that leftover slack. A spec with a TALLER card
-		-- shape (imageAspect < 1, via AspectRatioFor) has LESS (or no) such
-		-- slack, so the same fixed negative padding overlaps adjacent rows (a
-		-- real, confirmed bug on TallCard). Computed here instead of a static
-		-- config number: mirrors Roblox's own FitWithinMaxSize resolution
-		-- (candidate height from full cell width, clamped to the cell height)
-		-- to find the ACTUAL slack for this spec's card shape, then only pads
-		-- by that much — always exactly enough to close the gap, never enough
-		-- to overlap, for any imageAspect.
+		-- Pure Scale cell size — hand-tuned to look right in Studio (see
+		-- CardSpacingConfig.GridCell for the editable values) instead of
+		-- computed from column count + a pixel gap. Overlay gets its OWN
+		-- (shorter) CellSizeY — its card is just the image, much shorter than
+		-- a CardTop card at the same width (see GridCellOverlay's doc).
+		local cellSizeY = spec.arrangement == "Overlay" and CardSpacing.GridCellOverlay.CellSizeY or CardSpacing.GridCell.CellSizeY
+
+		-- CellPaddingY is COMPUTED, not a flat number — a flat value can only
+		-- match ONE specific card shape's slack (the gap between the cell's
+		-- nominal height and the card's real FitWithinMaxSize-fitted height).
+		-- Every other shape either overlaps (a flat value too negative for a
+		-- narrow/tall card like Portrait/TallCard, which has near-zero slack —
+		-- confirmed via measurement) or leaves a real visible gap (a flat
+		-- value too conservative for a much SHORTER card like Standard 2.0's
+		-- overlayBadgeAndPrice shape, which has a lot MORE slack — also
+		-- confirmed via measurement: a real ~39px gap between rows). Mirroring
+		-- FitWithinMaxSize's own math (candidate height from full cell width,
+		-- clamped to the cell height) gives the EXACT slack for THIS spec's
+		-- card shape every time, so it's always tight with zero overlap,
+		-- regardless of card shape.
 		local cellWAbs = CardSpacing.GridCell.CellSizeX * self._scroll.AbsoluteSize.X
-		local cellHAbs = CardSpacing.GridCell.CellSizeY * self._scroll.AbsoluteSize.Y
-		-- Overlay's card IS the image (no text-block adjustment needed), so its
-		-- card aspect is simply the image's own aspect; CardTop derives its card
-		-- shape from AspectRatioFor (see that function for the full reasoning).
-		local actualCardAspect = spec.arrangement == "Overlay"
+		local cellHAbs = cellSizeY * self._scroll.AbsoluteSize.Y
+		-- AspectRatioForSpec computes each spec's own exact shape (see its
+		-- own comment) — using one flat ratio for every CardTop spec here
+		-- would compute slack for a DIFFERENT card than the one actually
+		-- rendering, same class of bug already confirmed for
+		-- overlayBadgeAndPrice specifically (a real ~39px gap between rows).
+		local cardAspect = spec.arrangement == "Overlay"
 			and (spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1)
-			or CardSpacing.CardTop.AspectRatioFor(spec.imageAspect)
-		local candidateCardH = actualCardAspect > 0 and (cellWAbs / actualCardAspect) or cellHAbs
-		local fittedCardH = math.min(candidateCardH, cellHAbs)
-		local slackAbs = fittedCardH - cellHAbs -- <= 0 always; the safe padding
-		local paddingYFrac = self._scroll.AbsoluteSize.Y > 0 and (slackAbs / self._scroll.AbsoluteSize.Y) or 0
+			or CardSpacing.CardTop.AspectRatioForSpec(spec)
+		local candidateH = cardAspect > 0 and (cellWAbs / cardAspect) or cellHAbs
+		local fittedH = math.min(candidateH, cellHAbs)
+		local cellPaddingY = self._scroll.AbsoluteSize.Y > 0 and ((fittedH - cellHAbs) / self._scroll.AbsoluteSize.Y) or 0
+
 		local cell = UIStyler.GridLayout(
-			UDim2.fromScale(CardSpacing.GridCell.CellSizeX, CardSpacing.GridCell.CellSizeY),
-			UDim2.fromScale(CardSpacing.GridCell.CellPaddingX, paddingYFrac)
+			UDim2.fromScale(CardSpacing.GridCell.CellSizeX, cellSizeY),
+			UDim2.fromScale(CardSpacing.GridCell.CellPaddingX, cellPaddingY)
 		)
 		cell.Parent = self._scroll
 	elseif shopLayout.Container == "Grid" then

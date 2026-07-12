@@ -106,7 +106,13 @@ end
 function UIProgressBarComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	self.Root.BackgroundColor3 = c.Surface
-	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
+	-- Scale-based (0.5 = Roblox's own "half of the shorter side" UICorner
+	-- semantic), NOT a pixel value computed from AbsoluteSize — reading
+	-- AbsoluteSize synchronously at Style-time is unreliable before layout
+	-- has fully resolved (confirmed elsewhere: this exact pattern made
+	-- badges render square by default). A pure Scale radius adapts
+	-- automatically with zero timing risk.
+	self._corner.CornerRadius = UDim.new(0.5, 0)
 	self._fill.BackgroundColor3 = (c :: any)[self._colorToken] or c.Success
 	self._fillGradient.Enabled = theme.Effects.UseGradients
 	if self._text then

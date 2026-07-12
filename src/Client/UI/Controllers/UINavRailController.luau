@@ -189,6 +189,24 @@ function UINavRailController:Build()
 				end
 			end,
 		})
+		-- ScaleX/ScaleY convert the SAME design-space pixel size against
+		-- DIFFERENT denominators (viewport width vs height) — sizeFrac.X and
+		-- sizeFrac.Y only produce a true square (or the intended rectangle)
+		-- when the real viewport's aspect ratio happens to exactly match
+		-- NavConfig's 1280x720 design reference. Any other aspect ratio
+		-- stretches the button — confirmed the cause of nav buttons not
+		-- holding their shape. A fixed AspectRatioConstraint (design px
+		-- width:height) locks the button to its authored shape regardless of
+		-- viewport, the same fix already applied to shop cards/screens.
+		-- DominantAxis matches whichever axis the rail's own total-size budget
+		-- was already computed from (the "main" axis for this fill direction)
+		-- — that axis must stay authoritative, so only the free CROSS axis
+		-- gets adjusted to hold the ratio, never overflowing the rail itself.
+		local sizePx = NavConfig.SizeFor(def, geo.showLabels)
+		if sizePx.Y > 0 then
+			local dominant = horizontal and Enum.DominantAxis.Width or Enum.DominantAxis.Height
+			UIStyler.AspectRatio(sizePx.X / sizePx.Y, dominant).Parent = button.Root
+		end
 		self._screenController:RegisterHighlightTarget(def.id, button.Root)
 	end
 end

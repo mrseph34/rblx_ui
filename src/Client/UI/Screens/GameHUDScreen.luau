@@ -127,6 +127,13 @@ function GameHUDScreen:Rebuild()
 end
 
 function GameHUDScreen:_BuildContent()
+	-- Root (the outermost top-layer container this screen builds into) gets
+	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
+	-- the HUD holds a consistent shape regardless of the real viewport's own
+	-- aspect ratio.
+	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
+	rootAspect.Parent = self.Root
+
 	local scale = Instance.new("UIScale")
 	scale.Parent = self.Root
 	self._scale = scale

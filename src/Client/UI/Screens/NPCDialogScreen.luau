@@ -32,6 +32,13 @@ function NPCDialogScreen.new()
 end
 
 function NPCDialogScreen:_BuildContent()
+	-- Root (the outermost top-layer container this screen builds into) gets
+	-- its own fixed AspectRatioConstraint, matching ShopScreen's pattern, so
+	-- the screen holds a consistent shape regardless of the real viewport's
+	-- own aspect ratio.
+	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
+	rootAspect.Parent = self.Root
+
 	local panel = UIPanelComponent.new()
 	self._panel = panel
 	self:_SetAnimatedPanel(panel)
