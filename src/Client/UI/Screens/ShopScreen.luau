@@ -161,18 +161,10 @@ function ShopScreen:_BuildContent()
 	-- Inner padding so the first row/column and the last row don't touch the
 	-- scroll edges (where the hover "pop" would otherwise clip), so the last row
 	-- is never cut, and so the automatic canvas height includes a bottom margin.
-	-- A SCALE fraction of the scroll's own size, applied once; per-render we
-	-- rebuild only the layout object, not this.
-	--
-	-- PaddingTop MUST stay >= 0: a negative value pushes the first row/column
-	-- above the scroll frame's own top edge, into canvas space a
-	-- ScrollingFrame can never scroll UP into (CanvasPosition can't go
-	-- negative) — that content is then permanently unreachable, not just
-	-- initially hidden. Confirmed as the cause of "the first few items are
-	-- missing/start above the visible area," worst on List/Row layouts where
-	-- a short row height makes this fraction a bigger chunk of one row.
+	-- A SCALE fraction of the scroll's own size. PaddingTop is set per-render in
+	-- _RebuildLayout (Grid vs List need different values — see its own comment);
+	-- everything else here is fixed and only ever set once.
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0.02, 0)
 	pad.PaddingBottom = UDim.new(0, 0)
 	pad.PaddingLeft = UDim.new(0.015, 0)
 	pad.PaddingRight = UDim.new(0.011, 0)
@@ -225,6 +217,15 @@ function ShopScreen:_RebuildLayout()
 	local spec = EntryLayoutConfig.Get(shopLayout.EntryLayout)
 	self._activeSpec = spec
 	self._activeShopLayout = shopLayout
+
+	-- Grid keeps the original -0.02 (a small negative pull that tightens the
+	-- top row against the category bar — fine there since a grid cell has
+	-- enough of its own top margin that nothing actually goes unreachable).
+	-- List/Row layouts get 0 instead: their rows are short enough that the
+	-- same -0.02 fraction pushes a whole row above the frame's visible top,
+	-- into canvas space a ScrollingFrame can never scroll UP into (confirmed
+	-- as the cause of the first row(s) going missing on Compact/Menu etc.).
+	self._scrollPad.PaddingTop = shopLayout.Container == "Grid" and UDim.new(-0.02, 0) or UDim.new(0, 0)
 
 	if shopLayout.Container == "Grid" and (spec.arrangement == "CardTop" or spec.arrangement == "Overlay") then
 		-- Pure-Scale path (matches the reference MainGui pattern): the card now
