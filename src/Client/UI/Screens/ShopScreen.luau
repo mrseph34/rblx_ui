@@ -45,14 +45,22 @@ function ShopScreen:SetPurchaseHandler(fn: (SharedTypes.ShopItem) -> SharedTypes
 end
 
 function ShopScreen:_BuildContent()
-	-- Root (the outermost top-layer container this whole screen builds into)
-	-- gets its own fixed AspectRatioConstraint so the screen holds a
-	-- consistent 1.89 width:height shape regardless of the real viewport's
-	-- own aspect ratio, instead of everything inside stretching/squashing at
-	-- unusual screen ratios.
-	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
-	rootAspect.Parent = self.Root
-
+	-- The AspectRatioConstraint belongs on the PANEL (the actual box holding
+	-- everything — header, tabs, item grid), NOT on Root. Root fills the
+	-- whole screen with AnchorPoint (0,0) — an AspectRatioConstraint there
+	-- shrinks Root itself down to the target ratio, but since its anchor is
+	-- the top-left corner, the shrunk box stays flush left/top instead of
+	-- centered, and everything positioned relative to Root (like this panel,
+	-- which centers itself via ITS OWN AnchorPoint 0.5,0.5) ends up dragged
+	-- left/up along with it — a real, confirmed bug. Root now stays a plain
+	-- full-screen container; the panel gets its own fixed shape instead, so
+	-- it holds its ratio while staying correctly centered (or wherever its
+	-- own Position/AnchorPoint says) regardless of the real viewport.
+	--
+	-- The exact ratio (1.323) reproduces the PANEL's own previous effective
+	-- shape exactly, unchanged: it used to be 0.56 x 0.8 of a 1.89-locked
+	-- Root, i.e. width:height = 0.56/0.8 * 1.89 = 1.323 — same rendered size
+	-- and shape as before, just correctly centered now.
 	local panel = UIPanelComponent.new()
 	self._panel = panel
 	self:_SetAnimatedPanel(panel)
@@ -66,6 +74,8 @@ function ShopScreen:_BuildContent()
 			self.ScreenController:HideScreen("shop")
 		end,
 	})
+	local panelAspect = UIStyler.AspectRatio(1.323, Enum.DominantAxis.Width)
+	panelAspect.Parent = panel.Root
 
 	-- Currency chips live in the HEADER now (next to the close button), not
 	-- their own row in Body — a Scale-sized row anchored left of Close, filling
