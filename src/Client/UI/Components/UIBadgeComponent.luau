@@ -56,9 +56,13 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 	local label = UIStyler.TextLabel("Label")
 	-- AutomaticSize.X stays (root itself AutomaticSizes off this label's real
 	-- text width, so the chip hugs the text) — but the text now scales via
-	-- TextScaled per TextScaleConfig instead of a fixed pixel size.
+	-- TextScaled per TextScaleConfig instead of a fixed pixel size. Height is
+	-- 0.8 of the badge's own height (not the full 1), so the glyph doesn't
+	-- fill the chip edge-to-edge vertically.
 	label.AutomaticSize = Enum.AutomaticSize.X
-	label.Size = UDim2.fromScale(0, 1)
+	label.AnchorPoint = Vector2.new(0, 0.5)
+	label.Position = UDim2.fromScale(0, 0.5)
+	label.Size = UDim2.fromScale(0, 0.8)
 	-- TextScaled must be the LAST text-wrap-related assignment — setting
 	-- TextWrapped afterward (even to false) silently reverts TextScaled back
 	-- to false (confirmed via a live Studio test). AutomaticSize.X growing to
@@ -87,7 +91,9 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 
 	self.Root.BackgroundColor3 = fill
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
-	self._label.FontFace = theme.Fonts.Button
+	-- Body, not Button — Button is typically a bold weight, and tag/banner
+	-- text should read as a lighter secondary label, not bold like a button.
+	self._label.FontFace = theme.Fonts.Body
 	self._label.TextColor3 = c.TextOnPrimary
 	if self._labelConstraint then
 		-- Smaller than Small — badges are secondary info; colour carries them.

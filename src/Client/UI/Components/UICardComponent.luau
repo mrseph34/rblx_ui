@@ -604,6 +604,17 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	local imgHFracOfCard = (contentW * cardAspect) / aspect
 	local colFactor = 1 - CardSpacing.SurfacePadding * 2
 	local imgHFrac = imgHFracOfCard / colFactor
+	-- The default (non-external) buy styles append a BuyToBottom spacer after
+	-- the button (see the tail of this function) — that spacer's height must
+	-- come FROM somewhere so col's content still sums to exactly 1.0 (it
+	-- doesn't add a new fraction on top, which previously overflowed col's own
+	-- bounds and got silently clipped by surface.ClipsDescendants). The image
+	-- row is what shrinks to make room, since it's the biggest/most forgiving
+	-- element to trim slightly.
+	local hasBuyToBottom = spec.buyStyle ~= "OutsideBelow" and spec.buyStyle ~= "Straddle"
+	if hasBuyToBottom then
+		imgHFrac -= CardSpacing.Gap.BuyToBottom
+	end
 	local wrap = UIStyler.Frame("ImageWrap")
 	wrap.BackgroundTransparency = 1
 	wrap.Size = UDim2.new(1, 0, imgHFrac, 0)
@@ -699,11 +710,11 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	buy.LayoutOrder = 999
 	-- (Pill buttons are meant for a CENTRED spec — nameAlign = Center — so the
 	-- column's own HorizontalAlignment already centres a narrower button like this.)
-	-- A small bottom margin so the button doesn't sit flush against the
+	-- A visible bottom margin so the button doesn't sit flush against the
 	-- surface's own clipped bottom edge.
 	local bottomPad = UIStyler.Frame("BottomPad")
 	bottomPad.BackgroundTransparency = 1
-	bottomPad.Size = UDim2.new(1, 0, CardSpacing.Gap.PriceToBuy, 0)
+	bottomPad.Size = UDim2.new(1, 0, CardSpacing.Gap.BuyToBottom, 0)
 	bottomPad.LayoutOrder = 1000
 	bottomPad.Parent = col
 end

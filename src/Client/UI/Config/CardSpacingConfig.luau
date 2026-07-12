@@ -71,6 +71,10 @@ CardSpacing.Gap = {
 	NameToPrice = 0.008368200836820083,
 	PriceToBuy = 0.008368200836820083,
 	BuyToPill = 0.03347280334728033, -- price -> buy button, Pill style only (8/239)
+	-- Below the buy button, before the card's own clipped bottom edge — a
+	-- deliberately bigger gap than the other (very tight) inter-element gaps
+	-- above, so the button visibly doesn't sit flush against the card edge.
+	BuyToBottom = 0.03,
 }
 
 -- Straddle-banner mode (tagStraddle spec flag): how far the tag row overlaps
