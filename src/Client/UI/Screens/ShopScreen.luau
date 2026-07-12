@@ -225,7 +225,7 @@ function ShopScreen:_RebuildLayout()
 	-- same -0.02 fraction pushes a whole row above the frame's visible top,
 	-- into canvas space a ScrollingFrame can never scroll UP into (confirmed
 	-- as the cause of the first row(s) going missing on Compact/Menu etc.).
-	self._scrollPad.PaddingTop = shopLayout.Container == "Grid" and UDim.new(-0.02, 0) or UDim.new(0, 0)
+	self._scrollPad.PaddingTop = shopLayout.Container == "Grid" and UDim.new(-0.02, 0) or UDim.new(0.001, 0)
 
 	if shopLayout.Container == "Grid" and (spec.arrangement == "CardTop" or spec.arrangement == "Overlay") then
 		-- Pure-Scale path (matches the reference MainGui pattern): the card now
@@ -243,32 +243,25 @@ function ShopScreen:_RebuildLayout()
 		-- a CardTop card at the same width (see GridCellOverlay's doc).
 		local cellSizeY = spec.arrangement == "Overlay" and CardSpacing.GridCellOverlay.CellSizeY or CardSpacing.GridCell.CellSizeY
 
-		-- CellPaddingY is COMPUTED, not a flat number — a flat value can only
-		-- match ONE specific card shape's slack (the gap between the cell's
-		-- nominal height and the card's real FitWithinMaxSize-fitted height).
-		-- Every other shape either overlaps (a flat value too negative for a
-		-- narrow/tall card like Portrait/TallCard, which has near-zero slack —
-		-- confirmed via measurement) or leaves a real visible gap (a flat
-		-- value too conservative for a much SHORTER card like Standard 2.0's
-		-- overlayBadgeAndPrice shape, which has a lot MORE slack — also
-		-- confirmed via measurement: a real ~39px gap between rows). Mirroring
-		-- FitWithinMaxSize's own math (candidate height from full cell width,
-		-- clamped to the cell height) gives the EXACT slack for THIS spec's
-		-- card shape every time, so it's always tight with zero overlap,
-		-- regardless of card shape.
-		local cellWAbs = CardSpacing.GridCell.CellSizeX * self._scroll.AbsoluteSize.X
-		local cellHAbs = cellSizeY * self._scroll.AbsoluteSize.Y
-		-- AspectRatioForSpec computes each spec's own exact shape (see its
-		-- own comment) — using one flat ratio for every CardTop spec here
-		-- would compute slack for a DIFFERENT card than the one actually
-		-- rendering, same class of bug already confirmed for
-		-- overlayBadgeAndPrice specifically (a real ~39px gap between rows).
-		local cardAspect = spec.arrangement == "Overlay"
-			and (spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1)
-			or CardSpacing.CardTop.AspectRatioForSpec(spec)
-		local candidateH = cardAspect > 0 and (cellWAbs / cardAspect) or cellHAbs
-		local fittedH = math.min(candidateH, cellHAbs)
-		local cellPaddingY = self._scroll.AbsoluteSize.Y > 0 and ((fittedH - cellHAbs) / self._scroll.AbsoluteSize.Y) or 0
+		-- CardTop: flat -0.06 (CardSpacing.GridCell.CellPaddingY), always — this
+		-- is the exact, locked value; it must NOT drift to a per-spec computed
+		-- number. Overlay keeps a COMPUTED value instead: its card shape (just
+		-- the image, no text column) varies enough per spec.imageAspect that a
+		-- flat number left either an overlap or a real visible gap depending on
+		-- the pack (confirmed via measurement) — mirroring FitWithinMaxSize's
+		-- own math (candidate height from full cell width, clamped to the cell
+		-- height) gives Overlay's exact per-spec slack instead.
+		local cellPaddingY
+		if spec.arrangement == "Overlay" then
+			local cellWAbs = CardSpacing.GridCell.CellSizeX * self._scroll.AbsoluteSize.X
+			local cellHAbs = cellSizeY * self._scroll.AbsoluteSize.Y
+			local cardAspect = spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1
+			local candidateH = cardAspect > 0 and (cellWAbs / cardAspect) or cellHAbs
+			local fittedH = math.min(candidateH, cellHAbs)
+			cellPaddingY = self._scroll.AbsoluteSize.Y > 0 and ((fittedH - cellHAbs) / self._scroll.AbsoluteSize.Y) or 0
+		else
+			cellPaddingY = CardSpacing.GridCell.CellPaddingY
+		end
 
 		local cell = UIStyler.GridLayout(
 			UDim2.fromScale(CardSpacing.GridCell.CellSizeX, cellSizeY),
