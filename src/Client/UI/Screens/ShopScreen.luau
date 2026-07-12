@@ -45,6 +45,14 @@ function ShopScreen:SetPurchaseHandler(fn: (SharedTypes.ShopItem) -> SharedTypes
 end
 
 function ShopScreen:_BuildContent()
+	-- Root (the outermost top-layer container this whole screen builds into)
+	-- gets its own fixed AspectRatioConstraint so the screen holds a
+	-- consistent 1.89 width:height shape regardless of the real viewport's
+	-- own aspect ratio, instead of everything inside stretching/squashing at
+	-- unusual screen ratios.
+	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
+	rootAspect.Parent = self.Root
+
 	-- Dim backdrop.
 	local backdrop = UIStyler.Frame("Backdrop")
 	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)

@@ -29,14 +29,17 @@ local CardSpacing = {}
 -- old pixel formula at a representative column width — see the commit that
 -- introduced this file for the derivation).
 CardSpacing.CardTop = {
-	-- The image row's fraction of col's own height at imageAspect=1 — i.e.
-	-- 1.0 minus every OTHER row/gap in the Height/Gap tables below plus
-	-- BuyToBottom, so the whole column sums to EXACTLY 1.0 (recompute this
-	-- whenever any Height.*/Gap.* value changes, or col's content will
-	-- over/underfill col again — see the module doc's warning about that
-	-- exact bug class). Used by AspectRatioFor to compute the right card
-	-- shape for any imageAspect (see that function's derivation below).
-	ImageFracOfCol = 0.631402,
+	-- The image row's fraction of col's own height at imageAspect=1, for
+	-- specs that DON'T reserve a BuyToBottom gap (buyStyle OutsideBelow/
+	-- Straddle) — i.e. 1.0 minus every OTHER row/gap in the Height/Gap tables
+	-- below (NOT including BuyToBottom: UICardComponent._BuildCardTop
+	-- separately subtracts BuyToBottom from this at runtime, ONLY for specs
+	-- that actually append that spacer — baking it in here too was a real,
+	-- confirmed bug: BuyToBottom got subtracted TWICE, leaving col's content
+	-- summing to 0.97 instead of 1.0, an unaccounted ~3% gap at the bottom of
+	-- every card. Recompute this whenever any Height.*/Gap.* value changes
+	-- (excluding BuyToBottom), or col's content will over/underfill col again.
+	ImageFracOfCol = 0.661402,
 }
 -- AspectRatio (card width:height at imageAspect=1) is just ImageFracOfCol at
 -- aspect=1 — kept as its own field for readability at call sites that only
