@@ -169,6 +169,14 @@ local ARCHITECTURE_BRIEF = [[
 --  6. Text: every user-facing string is in SPEC.strings keyed by id; resolve
 --     through one lookup so it can be localized later.
 --
+-- **DO NOT build the Tutorial system (the onboarding walkthrough that
+-- highlights/points at buttons) or the Theme Editor screen.** Both are
+-- internal DEV TOOLING for this source project only — used to author and
+-- preview the theme itself — and are NOT part of the pack a real game ships.
+-- A game using this exported SPEC has no use for either: build only the
+-- actual gameplay screens described here (shop, HUD, modal, NPC dialog, chat
+-- bar, settings, etc.), never a screen that shows/edits/highlights the UI kit.
+--
 -- Placeholders: emoji stand in for icon art (e.g. 💰 🛒 ❤️). Swap for images by
 -- setting an asset id where the SPEC notes an icon.
 -- ============================================================================
