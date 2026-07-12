@@ -245,6 +245,10 @@ export type TutorialStep = {
 	textKey: string,
 	highlightTargetId: string?,
 	hintKeys: { string }?,
+	-- Optional per-step highlight styling (see UIHighlightComponent) — falls
+	-- back to its own defaults (RoundedSquare, no arrow) when omitted.
+	highlightShape: ("Circle" | "Square" | "RoundedSquare")?,
+	highlightArrowDirection: ("Up" | "Down" | "Left" | "Right")?,
 }
 
 export type TutorialScreenData = {

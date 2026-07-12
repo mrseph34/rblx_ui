@@ -20,12 +20,19 @@ TutorialConfig.Steps = {
 		textKey = "tutorial.shop.text",
 		highlightTargetId = "nav.shop",
 		hintKeys = { "tutorial.hint.tap" },
+		-- Nav rail buttons are icon-square, so a Circle callout (with an arrow
+		-- pointing up at it from the popup below) reads better than the
+		-- default RoundedSquare rectangle.
+		highlightShape = "Circle",
+		highlightArrowDirection = "Up",
 	},
 	{
 		id = "themes",
 		titleKey = "tutorial.themes.title",
 		textKey = "tutorial.themes.text",
 		highlightTargetId = "nav.theme",
+		highlightShape = "Circle",
+		highlightArrowDirection = "Up",
 	},
 } :: { Types.TutorialStep }
 

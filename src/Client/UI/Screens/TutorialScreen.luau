@@ -10,6 +10,7 @@ local TutorialConfig = require(script.Parent.Parent.Config.TutorialConfig)
 local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
+local UIHighlightComponent = require(script.Parent.Parent.Components.UIHighlightComponent)
 
 local TutorialScreen = setmetatable({}, { __index = UIScreenBase })
 TutorialScreen.__index = TutorialScreen
@@ -38,15 +39,14 @@ function TutorialScreen:_BuildContent()
 	dim.Parent = self.Root
 	self._dim = dim
 
-	-- Highlight ring that we move over the current target.
-	local ring = UIStyler.Frame("Ring")
-	ring.BackgroundTransparency = 1
-	ring.Visible = false
-	UIStyler.Corner(12).Parent = ring
-	self._ringStroke = UIStyler.Stroke(Color3.new(1, 1, 1), 3)
-	self._ringStroke.Parent = ring
-	ring.Parent = self.Root
-	self._ring = ring
+	-- Highlight that tracks the current step's target — see
+	-- UIHighlightComponent for why this replaced a one-off ring built inline
+	-- here (that version snapshotted the target's position once per step and
+	-- never updated again, so it visibly drifted off target on any viewport
+	-- resize or target reflow).
+	local highlight = UIHighlightComponent.new()
+	highlight:Create(self.Root, { shape = "RoundedSquare" })
+	self._highlight = highlight
 
 	-- Popup panel (bottom center).
 	local panel = UIPanelComponent.new()
@@ -128,29 +128,22 @@ function TutorialScreen:_ShowStep()
 	local isLast = self._index >= #self._steps
 	self._nextButton:SetContent({ text = isLast and TextConfig.Resolve("modal.ok") or "Next →" })
 
-	self:_PositionRing(step)
+	self:_UpdateHighlight(step)
 	-- Intro is driven centrally by UIScreenBase:Show (active animation pack).
 end
 
--- Move the highlight ring over the step's registered target, if any.
--- The ring's Position is an OFFSET within its parent, but the target's
--- AbsolutePosition is a global screen coordinate. Converting between them
--- requires subtracting the ring parent's own AbsolutePosition — without that,
--- any GUI-inset difference makes the ring miss the target entirely.
-function TutorialScreen:_PositionRing(step: any)
+-- Restyle the highlight for this step (shape/arrow, per-step overrides — see
+-- TutorialConfig) and point it at the step's registered target, if any.
+-- UIHighlightComponent:Track keeps itself correctly positioned from here on,
+-- including across viewport resizes — no per-step position math needed.
+function TutorialScreen:_UpdateHighlight(step: any)
+	self._highlight:SetContent({
+		shape = step.highlightShape or "RoundedSquare",
+		showArrow = step.highlightArrowDirection ~= nil,
+		arrowDirection = step.highlightArrowDirection,
+	})
 	local target = step.highlightTargetId and self.ScreenController:GetHighlightTarget(step.highlightTargetId)
-	if target and target.AbsoluteSize.X > 0 then
-		self._ring.Visible = true
-		local padding = 8
-		local base = (self._ring.Parent :: GuiObject).AbsolutePosition
-		local localX = target.AbsolutePosition.X - base.X - padding
-		local localY = target.AbsolutePosition.Y - base.Y - padding
-		self._ring.Position = UDim2.fromOffset(localX, localY)
-		self._ring.Size = UDim2.fromOffset(target.AbsoluteSize.X + padding * 2, target.AbsoluteSize.Y + padding * 2)
-		self._ringStroke.Color = self:GetTheme().Colors.Accent
-	else
-		self._ring.Visible = false
-	end
+	self._highlight:Track(target)
 end
 
 function TutorialScreen:Advance()
