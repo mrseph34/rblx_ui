@@ -243,24 +243,31 @@ function ShopScreen:_RebuildLayout()
 		-- a CardTop card at the same width (see GridCellOverlay's doc).
 		local cellSizeY = spec.arrangement == "Overlay" and CardSpacing.GridCellOverlay.CellSizeY or CardSpacing.GridCell.CellSizeY
 
-		-- CardTop: flat -0.06 (CardSpacing.GridCell.CellPaddingY), always — this
-		-- is the exact, locked value; it must NOT drift to a per-spec computed
-		-- number. Overlay keeps a COMPUTED value instead: its card shape (just
-		-- the image, no text column) varies enough per spec.imageAspect that a
-		-- flat number left either an overlap or a real visible gap depending on
-		-- the pack (confirmed via measurement) — mirroring FitWithinMaxSize's
-		-- own math (candidate height from full cell width, clamped to the cell
-		-- height) gives Overlay's exact per-spec slack instead.
+		-- Standard's own spec (StandardCard) is locked to the exact flat -0.06
+		-- (CardSpacing.GridCell.CellPaddingY) — that value must never drift for
+		-- THIS pack specifically, by explicit request. Every other CardTop/
+		-- Overlay spec gets a COMPUTED value instead: a flat number only ever
+		-- matches ONE card shape's real slack (the gap between the cell's
+		-- nominal height and the card's real FitWithinMaxSize-fitted height) —
+		-- reusing Standard's -0.06 on a spec with a taller/shorter card left a
+		-- real visible gap between rows (confirmed: this is what the "too much
+		-- space vertically on the grid" screenshot was showing, on packs other
+		-- than Standard, right after -0.06 got hardcoded for every CardTop
+		-- spec). Mirroring FitWithinMaxSize's own math (candidate height from
+		-- full cell width, clamped to the cell height) gives each spec's exact
+		-- slack instead, so every OTHER pack is tight with zero overlap again.
 		local cellPaddingY
-		if spec.arrangement == "Overlay" then
+		if shopLayout.EntryLayout == "StandardCard" then
+			cellPaddingY = CardSpacing.GridCell.CellPaddingY
+		else
 			local cellWAbs = CardSpacing.GridCell.CellSizeX * self._scroll.AbsoluteSize.X
 			local cellHAbs = cellSizeY * self._scroll.AbsoluteSize.Y
-			local cardAspect = spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1
+			local cardAspect = spec.arrangement == "Overlay"
+				and (spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1)
+				or CardSpacing.CardTop.AspectRatioForSpec(spec)
 			local candidateH = cardAspect > 0 and (cellWAbs / cardAspect) or cellHAbs
 			local fittedH = math.min(candidateH, cellHAbs)
 			cellPaddingY = self._scroll.AbsoluteSize.Y > 0 and ((fittedH - cellHAbs) / self._scroll.AbsoluteSize.Y) or 0
-		else
-			cellPaddingY = CardSpacing.GridCell.CellPaddingY
 		end
 
 		local cell = UIStyler.GridLayout(

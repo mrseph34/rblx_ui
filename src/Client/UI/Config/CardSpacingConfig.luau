@@ -72,11 +72,12 @@ CardSpacing.GridCell = {
 	CellSizeX = 0.231,
 	CellSizeY = 0.65,
 	CellPaddingX = 0.02,
-	-- Locked exact value for CardTop specs (Standard etc.) — ShopScreen reads
-	-- this directly, no per-spec computation. Overlay specs use a separately
-	-- computed value instead (see ShopScreen:_RebuildLayout) since their
-	-- card shape varies enough per pack that a flat number left a real
-	-- overlap or gap depending on which pack was active.
+	-- Locked exact value for ONLY the Standard pack's own spec (StandardCard)
+	-- — ShopScreen reads this directly there, no computation, by explicit
+	-- request. Every other CardTop/Overlay spec computes its own value
+	-- instead (see ShopScreen:_RebuildLayout): reusing this flat number on a
+	-- spec with a taller/shorter card left a real visible gap between rows,
+	-- confirmed on every non-Standard grid pack.
 	CellPaddingY = -0.06,
 }
 
