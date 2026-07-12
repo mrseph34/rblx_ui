@@ -969,8 +969,11 @@ function UICardComponent:_BuildRow(surface: Frame, spec: EntryLayoutConfig.Entry
 	middle.Size = UDim2.new(1, -(imageSize + 10 + 140), 1, 0)
 	middle.LayoutOrder = 2
 	middle.Parent = row
-	self:_MakeName(middle, UDim.new(0, 26)).LayoutOrder = 1
-	local tags = self:_MakeTags(middle)
+	-- Name/price text scale with the ROW's own real height instead of a fixed
+	-- pixel row (matching the TextScaled pattern used everywhere else), so a
+	-- pack with a taller/shorter CardHeight still gets proportional text.
+	self:_MakeName(middle, UDim.new(0.55, 0)).LayoutOrder = 1
+	local tags = self:_MakeTags(middle, UDim.new(0.3, 0))
 	if tags then
 		tags.LayoutOrder = 2
 	end
@@ -979,8 +982,8 @@ function UICardComponent:_BuildRow(surface: Frame, spec: EntryLayoutConfig.Entry
 	right.Size = UDim2.new(0, 130, 1, 0)
 	right.LayoutOrder = 3
 	right.Parent = row
-	local price = self:_MakePrice(right)
-	price.Size = UDim2.new(1, 0, 0, 17)
+	local price = self:_MakePrice(right, UDim.new(0.3, 0))
+	price.Size = UDim2.new(1, 0, 0.3, 0)
 	price.TextXAlignment = Enum.TextXAlignment.Right
 	price.LayoutOrder = 1
 	local buy = self:_MakeBuy(right)
