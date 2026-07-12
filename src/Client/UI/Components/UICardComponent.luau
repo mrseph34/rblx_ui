@@ -537,18 +537,32 @@ end
 -- Themed pill chip showing the price, for overlaying DIRECTLY ON the image
 -- (overlayBadgeAndPrice spec flag) — a solid themed background so the price
 -- stays legible over any art, unlike the plain _MakePrice text used when price
--- sits in the (already-dark) text column below the image.
-function UICardComponent:_MakePriceChip(parent: Instance): Frame
+-- sits in the (already-dark) text column below the image. `useCardScale`
+-- (matching _MakeQuantityBadge/_MakeBuy's pattern): true when parent's height
+-- IS a fraction of the card's own AbsoluteSize, so the chip height is a Scale
+-- fraction instead of a fixed pixel Offset.
+function UICardComponent:_MakePriceChip(parent: Instance, useCardScale: boolean?): Frame
 	local chip = UIStyler.Frame("PriceChip")
-	chip.Size = UDim2.fromOffset(0, 24)
+	chip.Size = useCardScale and UDim2.fromScale(0, 0.1) or UDim2.fromOffset(0, 24)
 	chip.AutomaticSize = Enum.AutomaticSize.X
 	self._priceChipCorner = UIStyler.Corner(1000)
 	self._priceChipCorner.Parent = chip
-	UIStyler.PaddingXY(10, 3).Parent = chip
+	-- NO UIPadding here: chip is AutomaticSize.X off the label, and the label
+	-- is ALSO AutomaticSize.X — a UIPadding fighting that combination produced
+	-- unstable/incorrect sizing (same fix already applied to UIBadgeComponent).
 	local label = UIStyler.TextLabel("Value")
 	label.AutomaticSize = Enum.AutomaticSize.X
-	label.Size = UDim2.fromScale(0, 1)
+	label.AnchorPoint = Vector2.new(0, 0.5)
+	label.Position = UDim2.fromScale(0, 0.5)
+	label.Size = UDim2.fromScale(0, 0.8)
 	label.Text = string.format("%s %s", self.Props.currencyIcon or "", tostring(self._item.price))
+	-- TextScaled must be the LAST text-wrap-related assignment — setting
+	-- TextWrapped afterward (even to false) silently reverts TextScaled back
+	-- to false (confirmed via a live Studio test, same as every other label
+	-- in this file).
+	label.TextScaled = true
+	self._priceChipLabelConstraint = UIStyler.TextSizeConstraint(16, 6)
+	self._priceChipLabelConstraint.Parent = label
 	label.Parent = chip
 	self._priceChipLabel = label
 	chip.Parent = parent
@@ -679,7 +693,14 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 				overlayTags.Size = UDim2.new(0.92, 0, tagRowFracOfWrap, 0)
 			end
 		end
-		local priceChip = self:_MakePriceChip(wrap)
+		-- _MakePriceChip's own useCardScale sizing assumes its parent's height
+		-- IS the card's height — but it's parented in `wrap` here (the image
+		-- wrap, whose own height is imgHFrac of the card), so its Size gets
+		-- overridden right after with the same wrap-relative conversion
+		-- tagRowFracOfWrap already uses (divide the card-relative fraction by
+		-- imgHFrac to convert "fraction of card" into "fraction of wrap").
+		local priceChip = self:_MakePriceChip(wrap, true)
+		priceChip.Size = UDim2.new(priceChip.Size.X.Scale, priceChip.Size.X.Offset, 0.1 / imgHFrac, 0)
 		priceChip.AnchorPoint = Vector2.new(1, 1)
 		priceChip.Position = UDim2.new(0.96, 0, 0.96, 0)
 	end
@@ -837,8 +858,8 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		-- a clean margin. Coloured + made translucent in _Style.
 		local flatBg = UIStyler.Frame("FlatBg")
 		flatBg.AnchorPoint = Vector2.new(0, 1)
-		flatBg.Position = UDim2.new(0, 4, 1, -4)
-		flatBg.Size = UDim2.new(1, -8, 0.233, 0)
+		flatBg.Position = UDim2.new(0.017, 0, 0.983, 0)
+		flatBg.Size = UDim2.new(0.967, 0, 0.233, 0)
 		flatBg.ZIndex = 4
 		flatBg.Parent = surface
 		self._flatBg = flatBg
@@ -880,8 +901,8 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		local margin = 0.017
 		local footerBg = UIStyler.Frame("FooterBg")
 		footerBg.AnchorPoint = Vector2.new(0, 1)
-		footerBg.Position = UDim2.new(0, 4, 1 - (infoBottomInset - margin), 0)
-		footerBg.Size = UDim2.new(1, -8, infoH + margin * 2, 0)
+		footerBg.Position = UDim2.new(0.017, 0, 1 - (infoBottomInset - margin), 0)
+		footerBg.Size = UDim2.new(0.967, 0, infoH + margin * 2, 0)
 		footerBg.ZIndex = 4
 		footerBg.Parent = surface
 		self._flatBg = footerBg
@@ -1014,16 +1035,19 @@ function UICardComponent:_BuildSplit(surface: Frame, spec: EntryLayoutConfig.Ent
 	right.Parent = row
 	local o = 0
 	local function next_(g: GuiObject) o += 1; g.LayoutOrder = o end
-	next_(self:_MakeName(right, UDim.new(0, 30)))
-	local tags = self:_MakeTags(right)
+	-- Name/desc/price scale via TextScaled fractions of the row's own real
+	-- height (matching _BuildRow's pattern) instead of a fixed pixel row, so a
+	-- pack with a taller/shorter CardHeight still gets proportional text.
+	next_(self:_MakeName(right, UDim.new(0.15, 0)))
+	local tags = self:_MakeTags(right, UDim.new(0.075, 0))
 	if tags then next_(tags) end
 	local desc = self:_MakeDescription(right)
 	if desc then
-		desc.Size = UDim2.new(1, 0, 0, 44)
+		desc.Size = UDim2.new(1, 0, 0.22, 0)
 		next_(desc)
 	end
-	next_(self:_MakePrice(right))
-	local spacer = UIStyler.Frame("Spacer"); spacer.BackgroundTransparency = 1; spacer.Size = UDim2.new(1,0,0,2); spacer.Parent = right; next_(spacer)
+	next_(self:_MakePrice(right, UDim.new(0.085, 0)))
+	local spacer = UIStyler.Frame("Spacer"); spacer.BackgroundTransparency = 1; spacer.Size = UDim2.new(1,0,0.01,0); spacer.Parent = right; next_(spacer)
 	local buy = self:_MakeBuy(right); buy.LayoutOrder = 999
 end
 
@@ -1195,8 +1219,10 @@ function UICardComponent:_Style(theme: Types.UITheme)
 		local priceChip = self._priceChipLabel.Parent :: Frame
 		self:_SetColor(priceChip, "BackgroundColor3", c.Accent)
 		self._priceChipLabel.FontFace = theme.Fonts.Numeric
-		self._priceChipLabel.TextSize = theme.TextSizes.Small
 		self._priceChipLabel.TextColor3 = c.TextOnPrimary
+		if self._priceChipLabelConstraint then
+			self._priceChipLabelConstraint.MaxTextSize = TextScaleConfig.ScaledCap(theme.TextSizes.Small)
+		end
 	end
 end
 
