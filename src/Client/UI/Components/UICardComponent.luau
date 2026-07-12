@@ -788,7 +788,12 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 	if spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle" then
 		local pad = UIStyler.Frame("BottomPad")
 		pad.BackgroundTransparency = 1
-		pad.Size = UDim2.new(1, 0, CardSpacing.ExternalBuy.BottomPad, 0)
+		-- Straddle needs real reserved space here (the button's overlapping
+		-- half would otherwise cover the price row right above it);
+		-- OutsideBelow's button never touches the surface, so it stays flush.
+		local padScale = spec.buyStyle == "Straddle" and CardSpacing.ExternalBuy.StraddleBottomPad
+			or CardSpacing.ExternalBuy.BottomPad
+		pad.Size = UDim2.new(1, 0, padScale, 0)
 		pad.LayoutOrder = 900
 		pad.Parent = col
 		return

@@ -173,9 +173,16 @@ function CardSpacing.CardTop.ImageFracFor(spec: {
 	if includePrice then
 		other += G.NameToPrice + H.Price
 	end
-	if spec.buyStyle == "OutsideBelow" or spec.buyStyle == "Straddle" then
+	if spec.buyStyle == "OutsideBelow" then
 		-- Buy is NOT in col at all for external styles — nothing more to add
 		-- (see UICardComponent._BuildExternalBuy for where it actually goes).
+	elseif spec.buyStyle == "Straddle" then
+		-- Straddle's button also isn't in col, but col DOES render a real
+		-- StraddleBottomPad spacer after the price row (see
+		-- UICardComponent._BuildCardTop) — must be counted here too, or this
+		-- function under-predicts the card's needed height and the renderer's
+		-- actual content (image + rows + pad) overflows col's 1.0 budget.
+		other += CardSpacing.ExternalBuy.StraddleBottomPad
 	elseif spec.buyStyle == "Pill" then
 		other += G.BuyToPill + H.BuyPill
 	else
@@ -213,5 +220,16 @@ CardSpacing.ExternalBuy = {
 	-- against the next row's card underneath it.
 	StraddleBelowGap = 0.025,
 }
+
+-- Straddle-only bottom pad for `col` (the text column), separate from
+-- BottomPad=0 above: unlike OutsideBelow, Straddle's button OVERLAPS the
+-- surface by half its own height (that's the straddle look) — with no gap
+-- reserved, the price row (the last thing in col) sits flush at the
+-- surface's bottom edge, exactly where that overlapping half renders, so
+-- the button visually covers the price (confirmed, real bug). Half the
+-- button's own height (already col-relative, see Height above) plus a
+-- little real breathing room so the price clears the button, not just
+-- barely touches its edge.
+CardSpacing.ExternalBuy.StraddleBottomPad = CardSpacing.ExternalBuy.Height / 2 + 0.02
 
 return CardSpacing
