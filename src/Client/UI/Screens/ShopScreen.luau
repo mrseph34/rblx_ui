@@ -163,8 +163,16 @@ function ShopScreen:_BuildContent()
 	-- is never cut, and so the automatic canvas height includes a bottom margin.
 	-- A SCALE fraction of the scroll's own size, applied once; per-render we
 	-- rebuild only the layout object, not this.
+	--
+	-- PaddingTop MUST stay >= 0: a negative value pushes the first row/column
+	-- above the scroll frame's own top edge, into canvas space a
+	-- ScrollingFrame can never scroll UP into (CanvasPosition can't go
+	-- negative) — that content is then permanently unreachable, not just
+	-- initially hidden. Confirmed as the cause of "the first few items are
+	-- missing/start above the visible area," worst on List/Row layouts where
+	-- a short row height makes this fraction a bigger chunk of one row.
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(-0.02, 0)
+	pad.PaddingTop = UDim.new(0.02, 0)
 	pad.PaddingBottom = UDim.new(0, 0)
 	pad.PaddingLeft = UDim.new(0.015, 0)
 	pad.PaddingRight = UDim.new(0.011, 0)

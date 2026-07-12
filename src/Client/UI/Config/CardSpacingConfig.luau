@@ -69,9 +69,16 @@ end
 -- columns actually fit and how tightly cards pack — CellSizeX * columns +
 -- CellPaddingX * (columns - 1) roughly fills the row width.
 CardSpacing.GridCell = {
-	CellSizeX = 0.23,
+	CellSizeX = 0.231,
 	CellSizeY = 0.65,
 	CellPaddingX = 0.02,
+	-- Reference only — NOT read by ShopScreen. The real CellPadding.Y is
+	-- computed per-spec in ShopScreen:_RebuildLayout (see its own comment
+	-- for why a flat value can't work for every card shape — a flat number
+	-- here previously caused real overlap/dead-space bugs on other packs).
+	-- For the default CardTop shape (Standard etc.) that computation
+	-- currently resolves to ~-0.0666, close to but not exactly this value —
+	-- left as -0.06 as the original hand-tuned reference point.
 	CellPaddingY = -0.06,
 }
 
