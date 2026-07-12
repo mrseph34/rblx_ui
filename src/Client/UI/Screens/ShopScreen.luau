@@ -219,9 +219,29 @@ function ShopScreen:_RebuildLayout()
 		-- Pure Scale cell size/padding — hand-tuned to look right in Studio
 		-- (see CardSpacingConfig.GridCell for the editable values) instead of
 		-- computed from column count + a pixel gap.
+		--
+		-- CellPaddingY was tuned NEGATIVE against the default (imageAspect=1)
+		-- card, whose real fitted height (via FitWithinMaxSize + DominantAxis
+		-- Width) ends up SHORTER than the cell — the negative padding pulls
+		-- rows closer to use up that leftover slack. A spec with a TALLER card
+		-- shape (imageAspect < 1, via AspectRatioFor) has LESS (or no) such
+		-- slack, so the same fixed negative padding overlaps adjacent rows (a
+		-- real, confirmed bug on TallCard). Computed here instead of a static
+		-- config number: mirrors Roblox's own FitWithinMaxSize resolution
+		-- (candidate height from full cell width, clamped to the cell height)
+		-- to find the ACTUAL slack for this spec's card shape, then only pads
+		-- by that much — always exactly enough to close the gap, never enough
+		-- to overlap, for any imageAspect.
+		local cellWAbs = CardSpacing.GridCell.CellSizeX * self._scroll.AbsoluteSize.X
+		local cellHAbs = CardSpacing.GridCell.CellSizeY * self._scroll.AbsoluteSize.Y
+		local actualCardAspect = CardSpacing.CardTop.AspectRatioFor(spec.imageAspect)
+		local candidateCardH = actualCardAspect > 0 and (cellWAbs / actualCardAspect) or cellHAbs
+		local fittedCardH = math.min(candidateCardH, cellHAbs)
+		local slackAbs = fittedCardH - cellHAbs -- <= 0 always; the safe padding
+		local paddingYFrac = self._scroll.AbsoluteSize.Y > 0 and (slackAbs / self._scroll.AbsoluteSize.Y) or 0
 		local cell = UIStyler.GridLayout(
 			UDim2.fromScale(CardSpacing.GridCell.CellSizeX, CardSpacing.GridCell.CellSizeY),
-			UDim2.fromScale(CardSpacing.GridCell.CellPaddingX, CardSpacing.GridCell.CellPaddingY)
+			UDim2.fromScale(CardSpacing.GridCell.CellPaddingX, paddingYFrac)
 		)
 		cell.Parent = self._scroll
 	elseif shopLayout.Container == "Grid" then

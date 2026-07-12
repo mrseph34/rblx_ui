@@ -24,12 +24,39 @@
 
 local CardSpacing = {}
 
--- CardTop's fixed width:height ratio (matches the pre-conversion StandardCard
--- look exactly, computed from the old pixel formula at a representative
--- column width — see the commit that introduced this file for the derivation).
+-- CardTop's width:height ratio for a SQUARE focal image (imageAspect = 1),
+-- matching the pre-conversion StandardCard look exactly (computed from the
+-- old pixel formula at a representative column width — see the commit that
+-- introduced this file for the derivation).
 CardSpacing.CardTop = {
 	AspectRatio = 0.7058823529411765,
+	-- The image row's fraction of col's own height, back-derived from
+	-- AspectRatio above at imageAspect=1 (AspectRatio = ImageFracOfCol *
+	-- imageAspect when imageAspect=1, so ImageFracOfCol = AspectRatio here).
+	-- Used by AspectRatioFor to compute the right card shape for OTHER
+	-- imageAspect values (see that function's comment for the full derivation).
+	ImageFracOfCol = 0.7058823529411765,
 }
+
+-- Computes the CORRECT card width:height ratio for a given spec's imageAspect
+-- (image width:height), so the focal image always renders at its actual
+-- declared aspect ratio instead of being stretched/cropped to fit a
+-- one-size-fits-all card shape. Derivation: card width is fixed by the grid; contentW (image
+-- width, imageFillWidth) = (1-2*SurfacePadding) * cardW; imgH = contentW /
+-- imageAspect; colH = (1-2*SurfacePadding) * cardH; imgH also = ImageFracOfCol
+-- * colH (the fixed fraction every OTHER config value is tuned around).
+-- Setting these equal and simplifying (the (1-2*SurfacePadding) terms cancel):
+--   cardW / cardH = ImageFracOfCol * imageAspect
+-- A real, confirmed bug (TallCard/imageAspect=0.8 overflowing into the next
+-- grid row) is what surfaced the need for this — every CardTop card was
+-- using the SAME fixed AspectRatio regardless of its own image's real shape.
+function CardSpacing.CardTop.AspectRatioFor(imageAspect: number?): number
+	local aspect = imageAspect
+	if not aspect or aspect <= 0 then
+		aspect = 1
+	end
+	return CardSpacing.CardTop.ImageFracOfCol * aspect
+end
 
 -- The shop grid's UIGridLayout CellSize/CellPadding, pure Scale (fraction of
 -- the scroll frame), hand-tuned live in Studio rather than derived from

@@ -106,13 +106,17 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	self._surface = surface
 	self:_UseScaleTarget(surface)
 
-	-- CardTop's own fixed width:height shape — the same trick as the reference
+	-- CardTop's own width:height shape — the same trick as the reference
 	-- MainGui's item cards (a UIAspectRatioConstraint on the card itself), so
 	-- the whole cell always keeps its authored proportions no matter what Scale
 	-- CellSize the grid gives it. Every internal element below is then just a
 	-- Scale fraction of THIS card's own resolved height — never a pixel Offset.
+	-- Computed PER-SPEC from imageAspect (not one flat constant) — a spec with
+	-- a taller/shorter focal image needs a taller/shorter card, or the image
+	-- overflows the card and spills into the next grid row (a real, confirmed
+	-- bug on TallCard's 0.8 imageAspect before this fix).
 	if spec.arrangement == "CardTop" then
-		local cardAspect = UIStyler.AspectRatio(CardSpacing.CardTop.AspectRatio, Enum.DominantAxis.Width)
+		local cardAspect = UIStyler.AspectRatio(CardSpacing.CardTop.AspectRatioFor(spec.imageAspect), Enum.DominantAxis.Width)
 		cardAspect.Parent = root
 	end
 
@@ -591,7 +595,10 @@ function UICardComponent:_BuildCardTop(surface: Frame, spec: EntryLayoutConfig.E
 		aspect = 1 -- square default
 	end
 	local contentW = 1 - CardSpacing.SurfacePadding * 2 -- fraction of card WIDTH
-	local cardAspect = CardSpacing.CardTop.AspectRatio -- card WIDTH / card HEIGHT
+	-- MUST match the AspectRatioFor(...) value actually applied to Root's own
+	-- UIAspectRatioConstraint above, or this math computes the image height
+	-- for a DIFFERENT card shape than the one actually rendering.
+	local cardAspect = CardSpacing.CardTop.AspectRatioFor(aspect) -- card WIDTH / card HEIGHT
 	-- imgH as a fraction of the CARD's own height first (imgW(px) = contentW *
 	-- cardWidth(px); cardHeight(px) = cardWidth(px) / cardAspect; imgH_frac =
 	-- imgW(px)/aspect / cardHeight(px) = contentW * cardAspect / aspect) — then

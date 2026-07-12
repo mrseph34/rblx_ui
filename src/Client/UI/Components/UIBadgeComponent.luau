@@ -91,9 +91,7 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 
 	self.Root.BackgroundColor3 = fill
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Pill)
-	-- Body, not Button — Button is typically a bold weight, and tag/banner
-	-- text should read as a lighter secondary label, not bold like a button.
-	self._label.FontFace = theme.Fonts.Body
+	self._label.FontFace = theme.Fonts.Button
 	self._label.TextColor3 = c.TextOnPrimary
 	if self._labelConstraint then
 		-- Smaller than Small — badges are secondary info; colour carries them.
