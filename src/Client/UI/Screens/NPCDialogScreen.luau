@@ -52,36 +52,48 @@ function NPCDialogScreen:_BuildContent()
 		end,
 	})
 
-	-- Portrait swatch (left).
+	-- Portrait swatch (left) — a perfect square (AspectRatioConstraint 1:1,
+	-- DominantAxis Height) instead of a fixed pixel Offset. Starting size is
+	-- non-zero on both axes (never Scale=0) — an AspectRatioConstraint
+	-- driving a Scale=0 starting dimension collapses to 0x0 instead of
+	-- resolving correctly.
 	local portrait = UIStyler.Frame("Portrait")
-	portrait.Size = UDim2.fromOffset(84, 84)
-	portrait.Position = UDim2.fromOffset(12, 12)
+	portrait.Size = UDim2.fromScale(0.16, 0.6)
+	portrait.Position = UDim2.fromScale(0.02, 0.05)
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = portrait
 	UIStyler.Corner(12).Parent = portrait
 	self._portraitInitial = UIStyler.TextLabel("Initial")
 	self._portraitInitial.Size = UDim2.fromScale(1, 1)
 	self._portraitInitial.TextScaled = true
 	self._portraitInitial.TextColor3 = Color3.new(1, 1, 1)
-	UIStyler.Padding(20).Parent = self._portraitInitial
+	UIStyler.PaddingScale(0.2).Parent = self._portraitInitial
 	self._portraitInitial.Parent = portrait
 	portrait.Parent = panel.Body
 	self._portrait = portrait
 
-	-- Speaker name.
+	-- Speaker name — Scale fractions of panel.Body, starting right of the
+	-- portrait (0.205 = portrait's 0.02 margin + 0.16 width + a small gap).
 	local speaker = UIStyler.TextLabel("Speaker")
-	speaker.Size = UDim2.new(1, -120, 0, 24)
-	speaker.Position = UDim2.fromOffset(108, 10)
+	speaker.Size = UDim2.fromScale(0.775, 0.14)
+	speaker.Position = UDim2.fromScale(0.205, 0.04)
 	speaker.TextXAlignment = Enum.TextXAlignment.Left
+	speaker.TextScaled = true
+	self._speakerConstraint = UIStyler.TextSizeConstraint(22, 11)
+	self._speakerConstraint.Parent = speaker
 	speaker.Parent = panel.Body
 	self._speaker = speaker
 
 	-- Body text (typewriter target).
 	local body = UIStyler.TextLabel("Body")
-	body.Size = UDim2.new(1, -120, 1, -80)
-	body.Position = UDim2.fromOffset(108, 38)
+	body.Size = UDim2.fromScale(0.775, 0.62)
+	body.Position = UDim2.fromScale(0.205, 0.18)
 	body.TextXAlignment = Enum.TextXAlignment.Left
 	body.TextYAlignment = Enum.TextYAlignment.Top
 	body.TextWrapped = true
 	body.RichText = false
+	body.TextScaled = true
+	self._bodyConstraint = UIStyler.TextSizeConstraint(18, 9)
+	self._bodyConstraint.Parent = body
 	body.Parent = panel.Body
 	self._body = body
 
@@ -100,10 +112,13 @@ function NPCDialogScreen:_BuildContent()
 
 	-- Continue indicator (bottom-right).
 	local cont = UIStyler.TextLabel("Continue")
-	cont.Size = UDim2.fromOffset(120, 22)
+	cont.Size = UDim2.fromScale(0.26, 0.12)
 	cont.AnchorPoint = Vector2.new(1, 1)
-	cont.Position = UDim2.new(1, -12, 1, -8)
+	cont.Position = UDim2.fromScale(0.98, 0.96)
 	cont.TextXAlignment = Enum.TextXAlignment.Right
+	cont.TextScaled = true
+	self._continueConstraint = UIStyler.TextSizeConstraint(16, 8)
+	self._continueConstraint.Parent = cont
 	cont.Text = "click to continue ▶"
 	cont.ZIndex = 4
 	cont.Parent = panel.Body
@@ -112,9 +127,9 @@ function NPCDialogScreen:_BuildContent()
 	-- Choice row (hidden until the final line offers choices).
 	local choices = UIStyler.Frame("Choices")
 	choices.BackgroundTransparency = 1
-	choices.Size = UDim2.new(1, -120, 0, 40)
+	choices.Size = UDim2.fromScale(0.775, 0.2)
 	choices.AnchorPoint = Vector2.new(0, 1)
-	choices.Position = UDim2.new(0, 108, 1, -8)
+	choices.Position = UDim2.fromScale(0.205, 0.96)
 	choices.Visible = false
 	choices.ZIndex = 5
 	UIStyler.ListLayout({
@@ -198,14 +213,14 @@ function NPCDialogScreen:_RenderLine(line: any)
 	self._portrait.BackgroundColor3 = line.portraitColor or theme.Colors.Primary
 	self._speaker.Text = TextConfig.Resolve(line.speakerKey)
 	self._speaker.FontFace = theme.Fonts.Title
-	self._speaker.TextSize = theme.TextSizes.Subtitle
+	self._speakerConstraint.MaxTextSize = theme.TextSizes.Subtitle
 	self._speaker.TextColor3 = theme.Colors.Accent
 	self._portraitInitial.Text = string.upper(string.sub(TextConfig.Resolve(line.speakerKey), 1, 1))
 	self._body.FontFace = theme.Fonts.Body
-	self._body.TextSize = theme.TextSizes.Body
+	self._bodyConstraint.MaxTextSize = theme.TextSizes.Body
 	self._body.TextColor3 = theme.Colors.TextPrimary
 	self._continue.FontFace = theme.Fonts.Body
-	self._continue.TextSize = theme.TextSizes.Small
+	self._continueConstraint.MaxTextSize = theme.TextSizes.Small
 	self._continue.TextColor3 = theme.Colors.TextSecondary
 	self:_TypeLine(line)
 end
@@ -222,7 +237,7 @@ function NPCDialogScreen:_ShowChoices(choices: any)
 		button:Create(self._choices, {
 			textKey = choice.textKey,
 			variant = i == 1 and "Primary" or "Ghost",
-			size = UDim2.new(0, 150, 1, 0),
+			size = UDim2.fromScale(0.42, 1),
 			layoutOrder = i,
 			onClick = function()
 				self:_Finish(choice.id)

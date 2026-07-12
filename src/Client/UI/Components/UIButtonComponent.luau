@@ -81,28 +81,38 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	content.Parent = surface
 
 	local icon = UIStyler.TextLabel("Icon")
-	-- Placeholder size; _Style computes the real size from the button's actual
-	-- AbsoluteSize once it's resolvable (an AspectRatio constraint here would
-	-- collapse to 0x0 — Size.X starts at 0 with no offset, and FitWithinMaxSize
-	-- fits the ratio inside THAT zero-width box, not the button's real size).
-	icon.Size = UDim2.fromOffset(24, 24)
-	-- NOT TextScaled — confirmed by direct measurement that TextScaled=true on a
-	-- small RichText-enabled box silently computes a degenerate size that draws
-	-- nothing (TextBounds/TextSize *reported* non-zero-ish values, but nothing
-	-- ever rasterized). _Style sets a concrete, computed TextSize instead, which
-	-- renders reliably.
-	icon.TextSize = 24
+	-- RichText=false: the earlier "TextScaled draws nothing" finding was
+	-- specifically on a RichText-enabled box (UIStyler.TextLabel's default) —
+	-- a single emoji glyph never needs rich text markup, and turning it off
+	-- is what actually lets TextScaled render correctly here (confirmed via
+	-- live test), instead of the old workaround of a manually computed
+	-- TextSize that only updated on theme changes, not continuously.
+	icon.RichText = false
+	icon.Size = UDim2.fromScale(0.6, 0.6)
+	-- Perfect square (AspectRatioConstraint 1:1, DominantAxis Height) instead
+	-- of a fixed pixel Offset, so it scales with the button's real resolved
+	-- height. Starting size is non-zero on both axes (never Scale=0) — an
+	-- AspectRatioConstraint driving a Scale=0 starting dimension collapses to
+	-- 0x0 instead of resolving correctly.
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = icon
+	icon.TextScaled = true
+	self._iconConstraint = UIStyler.TextSizeConstraint(40, 12)
+	self._iconConstraint.Parent = icon
 	icon.LayoutOrder = 1
 	icon.Visible = false
 	icon.Parent = content
 	self._icon = icon
 
-	-- Image variant of the icon (used when props.iconId is an asset id instead of
-	-- an emoji). Same slot/order as the emoji icon; only one is ever visible.
+	-- Image variant of the icon (used when props.iconId is an asset id instead
+	-- of an emoji) — an ImageLabel scales its image content with Size
+	-- automatically, so it just needs the same Scale+AspectRatio treatment,
+	-- no TextScaled-equivalent concern. Same slot/order as the emoji icon;
+	-- only one is ever visible.
 	local iconImage = Instance.new("ImageLabel")
 	iconImage.Name = "IconImage"
 	iconImage.BackgroundTransparency = 1
-	iconImage.Size = UDim2.fromOffset(24, 24)
+	iconImage.Size = UDim2.fromScale(0.6, 0.6)
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = iconImage
 	iconImage.LayoutOrder = 1
 	iconImage.Visible = false
 	iconImage.Parent = content
@@ -278,21 +288,11 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 	if self._labelConstraint then
 		self._labelConstraint.MaxTextSize = TextScaleConfig.ScaledCap(theme.TextSizes.Button)
 	end
-	-- Icon scales with the button's real height instead of a fixed pixel size —
-	-- a flat theme TextSize stayed constant regardless of how small/large the
-	-- button rendered at different viewport sizes. Concrete TextSize (not
-	-- TextScaled — see the _Build comment on why: TextScaled silently computes
-	-- a degenerate size that draws nothing on a small RichText-enabled box)
-	-- computed from AbsoluteSize.Y instead. Clamped so it never gets comically
-	-- large/tiny. The label uses TextScaled instead (see _Build) — confirmed
-	-- via a live Studio test that TextScaled renders correctly at this box
-	-- size, unlike the much smaller icon box.
-	local buttonH = self.Root.AbsoluteSize.Y
-	if buttonH > 0 then
-		local iconSize = math.clamp(buttonH * 0.55, 16, 40)
-		self._icon.Size = UDim2.fromOffset(iconSize, iconSize)
-		self._iconImage.Size = UDim2.fromOffset(iconSize, iconSize)
-		self._icon.TextSize = math.floor(iconSize * 0.85)
+	-- Icon is TextScaled now (see _Build) — genuinely continuous scaling with
+	-- the button's real size, not just re-computed on theme changes like the
+	-- old manual-TextSize workaround.
+	if self._iconConstraint then
+		self._iconConstraint.MaxTextSize = 40
 	end
 	-- FontFace was never assigned, so the icon silently fell back to the engine
 	-- default (LegacyArial) — a font with NO emoji glyph coverage at all, so

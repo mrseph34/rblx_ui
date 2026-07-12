@@ -38,11 +38,17 @@ function UIColorFieldComponent:_Build(props: Types.UIComponentProps)
 
 	local header = UIStyler.Frame("Header")
 	header.BackgroundTransparency = 1
-	header.Size = UDim2.new(1, 0, 0, 24)
+	header.Size = UDim2.new(1, 0, 0.28, 0)
 	header.Parent = root
 
+	-- Swatch is a perfect square (AspectRatioConstraint 1:1, DominantAxis
+	-- Height) instead of a fixed pixel Offset, so it scales with the header's
+	-- real resolved height. Starting size is non-zero on both axes (never
+	-- Scale=0) — an AspectRatioConstraint driving a Scale=0 starting
+	-- dimension collapses to 0x0 instead of resolving correctly.
 	local swatch = UIStyler.Frame("Swatch")
-	swatch.Size = UDim2.fromOffset(24, 24)
+	swatch.Size = UDim2.fromScale(0.3, 1)
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = swatch
 	swatch.BackgroundColor3 = color
 	UIStyler.Corner(6).Parent = swatch
 	UIStyler.Stroke(Color3.new(0, 0, 0), 1, 0.5).Parent = swatch
@@ -50,9 +56,12 @@ function UIColorFieldComponent:_Build(props: Types.UIComponentProps)
 	self._swatch = swatch
 
 	local name = UIStyler.TextLabel("Name")
-	name.Size = UDim2.new(1, -34, 1, 0)
-	name.Position = UDim2.fromOffset(30, 0)
+	name.Size = UDim2.fromScale(0.84, 1)
+	name.Position = UDim2.fromScale(0.16, 0)
 	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextScaled = true
+	self._nameConstraint = UIStyler.TextSizeConstraint(16, 8)
+	self._nameConstraint.Parent = name
 	name.Text = props.label or "Color"
 	name.Parent = header
 	self._name = name
@@ -60,8 +69,8 @@ function UIColorFieldComponent:_Build(props: Types.UIComponentProps)
 	-- Three channel sliders laid out below the header.
 	local sliderHolder = UIStyler.Frame("Channels")
 	sliderHolder.BackgroundTransparency = 1
-	sliderHolder.Size = UDim2.new(1, 0, 1, -26)
-	sliderHolder.Position = UDim2.fromOffset(0, 26)
+	sliderHolder.Size = UDim2.new(1, 0, 0.72, 0)
+	sliderHolder.Position = UDim2.new(0, 0, 0.28, 0)
 	UIStyler.ListLayout({ Padding = UDim.new(0, 2) }).Parent = sliderHolder
 	sliderHolder.Parent = root
 
@@ -107,8 +116,10 @@ function UIColorFieldComponent:_Style(theme: Types.UITheme)
 	self.Root.BackgroundColor3 = c.Surface
 	self._corner.CornerRadius = UDim.new(0, theme.Radii.Small)
 	self._name.FontFace = theme.Fonts.Subtitle
-	self._name.TextSize = theme.TextSizes.Body
 	self._name.TextColor3 = c.TextPrimary
+	if self._nameConstraint then
+		self._nameConstraint.MaxTextSize = theme.TextSizes.Body
+	end
 end
 
 function UIColorFieldComponent:Destroy()

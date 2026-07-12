@@ -63,28 +63,34 @@ function TutorialScreen:_BuildContent()
 	})
 
 	local text = UIStyler.TextLabel("Text")
-	text.Size = UDim2.new(1, -32, 1, -70)
-	text.Position = UDim2.fromOffset(16, 8)
+	text.Size = UDim2.fromScale(0.92, 0.66)
+	text.Position = UDim2.fromScale(0.04, 0.04)
 	text.TextWrapped = true
 	text.TextYAlignment = Enum.TextYAlignment.Top
 	text.TextXAlignment = Enum.TextXAlignment.Left
+	text.TextScaled = true
+	self._textConstraint = UIStyler.TextSizeConstraint(20, 10)
+	self._textConstraint.Parent = text
 	text.Parent = panel.Body
 	self._text = text
 
 	self._progress = UIStyler.TextLabel("Progress")
-	self._progress.Size = UDim2.new(0, 80, 0, 30)
+	self._progress.Size = UDim2.fromScale(0.26, 0.14)
 	self._progress.AnchorPoint = Vector2.new(0, 1)
-	self._progress.Position = UDim2.new(0, 16, 1, -14)
+	self._progress.Position = UDim2.fromScale(0.04, 0.94)
 	self._progress.TextXAlignment = Enum.TextXAlignment.Left
+	self._progress.TextScaled = true
+	self._progressConstraint = UIStyler.TextSizeConstraint(18, 9)
+	self._progressConstraint.Parent = self._progress
 	self._progress.Parent = panel.Body
 
 	self._nextButton = UIButtonComponent.new()
 	self._nextButton:Create(panel.Body, {
 		text = "Next",
 		variant = "Primary",
-		size = UDim2.new(0, 150, 0, 40),
+		size = UDim2.fromScale(0.4, 0.19),
 		anchorPoint = Vector2.new(1, 1),
-		position = UDim2.new(1, -16, 1, -14),
+		position = UDim2.fromScale(0.96, 0.94),
 		onClick = function()
 			self:Advance()
 		end,
@@ -107,10 +113,11 @@ function TutorialScreen:_ShowStep()
 	end
 	self._text.Text = body
 	self._text.FontFace = theme.Fonts.Body
-	self._text.TextSize = theme.TextSizes.Body
+	self._textConstraint.MaxTextSize = theme.TextSizes.Body
 	self._text.TextColor3 = theme.Colors.TextPrimary
 	self._progress.Text = string.format("%d / %d", self._index, #self._steps)
 	self._progress.FontFace = theme.Fonts.Numeric
+	self._progressConstraint.MaxTextSize = theme.TextSizes.Small
 	self._progress.TextColor3 = theme.Colors.TextSecondary
 
 	local isLast = self._index >= #self._steps

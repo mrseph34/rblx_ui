@@ -30,7 +30,10 @@ end
 function UINotificationComponent:_Build(props: Types.UIComponentProps)
 	local root = self.Root
 	root.BackgroundTransparency = 1
-	root.Size = UDim2.fromOffset(360, 76)
+	-- Fills whatever the caller's container gives it (GameHUDScreen's banner
+	-- slot) instead of a fixed pixel Offset, so this popup scales with the
+	-- HUD at any viewport instead of staying a constant absolute size.
+	root.Size = UDim2.fromScale(1, 1)
 	self._baseSize = root.Size
 
 	local surface = UIStyler.Frame("Surface")
@@ -47,13 +50,18 @@ function UINotificationComponent:_Build(props: Types.UIComponentProps)
 	self._stroke.Parent = surface
 	self._gradient = UIStyler.Gradient(90, 0.12)
 	self._gradient.Parent = surface
-	UIStyler.PaddingXY(12, 10).Parent = surface
+	UIStyler.PaddingScale(0.14).Parent = surface
 
-	-- Icon badge (left).
+	-- Icon badge (left) — a perfect circle (AspectRatioConstraint 1:1,
+	-- DominantAxis Height) sized as a Scale fraction of surface instead of a
+	-- fixed pixel Offset. Starting size is non-zero on both axes (never
+	-- Scale=0) — an AspectRatioConstraint driving a Scale=0 starting
+	-- dimension collapses to 0x0 instead of resolving correctly.
 	local badge = UIStyler.Frame("Badge")
-	badge.Size = UDim2.fromOffset(52, 52)
+	badge.Size = UDim2.fromScale(0.5, 0.68)
 	badge.AnchorPoint = Vector2.new(0, 0.5)
 	badge.Position = UDim2.new(0, 0, 0.5, 0)
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = badge
 	UIStyler.Corner(1000).Parent = badge
 	badge.Parent = surface
 	self._badge = badge
@@ -61,26 +69,34 @@ function UINotificationComponent:_Build(props: Types.UIComponentProps)
 	local icon = UIStyler.TextLabel("Icon")
 	icon.Size = UDim2.fromScale(1, 1)
 	-- NOT TextScaled — confirmed by direct measurement (see UIButtonComponent)
-	-- that TextScaled on a small RichText-enabled box silently draws nothing. A
-	-- concrete TextSize renders reliably.
+	-- that TextScaled on a small RichText-enabled box silently draws nothing.
+	-- A concrete TextSize, computed from the badge's real AbsoluteSize at
+	-- Style-time (matching UIButtonComponent's icon pattern) instead of a
+	-- flat constant, renders reliably AND still adapts to different sizes.
 	icon.TextSize = 26
-	UIStyler.Padding(10).Parent = icon
+	UIStyler.PaddingScale(0.18).Parent = icon
 	icon.Parent = badge
 	self._icon = icon
 
-	-- Title + body (right of badge).
+	-- Title + body (right of badge) — Scale fractions of surface.
 	local title = UIStyler.TextLabel("Title")
-	title.Size = UDim2.new(1, -68, 0, 26)
-	title.Position = UDim2.fromOffset(64, 2)
+	title.Size = UDim2.new(0.82, 0, 0.34, 0)
+	title.Position = UDim2.fromScale(0.22, 0.02)
 	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextScaled = true
+	self._titleConstraint = UIStyler.TextSizeConstraint(20, 10)
+	self._titleConstraint.Parent = title
 	title.Parent = surface
 	self._title = title
 
 	local body = UIStyler.TextLabel("Body")
-	body.Size = UDim2.new(1, -68, 0, 26)
-	body.Position = UDim2.fromOffset(64, 28)
+	body.Size = UDim2.new(0.82, 0, 0.34, 0)
+	body.Position = UDim2.fromScale(0.22, 0.38)
 	body.TextXAlignment = Enum.TextXAlignment.Left
 	body.TextWrapped = true
+	body.TextScaled = true
+	self._bodyConstraint = UIStyler.TextSizeConstraint(16, 8)
+	self._bodyConstraint.Parent = body
 	body.Parent = surface
 	self._body = body
 
@@ -131,12 +147,23 @@ function UINotificationComponent:_Style(theme: Types.UITheme)
 	-- this label on the engine default (LegacyArial), which has no emoji glyphs
 	-- at all — the variant icon (ℹ️✅🏆⭐) was genuinely invisible.
 	self._icon.FontFace = theme.Fonts.Title
+	-- Computed from the badge's real AbsoluteSize (matching UIButtonComponent's
+	-- icon pattern) instead of a flat constant, so it still scales with the
+	-- badge at any viewport despite not being able to use TextScaled here.
+	local badgeH = self._badge.AbsoluteSize.Y
+	if badgeH > 0 then
+		self._icon.TextSize = math.clamp(badgeH * 0.5, 14, 40)
+	end
 	self._title.FontFace = theme.Fonts.Title
-	self._title.TextSize = theme.TextSizes.Subtitle
 	self._title.TextColor3 = c.TextPrimary
+	if self._titleConstraint then
+		self._titleConstraint.MaxTextSize = theme.TextSizes.Subtitle
+	end
 	self._body.FontFace = theme.Fonts.Body
-	self._body.TextSize = theme.TextSizes.Small
 	self._body.TextColor3 = c.TextSecondary
+	if self._bodyConstraint then
+		self._bodyConstraint.MaxTextSize = theme.TextSizes.Small
+	end
 end
 
 return UINotificationComponent

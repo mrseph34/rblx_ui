@@ -48,16 +48,25 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 		self._baseSize = root.Size
 	end
 
-	local labelWidth = self._compact and 18 or 0
-	local valueWidth = self._compact and 46 or 60
+	-- Pure Scale fractions of Root (never a fixed pixel Offset) — labelWidth
+	-- is 0 for the stacked (non-compact) layout since its label fills
+	-- whatever's left after the value readout.
+	local labelWidthFrac = self._compact and 0.16 or 0
+	local valueWidthFrac = self._compact and 0.24 or 0.22
 
 	local label = UIStyler.TextLabel("Label")
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
+	self._labelConstraint = UIStyler.TextSizeConstraint(14, 7)
+	self._labelConstraint.Parent = label
 	label.Text = TextConfig.Resolve(props.labelKey or props.label)
 	self._label = label
 
 	local readout = UIStyler.TextLabel("Value")
 	readout.TextXAlignment = Enum.TextXAlignment.Right
+	readout.TextScaled = true
+	self._readoutConstraint = UIStyler.TextSizeConstraint(14, 7)
+	self._readoutConstraint.Parent = readout
 	self._readout = readout
 
 	local track = Instance.new("TextButton")
@@ -69,31 +78,31 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 
 	if self._compact then
 		-- One row: label (left) | track (fills middle) | value (right).
-		label.Size = UDim2.new(0, labelWidth, 1, 0)
+		label.Size = UDim2.fromScale(labelWidthFrac, 1)
 		label.Position = UDim2.fromScale(0, 0)
 		label.Parent = root
-		readout.Size = UDim2.new(0, valueWidth, 1, 0)
+		readout.Size = UDim2.fromScale(valueWidthFrac, 1)
 		readout.AnchorPoint = Vector2.new(1, 0)
 		readout.Position = UDim2.fromScale(1, 0)
 		readout.Parent = root
-		track.Size = UDim2.new(1, -(labelWidth + valueWidth + 12), 0, 6)
-		track.Position = UDim2.new(0, labelWidth + 6, 0.5, 0)
+		track.Size = UDim2.new(1 - labelWidthFrac - valueWidthFrac - 0.06, 0, 0.27, 0)
+		track.Position = UDim2.new(labelWidthFrac + 0.03, 0, 0.5, 0)
 		track.AnchorPoint = Vector2.new(0, 0.5)
 		track.Parent = root
 	else
 		-- Header row (label + value) stacked over a full-width track.
 		local header = UIStyler.Frame("Header")
 		header.BackgroundTransparency = 1
-		header.Size = UDim2.new(1, 0, 0, 18)
+		header.Size = UDim2.new(1, 0, 0.4, 0)
 		header.Parent = root
-		label.Size = UDim2.new(1, -valueWidth, 1, 0)
+		label.Size = UDim2.new(1 - valueWidthFrac, 0, 1, 0)
 		label.Parent = header
-		readout.Size = UDim2.new(0, valueWidth, 1, 0)
+		readout.Size = UDim2.fromScale(valueWidthFrac, 1)
 		readout.AnchorPoint = Vector2.new(1, 0)
 		readout.Position = UDim2.fromScale(1, 0)
 		readout.Parent = header
-		track.Size = UDim2.new(1, 0, 0, 8)
-		track.Position = UDim2.new(0, 0, 0, 30)
+		track.Size = UDim2.new(1, 0, 0.18, 0)
+		track.Position = UDim2.new(0, 0, 0.68, 0)
 		track.Parent = root
 	end
 
@@ -103,10 +112,17 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 	fill.Parent = track
 	self._fill = fill
 
+	-- Knob is a perfect circle (AspectRatioConstraint 1:1, DominantAxis
+	-- Height) sized as a Scale fraction of the track's own height instead of
+	-- a fixed pixel Offset, so it always renders round regardless of the
+	-- track's real resolved thickness. Starting size is non-zero on both
+	-- axes (never Scale=0) — an AspectRatioConstraint driving a Scale=0
+	-- starting dimension collapses to 0x0 instead of resolving correctly.
 	local knob = UIStyler.Frame("Knob")
-	knob.Size = UDim2.fromOffset(18, 18)
+	knob.Size = UDim2.fromScale(2.2, 2.2)
 	knob.AnchorPoint = Vector2.new(0.5, 0.5)
 	knob.Position = UDim2.fromScale(0, 0.5)
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = knob
 	UIStyler.Corner(1000).Parent = knob
 	knob.Parent = track
 	self._knob = knob
@@ -163,11 +179,15 @@ end
 function UISliderComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	self._label.FontFace = theme.Fonts.Body
-	self._label.TextSize = theme.TextSizes.Small
 	self._label.TextColor3 = c.TextSecondary
+	if self._labelConstraint then
+		self._labelConstraint.MaxTextSize = theme.TextSizes.Small
+	end
 	self._readout.FontFace = theme.Fonts.Numeric
-	self._readout.TextSize = theme.TextSizes.Small
 	self._readout.TextColor3 = c.TextPrimary
+	if self._readoutConstraint then
+		self._readoutConstraint.MaxTextSize = theme.TextSizes.Small
+	end
 	self._track.BackgroundColor3 = c.Surface
 	self._fill.BackgroundColor3 = c.Primary
 	self._knob.BackgroundColor3 = c.TextOnPrimary

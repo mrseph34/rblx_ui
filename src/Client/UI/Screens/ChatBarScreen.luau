@@ -26,34 +26,42 @@ function ChatBarScreen.new()
 end
 
 function ChatBarScreen:_BuildContent()
-	-- Bar pinned near the bottom, centred, auto-sizing height to wrapped text.
+	-- Bar pinned near the bottom, centred — pure Scale fractions of Root
+	-- (never a fixed pixel Offset), a thin wide strip rather than an
+	-- aspect-locked shaped panel.
 	local bar = UIStyler.Frame("Bar")
 	bar.AnchorPoint = Vector2.new(0.5, 1)
-	bar.Position = UDim2.new(0.5, 0, 1, -28)
-	bar.Size = UDim2.new(0.6, 0, 0, 72)
+	bar.Position = UDim2.fromScale(0.5, 0.92)
+	bar.Size = UDim2.fromScale(0.6, 0.16)
 	bar.Parent = self.Root
 	self._bar = bar
 	self._corner = UIStyler.Corner(14)
 	self._corner.Parent = bar
 	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
 	self._stroke.Parent = bar
-	UIStyler.PaddingXY(16, 10).Parent = bar
+	UIStyler.PaddingScale(0.08).Parent = bar
 
 	-- Speaker chip (top-left, hidden when no speaker).
 	local speaker = UIStyler.TextLabel("Speaker")
-	speaker.Size = UDim2.new(1, 0, 0, 18)
+	speaker.Size = UDim2.fromScale(1, 0.26)
 	speaker.TextXAlignment = Enum.TextXAlignment.Left
+	speaker.TextScaled = true
+	self._speakerConstraint = UIStyler.TextSizeConstraint(16, 8)
+	self._speakerConstraint.Parent = speaker
 	speaker.Parent = bar
 	self._speaker = speaker
 
 	-- Body (typewriter target).
 	local body = UIStyler.TextLabel("Body")
-	body.Size = UDim2.new(1, 0, 1, -22)
-	body.Position = UDim2.fromOffset(0, 22)
+	body.Size = UDim2.fromScale(1, 0.68)
+	body.Position = UDim2.fromScale(0, 0.3)
 	body.TextXAlignment = Enum.TextXAlignment.Left
 	body.TextYAlignment = Enum.TextYAlignment.Top
 	body.TextWrapped = true
 	body.RichText = false
+	body.TextScaled = true
+	self._bodyConstraint = UIStyler.TextSizeConstraint(18, 9)
+	self._bodyConstraint.Parent = body
 	body.Parent = bar
 	self._body = body
 
@@ -158,10 +166,10 @@ function ChatBarScreen:_Repaint()
 	self._stroke.Thickness = theme.Effects.StrokeThickness
 	self._stroke.Transparency = 0.2
 	self._speaker.FontFace = theme.Fonts.Title
-	self._speaker.TextSize = theme.TextSizes.Small
+	self._speakerConstraint.MaxTextSize = theme.TextSizes.Small
 	self._speaker.TextColor3 = c.Accent
 	self._body.FontFace = theme.Fonts.Body
-	self._body.TextSize = theme.TextSizes.Body
+	self._bodyConstraint.MaxTextSize = theme.TextSizes.Body
 	self._body.TextColor3 = c.TextPrimary
 end
 

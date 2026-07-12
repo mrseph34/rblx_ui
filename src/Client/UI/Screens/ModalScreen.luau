@@ -50,10 +50,13 @@ function ModalScreen:_BuildContent()
 	})
 
 	local body = UIStyler.TextLabel("Body")
-	body.Size = UDim2.new(1, -32, 1, -110)
-	body.Position = UDim2.fromOffset(16, 8)
+	body.Size = UDim2.fromScale(0.92, 0.72)
+	body.Position = UDim2.fromScale(0.04, 0.04)
 	body.TextWrapped = true
 	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.TextScaled = true
+	self._bodyConstraint = UIStyler.TextSizeConstraint(20, 10)
+	self._bodyConstraint.Parent = body
 	-- Dialogs may pass styled bodies (colored item lists, bold totals).
 	body.RichText = true
 	body.Parent = panel.Body
@@ -61,9 +64,9 @@ function ModalScreen:_BuildContent()
 
 	local buttonRow = UIStyler.Frame("Buttons")
 	buttonRow.BackgroundTransparency = 1
-	buttonRow.Size = UDim2.new(1, -32, 0, 46)
+	buttonRow.Size = UDim2.fromScale(0.92, 0.19)
 	buttonRow.AnchorPoint = Vector2.new(0.5, 1)
-	buttonRow.Position = UDim2.new(0.5, 0, 1, -14)
+	buttonRow.Position = UDim2.fromScale(0.5, 0.94)
 	UIStyler.ListLayout({
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Right,
@@ -76,7 +79,7 @@ function ModalScreen:_BuildContent()
 	self._cancelButton:Create(buttonRow, {
 		textKey = "modal.cancel",
 		variant = "Ghost",
-		size = UDim2.new(0, 130, 1, 0),
+		size = UDim2.fromScale(0.34, 1),
 		layoutOrder = 1,
 		onClick = function()
 			self:_Close(false)
@@ -87,7 +90,7 @@ function ModalScreen:_BuildContent()
 	self._confirmButton:Create(buttonRow, {
 		textKey = "modal.confirm",
 		variant = "Primary",
-		size = UDim2.new(0, 150, 1, 0),
+		size = UDim2.fromScale(0.4, 1),
 		layoutOrder = 2,
 		onClick = function()
 			self:_Close(true)
@@ -116,7 +119,7 @@ function ModalScreen:_OnShow(data: any?)
 	self._panel._title.Text = TextConfig.Resolve(data.titleKey or data.title)
 	self._body.Text = TextConfig.Resolve(data.bodyKey or data.body)
 	self._body.FontFace = self:GetTheme().Fonts.Body
-	self._body.TextSize = self:GetTheme().TextSizes.Body
+	self._bodyConstraint.MaxTextSize = self:GetTheme().TextSizes.Body
 	self._body.TextColor3 = self:GetTheme().Colors.TextSecondary
 
 	self._confirmButton:SetContent({ textKey = data.confirmKey or (isInfo and "modal.ok" or "modal.confirm") })

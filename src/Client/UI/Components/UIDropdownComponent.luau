@@ -40,17 +40,21 @@ function UIDropdownComponent:_Build(props: Types.UIComponentProps)
 	root.ClipsDescendants = false
 
 	local label = UIStyler.TextLabel("Label")
-	label.Size = UDim2.new(1, -170, 1, 0)
+	label.Size = UDim2.fromScale(0.55, 1)
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
+	self._labelConstraint = UIStyler.TextSizeConstraint(16, 8)
+	self._labelConstraint.Parent = label
 	label.Text = TextConfig.Resolve(props.labelKey or props.label)
 	label.Parent = root
 	self._label = label
 
-	-- Current-value button (right-aligned).
+	-- Current-value button (right-aligned) — pure Scale fractions of Root,
+	-- never a fixed pixel Offset.
 	local current = Instance.new("TextButton")
 	current.Name = "Current"
 	current.AutoButtonColor = false
-	current.Size = UDim2.fromOffset(160, 30)
+	current.Size = UDim2.fromScale(0.42, 0.78)
 	current.AnchorPoint = Vector2.new(1, 0.5)
 	current.Position = UDim2.new(1, 0, 0.5, 0)
 	current.Text = ""
@@ -64,16 +68,25 @@ function UIDropdownComponent:_Build(props: Types.UIComponentProps)
 	self._current = current
 
 	local currentText = UIStyler.TextLabel("Value")
-	currentText.Size = UDim2.new(1, -20, 1, 0)
+	currentText.Size = UDim2.fromScale(0.75, 1)
 	currentText.TextXAlignment = Enum.TextXAlignment.Left
+	currentText.TextScaled = true
+	self._currentTextConstraint = UIStyler.TextSizeConstraint(16, 8)
+	self._currentTextConstraint.Parent = currentText
 	currentText.ZIndex = 2
 	currentText.Parent = current
 	self._currentText = currentText
 
+	-- Arrow glyph box is a perfect square (AspectRatioConstraint 1:1,
+	-- DominantAxis Height) instead of a fixed pixel Offset, so it scales
+	-- with `current`'s real resolved height. Starting size is non-zero on
+	-- both axes (never Scale=0) — an AspectRatioConstraint driving a
+	-- Scale=0 starting dimension collapses to 0x0 instead of resolving.
 	local arrow = UIStyler.TextLabel("Arrow")
-	arrow.Size = UDim2.fromOffset(16, 16)
+	arrow.Size = UDim2.fromScale(0.5, 0.5)
 	arrow.AnchorPoint = Vector2.new(1, 0.5)
 	arrow.Position = UDim2.new(1, 0, 0.5, 0)
+	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = arrow
 	arrow.Text = "▾"
 	arrow.TextScaled = true
 	arrow.ZIndex = 2
@@ -85,7 +98,7 @@ function UIDropdownComponent:_Build(props: Types.UIComponentProps)
 	list.Visible = false
 	list.AnchorPoint = Vector2.new(1, 0)
 	list.Position = UDim2.new(1, 0, 0.5, 18)
-	list.Size = UDim2.fromOffset(160, 0)
+	list.Size = UDim2.fromScale(0.42, 0)
 	list.AutomaticSize = Enum.AutomaticSize.Y
 	list.ZIndex = 20
 	self._listCorner = UIStyler.Corner(8)
@@ -117,6 +130,9 @@ function UIDropdownComponent:_RebuildOptions()
 		btn.LayoutOrder = i
 		btn.Text = opt.text
 		btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.TextScaled = true
+		local optConstraint = UIStyler.TextSizeConstraint(16, 8)
+		optConstraint.Parent = btn
 		btn.BackgroundTransparency = 1
 		btn.ZIndex = 21
 		UIStyler.PaddingXY(8, 0).Parent = btn
@@ -164,16 +180,20 @@ function UIDropdownComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	local radius = ThemeShape.Radius(theme, theme.Radii.Small)
 	self._label.FontFace = theme.Fonts.Body
-	self._label.TextSize = theme.TextSizes.Body
 	self._label.TextColor3 = c.TextPrimary
+	if self._labelConstraint then
+		self._labelConstraint.MaxTextSize = theme.TextSizes.Body
+	end
 
 	self._current.BackgroundColor3 = c.SurfaceRaised
 	self._currentCorner.CornerRadius = UDim.new(0, radius)
 	self._currentStroke.Color = c.Stroke
 	self._currentStroke.Thickness = theme.Effects.StrokeThickness
 	self._currentText.FontFace = theme.Fonts.Body
-	self._currentText.TextSize = theme.TextSizes.Body
 	self._currentText.TextColor3 = c.TextPrimary
+	if self._currentTextConstraint then
+		self._currentTextConstraint.MaxTextSize = theme.TextSizes.Body
+	end
 	-- Same LegacyArial bug as the button icon fix: never assigning FontFace left
 	-- this glyph (▾/▴) on the emoji/symbol-incapable engine default.
 	self._arrow.FontFace = theme.Fonts.Body
@@ -185,7 +205,10 @@ function UIDropdownComponent:_Style(theme: Types.UITheme)
 	self._listStroke.Thickness = theme.Effects.StrokeThickness
 	for _, btn in self._optionButtons do
 		btn.FontFace = theme.Fonts.Body
-		btn.TextSize = theme.TextSizes.Body
+		local optConstraint = btn:FindFirstChildOfClass("UITextSizeConstraint")
+		if optConstraint then
+			optConstraint.MaxTextSize = theme.TextSizes.Body
+		end
 		-- Highlight the selected option.
 		local selected = string.sub(btn.Name, 5) == self._value
 		btn.TextColor3 = selected and c.Accent or c.TextSecondary

@@ -4,6 +4,8 @@
 -- update in place via Update({ values = ... }); config decides which elements
 -- exist and where.
 
+local GuiService = game:GetService("GuiService")
+
 local UIStyler = require(script.Parent.Parent.UIStyler)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local HUDConfig = require(script.Parent.Parent.Config.HUDConfig)
@@ -23,14 +25,25 @@ GameHUDScreen.__index = GameHUDScreen
 -- edge the region is supposed to hug (this is exactly why health/mana/stamina
 -- were floating mid-screen instead of low, colliding with the nav rail).
 -- VerticalAlignment.Bottom makes content hug the box's bottom edge regardless.
+-- Pure Scale fractions of Root (never a fixed pixel Offset) — Root itself
+-- holds a fixed 1.89 aspect ratio (see _BuildContent), so every element
+-- positioned/sized as a fraction of it scales consistently at any real
+-- viewport instead of staying a constant absolute pixel size/margin.
+local EDGE_MARGIN = 0.02
+
 local REGION_LAYOUT = {
-	TopLeft = { anchor = Vector2.new(0, 0), pos = UDim2.new(0, 16, 0, 16), dir = "V", align = "Left", valign = "Top" },
-	TopCenter = { anchor = Vector2.new(0.5, 0), pos = UDim2.new(0.5, 0, 0, 16), dir = "V", align = "Center", valign = "Top" },
-	TopRight = { anchor = Vector2.new(1, 0), pos = UDim2.new(1, -16, 0, 16), dir = "V", align = "Right", valign = "Top" },
-	BottomLeft = { anchor = Vector2.new(0, 1), pos = UDim2.new(0, 16, 1, -16), dir = "V", align = "Left", valign = "Bottom" },
-	BottomCenter = { anchor = Vector2.new(0.5, 1), pos = UDim2.new(0.5, 0, 1, -16), dir = "V", align = "Center", valign = "Bottom" },
+	-- Fixed pixel Offset (deliberate exception to the Scale rule above): this
+	-- has to clear Roblox's OWN top-left client chrome (menu/settings icons),
+	-- which is itself a constant pixel footprint regardless of the game's UI
+	-- scale — a Scale-relative position can't reliably dodge a fixed-size
+	-- external element.
+	TopLeft = { anchor = Vector2.new(0, 0), pos = UDim2.new(0, 215, 0, 17), dir = "V", align = "Left", valign = "Top" },
+	TopCenter = { anchor = Vector2.new(0.5, 0), pos = UDim2.fromScale(0.5, EDGE_MARGIN), dir = "V", align = "Center", valign = "Top" },
+	TopRight = { anchor = Vector2.new(1, 0), pos = UDim2.fromScale(1 - EDGE_MARGIN, EDGE_MARGIN), dir = "V", align = "Right", valign = "Top" },
+	BottomLeft = { anchor = Vector2.new(0, 1), pos = UDim2.fromScale(EDGE_MARGIN, 1 - EDGE_MARGIN), dir = "V", align = "Left", valign = "Bottom" },
+	BottomCenter = { anchor = Vector2.new(0.5, 1), pos = UDim2.fromScale(0.5, 1 - EDGE_MARGIN), dir = "V", align = "Center", valign = "Bottom" },
 	-- Offset left of the toast stack so a relocated element doesn't collide.
-	BottomRight = { anchor = Vector2.new(1, 1), pos = UDim2.new(1, -16, 1, -80), dir = "V", align = "Right", valign = "Bottom" },
+	BottomRight = { anchor = Vector2.new(1, 1), pos = UDim2.fromScale(1 - EDGE_MARGIN, 1 - 0.1), dir = "V", align = "Right", valign = "Bottom" },
 }
 
 function GameHUDScreen.new()
@@ -134,6 +147,21 @@ function GameHUDScreen:_BuildContent()
 	local rootAspect = UIStyler.AspectRatio(1.89, Enum.DominantAxis.Width)
 	rootAspect.Parent = self.Root
 
+	-- Compensates a real, reproducible engine quirk in this environment (see
+	-- UINavRailController's own note on the same fix): even with
+	-- ScreenGui.IgnoreGuiInset = true, every Position on this Root still
+	-- renders shifted UP by exactly GuiService:GetGuiInset().Y — confirmed
+	-- via direct measurement (Root.AbsolutePosition.Y read -58 with
+	-- Position={0,0}, exactly matching a 58px inset). Shifting Root DOWN by
+	-- that same amount (and shrinking its height to match) cancels the quirk
+	-- out, so every region built below actually lands where its Position
+	-- fraction/offset says it should, instead of rendering ~58px too high
+	-- (invisible off the top of the screen for anything using a small margin
+	-- like TopLeft's fixed pixel offset).
+	local insetY = GuiService:GetGuiInset().Y
+	self.Root.Position = UDim2.new(0, 0, 0, insetY)
+	self.Root.Size = UDim2.new(1, 0, 1, -insetY)
+
 	local scale = Instance.new("UIScale")
 	scale.Parent = self.Root
 	self._scale = scale
@@ -147,7 +175,7 @@ function GameHUDScreen:_BuildContent()
 		container.BackgroundTransparency = 1
 		container.AnchorPoint = layout.anchor
 		container.Position = layout.pos
-		container.Size = UDim2.fromOffset(240, 200)
+		container.Size = UDim2.fromScale(0.19, 0)
 		container.AutomaticSize = Enum.AutomaticSize.Y
 		UIStyler.ListLayout({
 			-- Tight (was 6): meters no longer have a separate name row above
@@ -176,8 +204,8 @@ function GameHUDScreen:_BuildContent()
 	local objectives = UIStyler.Frame("Objectives")
 	objectives.BackgroundTransparency = 1
 	objectives.AnchorPoint = Vector2.new(0, 1)
-	objectives.Position = UDim2.new(0, 16, 1, -168)
-	objectives.Size = UDim2.fromOffset(260, 120)
+	objectives.Position = UDim2.fromScale(EDGE_MARGIN, 1 - 0.14)
+	objectives.Size = UDim2.fromScale(0.21, 0)
 	objectives.AutomaticSize = Enum.AutomaticSize.Y
 	UIStyler.ListLayout({ Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Left }).Parent = objectives
 	objectives.Parent = self.Root
@@ -187,8 +215,8 @@ function GameHUDScreen:_BuildContent()
 	local toastStack = UIStyler.Frame("Toasts")
 	toastStack.BackgroundTransparency = 1
 	toastStack.AnchorPoint = Vector2.new(1, 1)
-	toastStack.Position = UDim2.new(1, -16, 1, -16)
-	toastStack.Size = UDim2.fromOffset(300, 260)
+	toastStack.Position = UDim2.fromScale(1 - EDGE_MARGIN, 1 - EDGE_MARGIN)
+	toastStack.Size = UDim2.fromScale(0.24, 0.34)
 	UIStyler.ListLayout({
 		Padding = UDim.new(0, 8),
 		VerticalAlignment = Enum.VerticalAlignment.Bottom,
@@ -202,8 +230,8 @@ function GameHUDScreen:_BuildContent()
 	local bannerSlot = UIStyler.Frame("Banner")
 	bannerSlot.BackgroundTransparency = 1
 	bannerSlot.AnchorPoint = Vector2.new(0.5, 0)
-	bannerSlot.Position = UDim2.new(0.5, 0, 0, 128)
-	bannerSlot.Size = UDim2.fromOffset(360, 76)
+	bannerSlot.Position = UDim2.fromScale(0.5, 0.15)
+	bannerSlot.Size = UDim2.fromScale(0.29, 0.1)
 	bannerSlot.Parent = self.Root
 	self._bannerSlot = bannerSlot
 
@@ -245,9 +273,13 @@ function GameHUDScreen:_BuildElement(container: Frame, element: any)
 		-- prop) instead of a separate text row stacked above it. One row per
 		-- meter instead of two, so three vitals stack in a lot less vertical
 		-- space and the whole group reads as a tighter unit.
+		-- Width fills the container (itself a Scale fraction of Root — see
+		-- REGION_LAYOUT) instead of a fixed pixel Offset. Height stays a
+		-- modest fixed px: the container is AutomaticSize.Y (content-driven),
+		-- so a Scale height here would resolve against that circularly.
 		local wrapper = UIStyler.Frame("bar_" .. element.id)
 		wrapper.BackgroundTransparency = 1
-		wrapper.Size = UDim2.fromOffset(220, 22)
+		wrapper.Size = UDim2.new(1, 0, 0, 22)
 		local bar = UIProgressBarComponent.new()
 		bar:Create(wrapper, {
 			value = self._values[element.id] or 0,
@@ -262,10 +294,15 @@ function GameHUDScreen:_BuildElement(container: Frame, element: any)
 	else
 		local chip = UIStyler.Frame("chip_" .. element.id)
 		chip.BackgroundTransparency = 0
-		chip.Size = UDim2.fromOffset(150, 34)
+		chip.Size = UDim2.fromOffset(0, 34)
 		chip.AutomaticSize = Enum.AutomaticSize.X
 		UIStyler.Corner(1000).Parent = chip
-		UIStyler.PaddingXY(12, 4).Parent = chip
+		-- NO UIPadding here: chip is AutomaticSize.X off the label, and the
+		-- label is ALSO AutomaticSize.X — a UIPadding fighting that
+		-- combination produces unstable/incorrect sizing (same fix already
+		-- applied to UIBadgeComponent/_MakePriceChip). Margin instead comes
+		-- from a small fixed horizontal ListLayout padding plus leading/
+		-- trailing spaces baked into the text content (see _RefreshValues).
 		UIStyler.ListLayout({
 			FillDirection = Enum.FillDirection.Horizontal,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
@@ -274,10 +311,13 @@ function GameHUDScreen:_BuildElement(container: Frame, element: any)
 
 		local text = UIStyler.TextLabel("Value")
 		text.AutomaticSize = Enum.AutomaticSize.X
-		text.Size = UDim2.fromScale(0, 1)
+		text.Size = UDim2.fromScale(0, 0.7)
+		text.TextScaled = true
+		local textConstraint = UIStyler.TextSizeConstraint(18, 9)
+		textConstraint.Parent = text
 		text.Parent = chip
 		chip.Parent = container
-		self._elementViews[element.id] = { root = chip, label = text, element = element }
+		self._elementViews[element.id] = { root = chip, label = text, element = element, labelConstraint = textConstraint }
 	end
 end
 
@@ -291,13 +331,15 @@ function GameHUDScreen:PushToast(data: any)
 		self:_PlaySound("Error")
 	end
 	local toast = UIToastComponent.new()
+	-- No `size` prop: UIToastComponent's own _Build sets Root.Size (a fixed
+	-- Scale fraction of the toast stack) unconditionally, so a size passed
+	-- here would be silently ignored anyway.
 	toast:Create(self._toastStack, {
 		textKey = data.textKey,
 		text = data.text,
 		variant = data.variant,
 		icon = data.icon,
 		duration = data.duration,
-		size = UDim2.new(0, 300, 0, 44),
 		onDone = function()
 			local index = table.find(self._toasts, toast)
 			if index then
@@ -334,15 +376,20 @@ function GameHUDScreen:_RefreshValues()
 			local element = view.element
 			local value = self._values[id] or 0
 			local display = element.format == "Time" and HUDConfig.FormatTime(value) or tostring(math.floor(value))
-			-- Currency chips honour the pack's icon side; other chips keep icon-left.
+			-- Currency chips honour the pack's icon side; other chips keep
+			-- icon-left. Leading/trailing space: chip has no UIPadding (see
+			-- _BuildElement's comment), so the padded string itself keeps
+			-- text off the pill's edge.
 			local icon = element.icon or ""
 			if MONEY_IDS[element.id] and self._moneyIconSide == "Right" then
-				view.label.Text = string.format("%s %s", display, icon)
+				view.label.Text = string.format(" %s %s ", display, icon)
 			else
-				view.label.Text = string.format("%s %s", icon, display)
+				view.label.Text = string.format(" %s %s ", icon, display)
 			end
 			view.label.FontFace = theme.Fonts.Numeric
-			view.label.TextSize = theme.TextSizes.Body
+			if view.labelConstraint then
+				view.labelConstraint.MaxTextSize = theme.TextSizes.Body
+			end
 			view.label.TextColor3 = (theme.Colors :: any)[element.colorToken] or theme.Colors.TextPrimary
 			view.root.BackgroundColor3 = theme.Colors.SurfaceRaised
 		end
@@ -362,13 +409,16 @@ function GameHUDScreen:_RenderObjectives(objectives: any)
 		local row = UIStyler.TextLabel("obj_" .. i)
 		row.Size = UDim2.new(1, 0, 0, 22)
 		row.TextXAlignment = Enum.TextXAlignment.Left
+		row.TextScaled = true
+		local rowConstraint = UIStyler.TextSizeConstraint(18, 9)
+		rowConstraint.Parent = row
 		row.Text = string.format(
 			"%s %s",
 			objective.done and "✅" or "⬜",
 			TextConfig.Resolve(objective.textKey or objective.text)
 		)
 		row.FontFace = theme.Fonts.Body
-		row.TextSize = theme.TextSizes.Body
+		rowConstraint.MaxTextSize = theme.TextSizes.Body
 		row.TextColor3 = objective.done and theme.Colors.Success or theme.Colors.TextSecondary
 		row.LayoutOrder = i
 		row.Parent = self._objectivesHolder
