@@ -207,14 +207,14 @@ function ShopScreen:_RebuildLayout()
 	self._activeSpec = spec
 	self._activeShopLayout = shopLayout
 
-	if shopLayout.Container == "Grid" and spec.arrangement == "CardTop" then
+	if shopLayout.Container == "Grid" and (spec.arrangement == "CardTop" or spec.arrangement == "Overlay") then
 		-- Pure-Scale path (matches the reference MainGui pattern): the card now
 		-- keeps its OWN fixed width:height ratio via a UIAspectRatioConstraint on
 		-- the card itself (see UICardComponent._Build), with AspectType
 		-- FitWithinMaxSize — so the grid CELL just needs to be a big-enough Scale
 		-- box, and the card centres itself inside it at the correct shape. No
 		-- pixel measurement, no per-pass height computation, no ShopScreen/
-		-- CardSpacingConfig cross-referencing needed for this arrangement anymore.
+		-- CardSpacingConfig cross-referencing needed for either arrangement.
 		self._cardImageSizePx = nil
 		-- Pure Scale cell size/padding — hand-tuned to look right in Studio
 		-- (see CardSpacingConfig.GridCell for the editable values) instead of
@@ -234,7 +234,12 @@ function ShopScreen:_RebuildLayout()
 		-- to overlap, for any imageAspect.
 		local cellWAbs = CardSpacing.GridCell.CellSizeX * self._scroll.AbsoluteSize.X
 		local cellHAbs = CardSpacing.GridCell.CellSizeY * self._scroll.AbsoluteSize.Y
-		local actualCardAspect = CardSpacing.CardTop.AspectRatioFor(spec.imageAspect)
+		-- Overlay's card IS the image (no text-block adjustment needed), so its
+		-- card aspect is simply the image's own aspect; CardTop derives its card
+		-- shape from AspectRatioFor (see that function for the full reasoning).
+		local actualCardAspect = spec.arrangement == "Overlay"
+			and (spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1)
+			or CardSpacing.CardTop.AspectRatioFor(spec.imageAspect)
 		local candidateCardH = actualCardAspect > 0 and (cellWAbs / actualCardAspect) or cellHAbs
 		local fittedCardH = math.min(candidateCardH, cellHAbs)
 		local slackAbs = fittedCardH - cellHAbs -- <= 0 always; the safe padding

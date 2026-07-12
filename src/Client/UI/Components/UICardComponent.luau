@@ -23,6 +23,7 @@ local ThemeShape = require(script.Parent.Parent.ThemeShape)
 local TextConfig = require(script.Parent.Parent.Config.TextConfig)
 local EntryLayoutConfig = require(script.Parent.Parent.Config.EntryLayoutConfig)
 local CardSpacing = require(script.Parent.Parent.Config.CardSpacingConfig)
+local TextScaleConfig = require(script.Parent.Parent.Config.TextScaleConfig)
 local UIComponentBase = require(script.Parent.UIComponentBase)
 local UIButtonComponent = require(script.Parent.UIButtonComponent)
 local UIBadgeComponent = require(script.Parent.UIBadgeComponent)
@@ -117,6 +118,12 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	-- bug on TallCard's 0.8 imageAspect before this fix).
 	if spec.arrangement == "CardTop" then
 		local cardAspect = UIStyler.AspectRatio(CardSpacing.CardTop.AspectRatioFor(spec.imageAspect), Enum.DominantAxis.Width)
+		cardAspect.Parent = root
+	elseif spec.arrangement == "Overlay" then
+		-- Overlay's card IS the image (no text block below it), so the card's
+		-- own shape is simply the image's own declared aspect ratio.
+		local imgAspect = spec.imageAspect and spec.imageAspect > 0 and spec.imageAspect or 1
+		local cardAspect = UIStyler.AspectRatio(imgAspect, Enum.DominantAxis.Width)
 		cardAspect.Parent = root
 	end
 
@@ -490,16 +497,26 @@ end
 -- "Quantity"). Not a button — nothing to purchase here, just what's owned.
 -- Quantity is deterministic per item (stable across re-renders) unless the game
 -- supplies a real one via props.quantity.
-function UICardComponent:_MakeQuantityBadge(parent: Instance): Frame
+-- `useCardScale`: true when `parent`'s own height IS (a fraction of) the
+-- card's own AbsoluteSize (Overlay's surface), so the chip height is a Scale
+-- fraction instead of a fixed pixel Offset (matches _MakeBuy's pattern).
+function UICardComponent:_MakeQuantityBadge(parent: Instance, useCardScale: boolean?): Frame
 	local chip = UIStyler.Frame("Quantity")
-	chip.Size = UDim2.fromOffset(0, 30)
+	chip.Size = useCardScale and UDim2.fromScale(0, 0.125) or UDim2.fromOffset(0, 30)
 	chip.AutomaticSize = Enum.AutomaticSize.X
 	self._qtyCorner = UIStyler.Corner(1000)
 	self._qtyCorner.Parent = chip
-	UIStyler.PaddingXY(12, 4).Parent = chip
+	if useCardScale then
+		UIStyler.PaddingScale(0.2).Parent = chip
+	else
+		UIStyler.PaddingXY(12, 4).Parent = chip
+	end
 	local label = UIStyler.TextLabel("Count")
 	label.AutomaticSize = Enum.AutomaticSize.X
 	label.Size = UDim2.fromScale(0, 1)
+	label.TextScaled = true
+	self._qtyLabelConstraint = UIStyler.TextSizeConstraint(16, 6)
+	self._qtyLabelConstraint.Parent = label
 	label.Parent = chip
 	self._qtyLabel = label
 	chip.Parent = parent
@@ -748,11 +765,11 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	-- if the spec wants them). "The image AS the square, stuff inside of it."
 	if spec.buyStyle == "Quantity" then
 		if spec.showTags then
-			local tags = self:_MakeTags(surface)
+			local tags = self:_MakeTags(surface, UDim.new(0.083, 0))
 			if tags then
 				tags.AnchorPoint = Vector2.new(0, 0)
-				tags.Position = UDim2.fromOffset(8, 8)
-				tags.Size = UDim2.new(1, -16, 0, 20)
+				tags.Position = UDim2.fromScale(0.033, 0.033)
+				tags.Size = UDim2.new(0.933, 0, 0.083, 0)
 				tags.ZIndex = 5
 				for _, d in tags:GetDescendants() do
 					if d:IsA("GuiObject") then
@@ -761,9 +778,9 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 				end
 			end
 		end
-		local qty = self:_MakeQuantityBadge(surface)
+		local qty = self:_MakeQuantityBadge(surface, true)
 		qty.AnchorPoint = Vector2.new(1, 1)
-		qty.Position = UDim2.new(1, -8, 1, -8)
+		qty.Position = UDim2.new(0.967, 0, 0.967, 0)
 		qty.ZIndex = 5
 		return
 	end
@@ -777,14 +794,14 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		local strip = UIStyler.Frame("NameStrip")
 		strip.AnchorPoint = Vector2.new(0, 0.5)
 		strip.Position = UDim2.fromScale(0, 0.5)
-		strip.Size = UDim2.new(1, 0, 0, 34)
+		strip.Size = UDim2.new(1, 0, 0.142, 0)
 		strip.ZIndex = 4
 		strip.Parent = surface
 		self._nameStrip = strip
-		local name = self:_MakeName(strip, UDim.new(0, 34))
+		local name = self:_MakeName(strip, UDim.new(1, 0))
 		name.AnchorPoint = Vector2.new(0, 0)
-		name.Position = UDim2.fromOffset(8, 0)
-		name.Size = UDim2.new(1, -16, 1, 0)
+		name.Position = UDim2.fromScale(0.033, 0)
+		name.Size = UDim2.new(0.933, 0, 1, 0)
 		name.ZIndex = 5
 	elseif not useFlat then
 		-- Bottom scrim: a dark gradient fading from transparent (top) to opaque
@@ -821,7 +838,7 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 		local flatBg = UIStyler.Frame("FlatBg")
 		flatBg.AnchorPoint = Vector2.new(0, 1)
 		flatBg.Position = UDim2.new(0, 4, 1, -4)
-		flatBg.Size = UDim2.new(1, -8, 0, 56)
+		flatBg.Size = UDim2.new(1, -8, 0.233, 0)
 		flatBg.ZIndex = 4
 		flatBg.Parent = surface
 		self._flatBg = flatBg
@@ -832,11 +849,11 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 
 	-- Tags top-left over the image.
 	if spec.showTags then
-		local tags = self:_MakeTags(surface)
+		local tags = self:_MakeTags(surface, UDim.new(0.092, 0))
 		if tags then
 			tags.AnchorPoint = Vector2.new(0, 0)
-			tags.Position = UDim2.fromOffset(10, 10)
-			tags.Size = UDim2.new(1, -20, 0, 22)
+			tags.Position = UDim2.fromScale(0.042, 0.042)
+			tags.Size = UDim2.new(0.917, 0, 0.092, 0)
 			tags.ZIndex = 6
 			for _, d in tags:GetDescendants() do
 				if d:IsA("GuiObject") then
@@ -849,8 +866,9 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	-- Text column pinned to the bottom over the scrim. Name + price stack (or,
 	-- for CenterStrip, just price — the name already lives in the strip above),
 	-- and a compact Buy sits to the right so nothing overflows the card's edge.
-	local infoBottomInset = 10
-	local infoH = useCenterStrip and 34 or 47
+	-- All Scale fractions of the (now fixed-aspect) card itself.
+	local infoBottomInset = 0.042
+	local infoH = useCenterStrip and 0.142 or 0.196
 
 	-- CenterStrip already showed the name up in the middle strip, so the bottom
 	-- footer here only needs price+buy — and since it has no scrim behind it,
@@ -859,11 +877,11 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	-- fixed height taller than info's actual content, leaving a dead strip of
 	-- translucent panel below the buy button with nothing in it.
 	if useCenterStrip then
-		local margin = 4
+		local margin = 0.017
 		local footerBg = UIStyler.Frame("FooterBg")
 		footerBg.AnchorPoint = Vector2.new(0, 1)
-		footerBg.Position = UDim2.new(0, 4, 1, -(infoBottomInset - margin))
-		footerBg.Size = UDim2.new(1, -8, 0, infoH + margin * 2)
+		footerBg.Position = UDim2.new(0, 4, 1 - (infoBottomInset - margin), 0)
+		footerBg.Size = UDim2.new(1, -8, infoH + margin * 2, 0)
 		footerBg.ZIndex = 4
 		footerBg.Parent = surface
 		self._flatBg = footerBg
@@ -875,27 +893,37 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	local info = UIStyler.Frame("Info")
 	info.BackgroundTransparency = 1
 	info.AnchorPoint = Vector2.new(0, 1)
-	info.Position = UDim2.new(0, 10, 1, -infoBottomInset)
-	info.Size = UDim2.new(1, -20, 0, infoH)
+	info.Position = UDim2.new(0.042, 0, 1 - infoBottomInset, 0)
+	info.Size = UDim2.new(0.917, 0, infoH, 0)
 	info.ZIndex = 5
 	info.Parent = surface
+
+	-- Every Y-fraction below is card-relative (matching the module's usual
+	-- convention), but name/price/buy are parented in `info` (NOT surface), so
+	-- Scale resolves against info's OWN AbsoluteSize — dividing by infoH here
+	-- converts each "fraction of the card" into "fraction of info," or the
+	-- values render far too small (confirmed via measurement: the buy button
+	-- rendered at ~2px tall before this fix, a real bug).
+	local function ofInfo(cardFrac: number): number
+		return infoH > 0 and (cardFrac / infoH) or cardFrac
+	end
 
 	if not useCenterStrip then
 		-- Title takes the FULL width on its own row, above price+buy — not
 		-- squeezed to leave room for the buy button beside it.
-		local name = self:_MakeName(info, UDim.new(0, 20), true)
-		name.Size = UDim2.new(1, 0, 0, 20)
-		name.Position = UDim2.fromOffset(0, 0)
+		local name = self:_MakeName(info, UDim.new(ofInfo(0.083), 0), true)
+		name.Size = UDim2.new(1, 0, ofInfo(0.083), 0)
+		name.Position = UDim2.fromScale(0, 0)
 		name.ZIndex = 5
 	end
-	local price = self:_MakePrice(info)
+	local price = self:_MakePrice(info, useCenterStrip and UDim.new(1, 0) or UDim.new(ofInfo(0.071), 0))
 	if useCenterStrip then
-		price.Size = UDim2.new(1, -70, 1, 0)
-		price.Position = UDim2.fromOffset(0, 0)
+		price.Size = UDim2.new(0.708, 0, 1, 0)
+		price.Position = UDim2.fromScale(0, 0)
 	else
 		-- Second row, left side: price on the left, buy on the right (below).
-		price.Size = UDim2.new(0.55, 0, 0, 17)
-		price.Position = UDim2.fromOffset(0, 26)
+		price.Size = UDim2.new(0.55, 0, ofInfo(0.071), 0)
+		price.Position = UDim2.fromScale(0, ofInfo(0.108))
 		price.TextYAlignment = Enum.TextYAlignment.Center
 	end
 	price.ZIndex = 5
@@ -906,11 +934,11 @@ function UICardComponent:_BuildOverlay(surface: Frame, spec: EntryLayoutConfig.E
 	if useCenterStrip then
 		buy.AnchorPoint = Vector2.new(1, 0.5)
 		buy.Position = UDim2.new(1, 0, 0.5, 0)
-		buy.Size = UDim2.fromOffset(56, 28)
+		buy.Size = UDim2.new(0.233, 0, ofInfo(0.117), 0)
 	else
 		buy.AnchorPoint = Vector2.new(1, 1)
 		buy.Position = UDim2.new(1, 0, 1, 0)
-		buy.Size = UDim2.fromOffset(56, 22)
+		buy.Size = UDim2.new(0.233, 0, ofInfo(0.092), 0)
 	end
 	for _, d in buy:GetDescendants() do
 		if d:IsA("GuiObject") then
@@ -1150,8 +1178,10 @@ function UICardComponent:_Style(theme: Types.UITheme)
 		local qtyChip = self._qtyLabel.Parent :: Frame
 		self:_SetColor(qtyChip, "BackgroundColor3", c.SurfaceRaised)
 		self._qtyLabel.FontFace = theme.Fonts.Numeric
-		self._qtyLabel.TextSize = theme.TextSizes.Small
 		self._qtyLabel.TextColor3 = c.TextSecondary
+		if self._qtyLabelConstraint then
+			self._qtyLabelConstraint.MaxTextSize = TextScaleConfig.ScaledCap(theme.TextSizes.Small)
+		end
 	end
 
 	-- Price chip (overlayBadgeAndPrice): an Accent-coloured pill so it pops
