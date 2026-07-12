@@ -29,14 +29,19 @@ local CardSpacing = {}
 -- old pixel formula at a representative column width — see the commit that
 -- introduced this file for the derivation).
 CardSpacing.CardTop = {
-	AspectRatio = 0.7058823529411765,
-	-- The image row's fraction of col's own height, back-derived from
-	-- AspectRatio above at imageAspect=1 (AspectRatio = ImageFracOfCol *
-	-- imageAspect when imageAspect=1, so ImageFracOfCol = AspectRatio here).
-	-- Used by AspectRatioFor to compute the right card shape for OTHER
-	-- imageAspect values (see that function's comment for the full derivation).
-	ImageFracOfCol = 0.7058823529411765,
+	-- The image row's fraction of col's own height at imageAspect=1 — i.e.
+	-- 1.0 minus every OTHER row/gap in the Height/Gap tables below plus
+	-- BuyToBottom, so the whole column sums to EXACTLY 1.0 (recompute this
+	-- whenever any Height.*/Gap.* value changes, or col's content will
+	-- over/underfill col again — see the module doc's warning about that
+	-- exact bug class). Used by AspectRatioFor to compute the right card
+	-- shape for any imageAspect (see that function's derivation below).
+	ImageFracOfCol = 0.631402,
 }
+-- AspectRatio (card width:height at imageAspect=1) is just ImageFracOfCol at
+-- aspect=1 — kept as its own field for readability at call sites that only
+-- care about the default square-image shape.
+CardSpacing.CardTop.AspectRatio = CardSpacing.CardTop.ImageFracOfCol
 
 -- Computes the CORRECT card width:height ratio for a given spec's imageAspect
 -- (image width:height), so the focal image always renders at its actual
@@ -79,7 +84,13 @@ CardSpacing.SurfacePadding = 0.03137254901960784
 -- for why this is col, not the outer card).
 CardSpacing.Height = {
 	TagRow = 0.06276150627615062,
-	Name = 0.06694560669456066,
+	-- Slightly taller than Price/TagRow: item names are unpredictable-length
+	-- strings (unlike Price's always-short numeric text), so this needs more
+	-- headroom to render at a legible size on small cards instead of
+	-- TextScaled shrinking below its own MinTextSize floor to force a fit —
+	-- confirmed via direct measurement: at the old 0.06695 value, a real
+	-- card's Name box rendered TextSize=8 despite MinTextSize=9.
+	Name = 0.075,
 	Price = 0.06694560669456066,
 	BuyFull = 0.1087866108786611,
 	BuyCompact = 0.1087866108786611,
