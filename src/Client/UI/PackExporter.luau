@@ -176,6 +176,9 @@ local ARCHITECTURE_BRIEF = [[
 -- A game using this exported SPEC has no use for either: build only the
 -- actual gameplay screens described here (shop, HUD, modal, NPC dialog, chat
 -- bar, settings, etc.), never a screen that shows/edits/highlights the UI kit.
+-- (BUT you may adjust the Tutorial to match this new game if instructed to do
+-- so or if you so choose — that exception is Tutorial-only; the Theme Editor
+-- still has no place in a shipped game regardless.)
 --
 -- Placeholders: emoji stand in for icon art (e.g. 💰 🛒 ❤️). Swap for images by
 -- setting an asset id where the SPEC notes an icon.
