@@ -221,10 +221,86 @@ local function runTestAll()
 	end)
 end
 
--- Hand the Theme Editor its dev tools (layout presets + the Test All runner) so
--- its buttons can drive them without reaching back into the handler globally.
+-- Individual preview triggers — same pieces "Test All" fires in sequence,
+-- but each on its own button so a specific one can be shown on demand and
+-- left up (to inspect/tweak live in the Theme Editor) instead of only ever
+-- seeing it flash by mid-sequence.
+local individualPreviews = {
+	{
+		label = "Toast",
+		icon = "🔔",
+		fn = function()
+			hud:PushToast({ text = "Sample toast message", variant = "Info", duration = 5 })
+		end,
+	},
+	{
+		label = "Banner",
+		icon = "⭐",
+		fn = function()
+			hud:PushBanner({ titleKey = "notify.levelup.title", bodyKey = "notify.levelup.body", variant = "LevelUp", duration = 6 })
+		end,
+	},
+	{
+		label = "Modal",
+		icon = "❗",
+		fn = function()
+			screenController:ShowModal({
+				kind = "Confirm",
+				titleKey = "modal.confirm_purchase.title",
+				body = "Preview — does this modal read cleanly in the current theme?",
+				confirmKey = "modal.confirm",
+				cancelKey = "modal.cancel",
+				onConfirm = function() end,
+			})
+		end,
+	},
+	{
+		label = "NPC Dialog",
+		icon = "💬",
+		fn = function()
+			screenController:ShowScreen("npcDialog", { sequenceId = "welcome_merchant" })
+		end,
+	},
+	{
+		label = "Chat Bar",
+		icon = "💭",
+		fn = function()
+			screenController:ShowScreen("chatBar", { speaker = "Narrator", text = "Preview — bottom chat / subtitles bar.", duration = 5 })
+		end,
+	},
+	{
+		label = "Settings",
+		icon = "⚙️",
+		fn = function()
+			screenController:ToggleScreen("settings")
+		end,
+	},
+	{
+		label = "Tutorial",
+		icon = "❓",
+		fn = function()
+			screenController:ToggleScreen("tutorial", {
+				steps = TutorialConfig.Steps,
+				onComplete = function()
+					hud:PushToast({ text = "Tutorial complete!", variant = "Success", duration = 3 })
+				end,
+			})
+		end,
+	},
+	{
+		label = "Shop",
+		icon = "🛒",
+		fn = function()
+			screenController:ToggleScreen("shop", { balances = shop._balances })
+		end,
+	},
+}
+
+-- Hand the Theme Editor its dev tools (layout presets, the Test All runner,
+-- and the individual preview buttons above) so its buttons can drive them
+-- without reaching back into the handler globally.
 if themeSelector.SetDevTools then
-	themeSelector:SetDevTools(layoutController, runTestAll)
+	themeSelector:SetDevTools(layoutController, runTestAll, individualPreviews)
 end
 
 -- ---- input actions ----------------------------------------------------

@@ -63,17 +63,27 @@ function ThemeSelectorScreen.new()
 	self._sliders = {}
 	self._themeButtons = {}
 	self._staticBuilt = false
-	-- Injected by ClientHandler via SetDevTools: the layout-preset controller and
-	-- the Test All runner. nil-safe so the editor still works without them.
+	-- Injected by ClientHandler via SetDevTools: the layout-preset controller,
+	-- the Test All runner, and the individual preview triggers. nil-safe so
+	-- the editor still works without them.
 	self._layoutController = nil :: any
 	self._runTestAll = nil :: (() -> ())?
+	self._individualPreviews = nil :: { { label: string, icon: string, fn: () -> () } }?
 	return setmetatable(self, ThemeSelectorScreen)
 end
 
 -- ClientHandler injects the runtime dev tools the editor's buttons drive.
-function ThemeSelectorScreen:SetDevTools(layoutController: any, runTestAll: () -> ())
+-- individualPreviews is a list of { label, icon, fn } — same pieces "Test
+-- All" cycles through, but each on its own button so one can be shown on
+-- demand and left up to inspect/tweak, instead of only flashing by mid-run.
+function ThemeSelectorScreen:SetDevTools(
+	layoutController: any,
+	runTestAll: () -> (),
+	individualPreviews: { { label: string, icon: string, fn: () -> () } }?
+)
 	self._layoutController = layoutController
 	self._runTestAll = runTestAll
+	self._individualPreviews = individualPreviews
 end
 
 local function cloneTheme(theme: Types.UITheme): Types.UITheme
@@ -149,6 +159,22 @@ function ThemeSelectorScreen:_BuildContent()
 			end
 		end,
 	})
+
+	-- Individual preview triggers (Toast/Banner/Modal/NPC Dialog/Chat Bar/
+	-- Settings/Tutorial/Shop) — same pieces "Test All" cycles through, but
+	-- each on its own button so one can be shown on demand and left up to
+	-- inspect/tweak live in the editor, instead of only flashing by mid-run.
+	if self._individualPreviews then
+		self:_ScreenLabel(leftScroll, "👁️ Preview Screens", "Accent", "Subtitle", -17)
+		for i, preview in self._individualPreviews do
+			local button = UIButtonComponent.new()
+			button:Create(leftScroll, {
+				text = preview.label, icon = preview.icon, variant = "Secondary",
+				size = UDim2.new(1, -6, 0, 38), layoutOrder = -16 + i,
+				onClick = preview.fn,
+			})
+		end
+	end
 
 	self:_ScreenLabel(leftScroll, self:_R("theme.selector.title"), "Accent", "Subtitle", 0)
 	for i, theme in self.ThemeController:GetThemeList() do
