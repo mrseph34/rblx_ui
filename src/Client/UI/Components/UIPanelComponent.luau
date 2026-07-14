@@ -42,6 +42,17 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
 	self._stroke.Parent = root
 
+	-- Studs texture over the panel BODY (theme-gated; shown/tinted in _Style,
+	-- hidden for themes with no Texture). ZIndex 1 keeps it above the Root fill
+	-- but below the header/Body (both ZIndex 2). Its own corner clips the tiled
+	-- image to the panel's rounded body edge.
+	local texture = UIStyler.Texture("", 48, Color3.new(1, 1, 1), 1)
+	texture.ZIndex = 1
+	self._textureCorner = UIStyler.Corner(16)
+	self._textureCorner.Parent = texture
+	texture.Parent = root
+	self._texture = texture
+
 	-- Header. A plain rectangular BG frame behind it draws ONLY the top two
 	-- corners rounded (via a UICorner ONLY it has) so the header's own BOTTOM
 	-- edge — an interior seam against Body, not the panel's outer edge — never
@@ -79,6 +90,14 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 	headerSquareBottom.ZIndex = 1
 	headerSquareBottom.Parent = headerBg
 	self._headerSquareBottom = headerSquareBottom
+
+	-- Studs texture across the whole header/title bar (theme-gated; hidden when
+	-- theme.Texture is nil). Parented to `header` after headerBg so its ZIndex 1
+	-- renders above the header fill but below the title/close (ZIndex 2/3).
+	local headerTexture = UIStyler.Texture("", 48, Color3.new(1, 1, 1), 1)
+	headerTexture.ZIndex = 1
+	headerTexture.Parent = header
+	self._headerTexture = headerTexture
 
 	-- No header padding — title/close position themselves directly with
 	-- explicit Scale offsets instead of relying on a UIPadding inset.
@@ -119,13 +138,19 @@ function UIPanelComponent:_Build(props: Types.UIComponentProps)
 		-- FitWithinMaxSize fits the ratio inside THAT zero-width box), the same
 		-- documented landmine UIButtonComponent's icon sizing already hit.
 		close.Size = UDim2.fromOffset(30, 30)
-		close.Text = "✖"
+		-- Plain "X" (not the ✖ dingbat) — FredokaOne has no glyph for ✖ and
+		-- renders it as an empty box, whereas the letter X always renders. Square
+		-- corners (not a pill) to match the boxy base UI.
+		close.Text = "X"
 		close.TextScaled = true
 		close.BackgroundTransparency = 0
 		close.AutoButtonColor = true
 		close.ZIndex = 3
-		UIStyler.Corner(1000).Parent = close
-		UIStyler.PaddingScale(0.2).Parent = close
+		self._closeCorner = UIStyler.Corner(0)
+		self._closeCorner.Parent = close
+		self._closeStroke = UIStyler.Stroke(Color3.new(), 2)
+		self._closeStroke.Parent = close
+		UIStyler.PaddingScale(0.18).Parent = close
 		close.Parent = header
 		self._close = close
 		self:_Connect(close.Activated, function()
@@ -199,6 +224,10 @@ function UIPanelComponent:_Style(theme: Types.UITheme)
 	local radius = ThemeShape.Radius(theme, theme.Radii.Large)
 	self._corner.CornerRadius = UDim.new(0, radius)
 	self._headerCorner.CornerRadius = UDim.new(0, radius)
+	-- Studs texture over the body (theme-gated; hidden when theme.Texture is nil).
+	UIStyler.ConfigureTexture(self._texture, theme.Texture)
+	self._textureCorner.CornerRadius = UDim.new(0, radius)
+	UIStyler.ConfigureTexture(self._headerTexture, theme.Texture)
 	self._stroke.Color = c.Stroke
 	self._stroke.Thickness = theme.Effects.StrokeThickness
 	self._stroke.Transparency = 0.3
@@ -212,6 +241,10 @@ function UIPanelComponent:_Style(theme: Types.UITheme)
 		self._close.BackgroundColor3 = c.Error
 		self._close.TextColor3 = c.TextOnPrimary
 		self._close.FontFace = theme.Fonts.Button
+		if self._closeStroke then
+			self._closeStroke.Color = c.Stroke
+			self._closeStroke.Thickness = theme.Effects.StrokeThickness
+		end
 		-- Square, scaled from the header's real resolved height (not an
 		-- AspectRatioConstraint — see the _Build comment on why that collapses
 		-- to 0x0 here).

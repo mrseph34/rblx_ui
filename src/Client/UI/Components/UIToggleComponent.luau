@@ -57,7 +57,11 @@ function UIToggleComponent:_Build(props: Types.UIComponentProps)
 	track.AnchorPoint = Vector2.new(1, 0.5)
 	track.Position = UDim2.new(1, 0, 0.5, 0)
 	UIStyler.AspectRatio(2, Enum.DominantAxis.Height).Parent = track
-	UIStyler.Corner(1000).Parent = track
+	UIStyler.Corner(0).Parent = track
+	self._trackStroke = UIStyler.Stroke(Color3.new(), 2)
+	self._trackStroke.Parent = track
+	self._trackGradient = UIStyler.Gradient(90, 0.16)
+	self._trackGradient.Parent = track
 	track.Parent = root
 	self._track = track
 
@@ -66,7 +70,11 @@ function UIToggleComponent:_Build(props: Types.UIComponentProps)
 	knob.AnchorPoint = Vector2.new(0, 0.5)
 	knob.Position = UDim2.new(0.06, 0, 0.5, 0)
 	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = knob
-	UIStyler.Corner(1000).Parent = knob
+	UIStyler.Corner(0).Parent = knob
+	self._knobStroke = UIStyler.Stroke(Color3.new(), 2)
+	self._knobStroke.Parent = knob
+	self._knobGradient = UIStyler.Gradient(90, 0.16)
+	self._knobGradient.Parent = knob
 	knob.Parent = track
 	self._knob = knob
 
@@ -107,6 +115,16 @@ function UIToggleComponent:_Style(theme: Types.UITheme)
 	self._knob.BackgroundColor3 = c.TextOnPrimary
 	self._track.BackgroundColor3 = self._value and c.Success or c.Disabled
 	self._knob.Position = self._value and UDim2.new(0.55, 0, 0.5, 0) or UDim2.new(0.06, 0, 0.5, 0)
+	-- Boxy borders + gradient on both the track and the sliding knob so the
+	-- toggle reads as the same nested-box style as the rest of the base UI.
+	local strokeColor = c.Stroke
+	local strokeThick = theme.Effects.StrokeThickness
+	self._trackStroke.Color = strokeColor
+	self._trackStroke.Thickness = strokeThick
+	self._trackGradient.Enabled = theme.Effects.UseGradients
+	self._knobStroke.Color = strokeColor
+	self._knobStroke.Thickness = strokeThick
+	self._knobGradient.Enabled = theme.Effects.UseGradients
 end
 
 return UIToggleComponent

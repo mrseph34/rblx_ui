@@ -146,6 +146,13 @@ function UICardComponent:_Build(props: Types.UIComponentProps)
 	self._gradient = UIStyler.Gradient(90, 0.1)
 	self._gradient.Parent = surface
 
+	-- Studs texture over the card fill (theme-gated; configured/hidden in _Style).
+	-- surface.ClipsDescendants already clips it to the rounded corner; its ZIndex
+	-- (1, set by UIStyler.Texture) keeps it above the fill but below the
+	-- arrangement content, which is parented afterward at the default ZIndex.
+	self._texture = UIStyler.Texture("", 48, Color3.new(1, 1, 1), 1)
+	self._texture.Parent = surface
+
 	-- Inner bevel overlay for Raised3D (ZIndex 1 so arrangement content, added at
 	-- default ZIndex within the surface, still reads above it).
 	local bevel = UIStyler.Bevel(1, 0)
@@ -1211,6 +1218,8 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	self:_SetColor(self._surface, "BackgroundColor3", c.SurfaceRaised)
 	local radius = ThemeShape.Radius(theme, theme.Radii.Large)
 	self._corner.CornerRadius = UDim.new(0, radius)
+	-- Studs texture over the card fill (theme-gated; hidden when theme.Texture nil).
+	UIStyler.ConfigureTexture(self._texture, theme.Texture)
 	if self._imageCorner then
 		-- Overlay's image spans the ENTIRE card (fillWidth, fromScale(1,1)), so
 		-- its corners must match the card's own Large radius exactly — using the
@@ -1256,7 +1265,11 @@ function UICardComponent:_Style(theme: Types.UITheme)
 	-- image), so it reads fine in the theme's normal text colour — forcing white
 	-- there (like Scrim/Flat, which sit closer to raw image content) could go
 	-- unreadable against a light theme's pale strip colour.
-	local forceWhiteName = overlay and self._spec.overlayBg ~= "CenterStrip"
+	-- CenterStrip normally keeps the theme text colour (its name sits on its own
+	-- strip, not raw art). But a theme whose strip colour (Colors.Background) is
+	-- dark would render dark TextPrimary invisibly there — so when the theme has
+	-- a text outline, force white+outline for CenterStrip too (reads on any strip).
+	local forceWhiteName = overlay and (self._spec.overlayBg ~= "CenterStrip" or theme.TextOutline ~= nil)
 	if self._name then
 		self._name.FontFace = theme.Fonts.Subtitle
 		self._name.TextColor3 = forceWhiteName and Color3.new(1, 1, 1) or c.TextPrimary
@@ -1280,7 +1293,10 @@ function UICardComponent:_Style(theme: Types.UITheme)
 		if not self._priceScaled then
 			self._price.TextSize = theme.TextSizes.Body
 		end
-		self._price.TextColor3 = c.Accent
+		-- Base boxy UI: ALL internal text is white (the navy TextOutline applied in
+		-- UIComponentBase:ApplyTheme keeps it legible on the light card). A future
+		-- colour-variant theme can repaint the price its own accent.
+		self._price.TextColor3 = c.TextPrimary
 	end
 	if self._priceConstraint then
 		self._priceConstraint.MaxTextSize = theme.TextSizes.Body

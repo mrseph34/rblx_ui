@@ -41,6 +41,8 @@ local UINavRailController = require(Controllers.UINavRailController)
 -- Screens.
 local GameHUDScreen = require(Screens.GameHUDScreen)
 local ShopScreen = require(Screens.ShopScreen)
+local StoreScreen = require(Screens.StoreScreen)
+local IndexScreen = require(Screens.IndexScreen)
 local ModalScreen = require(Screens.ModalScreen)
 local TutorialScreen = require(Screens.TutorialScreen)
 local ThemeSelectorScreen = require(Screens.ThemeSelectorScreen)
@@ -81,6 +83,8 @@ end)
 
 local hud = GameHUDScreen.new()
 local shop = ShopScreen.new()
+local store = StoreScreen.new()
+local index = IndexScreen.new()
 local modal = ModalScreen.new()
 local tutorial = TutorialScreen.new()
 local themeSelector = ThemeSelectorScreen.new()
@@ -94,6 +98,8 @@ local layoutController = UILayoutController.new(hud)
 
 screenController:RegisterScreen("hud", hud)
 screenController:RegisterScreen("shop", shop)
+screenController:RegisterScreen("store", store)
+screenController:RegisterScreen("index", index)
 screenController:RegisterScreen("modal", modal)
 screenController:RegisterScreen("tutorial", tutorial)
 screenController:RegisterScreen("themeSelector", themeSelector)
@@ -109,7 +115,9 @@ local currencyChanged = Remotes.WaitFor("CurrencyChanged", 5) :: RemoteEvent?
 
 -- Injected into the shop: authoritative purchase with a local fallback so the
 -- shop still works in a UI-only / test place where the server isn't present.
-shop:SetPurchaseHandler(function(item: SharedTypes.ShopItem): SharedTypes.PurchaseResult
+-- Shared by the shop AND the exclusive store (both raise the same confirm modal
+-- and route through the same authoritative purchase).
+local function purchaseItem(item: SharedTypes.ShopItem): SharedTypes.PurchaseResult
 	if purchaseRemote then
 		local ok, result = pcall(function()
 			return purchaseRemote:InvokeServer(item.id)
@@ -120,12 +128,15 @@ shop:SetPurchaseHandler(function(item: SharedTypes.ShopItem): SharedTypes.Purcha
 	end
 	-- Local fallback (offline preview).
 	return { success = true, messageKey = "shop.purchase_success" }
-end)
+end
+shop:SetPurchaseHandler(purchaseItem)
+store:SetPurchaseHandler(purchaseItem)
 
 if currencyChanged then
 	currencyChanged.OnClientEvent:Connect(function(balances: SharedTypes.CurrencyBalances)
 		hud:Update({ values = balances })
 		shop:Update({ balances = balances })
+		store:Update({ balances = balances })
 	end)
 end
 

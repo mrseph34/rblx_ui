@@ -63,6 +63,9 @@ function UIDropdownComponent:_Build(props: Types.UIComponentProps)
 	self._currentCorner.Parent = current
 	self._currentStroke = UIStyler.Stroke(Color3.new(), 1)
 	self._currentStroke.Parent = current
+	-- Boxy gradient fill so the value box matches the rest of the base UI.
+	self._currentGradient = UIStyler.Gradient(90, 0.16)
+	self._currentGradient.Parent = current
 	UIStyler.PaddingXY(10, 0).Parent = current
 	current.Parent = root
 	self._current = current
@@ -189,6 +192,7 @@ function UIDropdownComponent:_Style(theme: Types.UITheme)
 	self._currentCorner.CornerRadius = UDim.new(0, radius)
 	self._currentStroke.Color = c.Stroke
 	self._currentStroke.Thickness = theme.Effects.StrokeThickness
+	self._currentGradient.Enabled = theme.Effects.UseGradients
 	self._currentText.FontFace = theme.Fonts.Body
 	self._currentText.TextColor3 = c.TextPrimary
 	if self._currentTextConstraint then
@@ -209,9 +213,13 @@ function UIDropdownComponent:_Style(theme: Types.UITheme)
 		if optConstraint then
 			optConstraint.MaxTextSize = theme.TextSizes.Body
 		end
-		-- Highlight the selected option.
+		-- Base boxy UI: option text is white; the SELECTED option is marked by a
+		-- subtle raised background box instead of a gold text colour (the theme's
+		-- navy outline keeps the white text legible on it).
 		local selected = string.sub(btn.Name, 5) == self._value
-		btn.TextColor3 = selected and c.Accent or c.TextSecondary
+		btn.TextColor3 = c.TextPrimary
+		btn.BackgroundColor3 = c.SurfaceRaised
+		btn.BackgroundTransparency = selected and 0.15 or 1
 	end
 end
 

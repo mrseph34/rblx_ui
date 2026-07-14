@@ -73,7 +73,11 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 	track.Name = "Track"
 	track.Text = ""
 	track.AutoButtonColor = false
-	UIStyler.Corner(1000).Parent = track
+	UIStyler.Corner(0).Parent = track
+	self._trackStroke = UIStyler.Stroke(Color3.new(), 2)
+	self._trackStroke.Parent = track
+	self._trackGradient = UIStyler.Gradient(90, 0.16)
+	self._trackGradient.Parent = track
 	self._track = track
 
 	if self._compact then
@@ -108,13 +112,15 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 
 	local fill = UIStyler.Frame("Fill")
 	fill.Size = UDim2.fromScale(0, 1)
-	UIStyler.Corner(1000).Parent = fill
+	UIStyler.Corner(0).Parent = fill
+	self._fillGradient = UIStyler.Gradient(90, 0.16)
+	self._fillGradient.Parent = fill
 	fill.Parent = track
 	self._fill = fill
 
-	-- Knob is a perfect circle (AspectRatioConstraint 1:1, DominantAxis
+	-- Knob is a perfect SQUARE box (AspectRatioConstraint 1:1, DominantAxis
 	-- Height) sized as a Scale fraction of the track's own height instead of
-	-- a fixed pixel Offset, so it always renders round regardless of the
+	-- a fixed pixel Offset, so it always renders square regardless of the
 	-- track's real resolved thickness. Starting size is non-zero on both
 	-- axes (never Scale=0) — an AspectRatioConstraint driving a Scale=0
 	-- starting dimension collapses to 0x0 instead of resolving correctly.
@@ -123,7 +129,11 @@ function UISliderComponent:_Build(props: Types.UIComponentProps)
 	knob.AnchorPoint = Vector2.new(0.5, 0.5)
 	knob.Position = UDim2.fromScale(0, 0.5)
 	UIStyler.AspectRatio(1, Enum.DominantAxis.Height).Parent = knob
-	UIStyler.Corner(1000).Parent = knob
+	UIStyler.Corner(0).Parent = knob
+	self._knobStroke = UIStyler.Stroke(Color3.new(), 2)
+	self._knobStroke.Parent = knob
+	self._knobGradient = UIStyler.Gradient(90, 0.16)
+	self._knobGradient.Parent = knob
 	knob.Parent = track
 	self._knob = knob
 
@@ -191,6 +201,17 @@ function UISliderComponent:_Style(theme: Types.UITheme)
 	self._track.BackgroundColor3 = c.Surface
 	self._fill.BackgroundColor3 = c.Primary
 	self._knob.BackgroundColor3 = c.TextOnPrimary
+	-- Boxy borders + gradient on the track, fill and knob so the slider matches
+	-- the nested-box base UI (square, bordered, subtly lit from above).
+	local strokeColor = c.Stroke
+	local strokeThick = theme.Effects.StrokeThickness
+	self._trackStroke.Color = strokeColor
+	self._trackStroke.Thickness = strokeThick
+	self._trackGradient.Enabled = theme.Effects.UseGradients
+	self._fillGradient.Enabled = theme.Effects.UseGradients
+	self._knobStroke.Color = strokeColor
+	self._knobStroke.Thickness = strokeThick
+	self._knobGradient.Enabled = theme.Effects.UseGradients
 end
 
 return UISliderComponent

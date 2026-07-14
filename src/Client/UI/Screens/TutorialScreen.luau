@@ -119,11 +119,12 @@ function TutorialScreen:_ShowStep()
 	self._text.Text = body
 	self._text.FontFace = theme.Fonts.Body
 	self._textConstraint.MaxTextSize = theme.TextSizes.Body
-	self._text.TextColor3 = theme.Colors.TextPrimary
+	-- Dark text on the LIGHT tutorial body (never white on a light background).
+	self._text.TextColor3 = theme.Colors.Stroke
 	self._progress.Text = string.format("%d / %d", self._index, #self._steps)
 	self._progress.FontFace = theme.Fonts.Numeric
 	self._progressConstraint.MaxTextSize = theme.TextSizes.Small
-	self._progress.TextColor3 = theme.Colors.TextSecondary
+	self._progress.TextColor3 = theme.Colors.Stroke
 
 	local isLast = self._index >= #self._steps
 	self._nextButton:SetContent({ text = isLast and TextConfig.Resolve("modal.ok") or "Next →" })

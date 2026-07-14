@@ -54,8 +54,12 @@ function UIButtonComponent:_Build(props: Types.UIComponentProps)
 	self._corner.Parent = surface
 	self._stroke = UIStyler.Stroke(Color3.new(), 1.5)
 	self._stroke.Parent = surface
+	-- Nested-box inner: the surface becomes the light frame + border, and this
+	-- inset inner carries the fill + gradient (a thin gap of the frame shows).
+	self._inner = UIStyler.NestInner(surface, 3, 10)
+	self._innerCorner = self._inner:FindFirstChildOfClass("UICorner")
 	self._gradient = UIStyler.Gradient(90, 0.12)
-	self._gradient.Parent = surface
+	self._gradient.Parent = self._inner
 
 	-- Inner bevel overlay for the Raised3D style (light top / dark bottom).
 	-- Enabled/tuned in _Style; sits above the fill+gradient, below the content.
@@ -229,7 +233,11 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 
 	local shape = ThemeShape.Resolve(theme)
 
-	self:_SetColor(self._surface, "BackgroundColor3", fill)
+	-- Nested box: the surface is a lightened FRAME, the inset inner is the fill
+	-- (with the gradient), leaving a thin light gap between the border and fill.
+	local frameColor = filled and UIStyler.Lighten(fill, 0.6) or fill
+	self:_SetColor(self._surface, "BackgroundColor3", frameColor)
+	self:_SetColor(self._inner, "BackgroundColor3", fill)
 	-- Bubbly style rounds toward a pill; otherwise scale the Medium radius.
 	-- Bubbly's radius is Scale-based (0.5 = Roblox's own "half of the
 	-- shorter side" UICorner semantic), NOT a pixel value computed from
@@ -246,6 +254,9 @@ function UIButtonComponent:_Style(theme: Types.UITheme)
 		radius = UDim.new(0, ThemeShape.Radius(theme, theme.Radii.Medium))
 	end
 	self._corner.CornerRadius = radius
+	if self._innerCorner then
+		self._innerCorner.CornerRadius = radius
+	end
 	-- Ghost buttons normally get a coloured accent outline (so an unselected tab
 	-- still reads as clickable) — but that stayed on even when the button was
 	-- DISABLED (owned / can't-afford), leaving a bright accent-coloured ring

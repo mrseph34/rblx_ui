@@ -37,12 +37,15 @@ function UIProgressBarComponent:_Build(props: Types.UIComponentProps)
 		root.Size = UDim2.new(1, 0, 0, 18)
 		self._baseSize = root.Size
 	end
-	self._corner = UIStyler.Corner(1000)
+	self._corner = UIStyler.Corner(0)
 	self._corner.Parent = root
+	-- Boxy border around the whole bar (square, matches the base UI).
+	self._stroke = UIStyler.Stroke(Color3.new(), 2)
+	self._stroke.Parent = root
 
 	local fill = UIStyler.Frame("Fill")
 	fill.Size = UDim2.fromScale(0, 1)
-	UIStyler.Corner(1000).Parent = fill
+	UIStyler.Corner(0).Parent = fill
 	self._fillGradient = UIStyler.Gradient(0, 0.12)
 	self._fillGradient.Parent = fill
 	fill.Parent = root
@@ -106,13 +109,12 @@ end
 function UIProgressBarComponent:_Style(theme: Types.UITheme)
 	local c = theme.Colors
 	self.Root.BackgroundColor3 = c.Surface
-	-- Scale-based (0.5 = Roblox's own "half of the shorter side" UICorner
-	-- semantic), NOT a pixel value computed from AbsoluteSize — reading
-	-- AbsoluteSize synchronously at Style-time is unreliable before layout
-	-- has fully resolved (confirmed elsewhere: this exact pattern made
-	-- badges render square by default). A pure Scale radius adapts
-	-- automatically with zero timing risk.
-	self._corner.CornerRadius = UDim.new(0.5, 0)
+	-- Square corners for the boxy base UI (theme.Radii.Small is 0).
+	self._corner.CornerRadius = UDim.new(0, theme.Radii.Small)
+	if self._stroke then
+		self._stroke.Color = c.Stroke
+		self._stroke.Thickness = theme.Effects.StrokeThickness
+	end
 	self._fill.BackgroundColor3 = (c :: any)[self._colorToken] or c.Success
 	self._fillGradient.Enabled = theme.Effects.UseGradients
 	if self._text then
