@@ -126,7 +126,12 @@ function ModalScreen:_OnShow(data: any?)
 	self._body.Text = TextConfig.Resolve(data.bodyKey or data.body)
 	self._body.FontFace = self:GetTheme().Fonts.Body
 	self._bodyConstraint.MaxTextSize = self:GetTheme().TextSizes.Body
-	self._body.TextColor3 = self:GetTheme().Colors.TextSecondary
+	-- Dark text: the body sits on the LIGHT panel body, so white would be low
+	-- contrast (never white text on a light background).
+	self._body.TextColor3 = self:GetTheme().Colors.Stroke
+	-- Body is parented into panel.Body after the panel's ApplyTheme ran, so the
+	-- global outline pass missed it — outline it on show.
+	UIStyler.ApplyThemeOutline(self._body, self:GetTheme().TextOutline)
 
 	self._confirmButton:SetContent({ textKey = data.confirmKey or (isInfo and "modal.ok" or "modal.confirm") })
 	self._confirmButton.Props.variant = data.kind == "Danger" and "Danger" or "Primary"

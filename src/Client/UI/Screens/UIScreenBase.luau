@@ -101,6 +101,9 @@ function UIScreenBase:_PaintLabel(label: TextLabel, colorToken: string, fontToke
 	label.TextColor3 = (theme.Colors :: any)[colorToken] or theme.Colors.TextPrimary
 	label.FontFace = (theme.Fonts :: any)[fontToken] or theme.Fonts.Body
 	label.TextSize = (theme.TextSizes :: any)[fontToken] or theme.TextSizes.Body
+	-- Match component text: apply the theme's optional outline to raw section
+	-- labels too (theme-gated; disabled cleanly for themes without one).
+	UIStyler.ApplyThemeOutline(label, theme.TextOutline)
 end
 
 function UIScreenBase:_RepaintLabels()

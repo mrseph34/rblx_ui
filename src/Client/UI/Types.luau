@@ -76,6 +76,26 @@ export type UIThemeEffects = {
 	StrokeThickness: number,
 }
 
+-- Optional tiled surface texture (e.g. a Roblox "studs" image) layered over the
+-- flat fill of panels and cards, under the content. OPTIONAL on a theme so
+-- themes that omit it render flat exactly as before.
+export type UIThemeTexture = {
+	Image: string, -- "rbxassetid://..."
+	TileSize: number, -- px size of one repeated tile (ScaleType = Tile)
+	Tint: Color3, -- ImageColor3 applied to the texture
+	Transparency: number, -- 0..1 (1 = texture invisible, so it reads as subtle grain)
+}
+
+-- Optional glyph/element outline: the "chunky Roblox" bold dark line around text
+-- (and small elements like slider/toggle knobs). Applied via a Contextual
+-- UIStroke so it outlines a label's text but a frame's border. OPTIONAL — themes
+-- that omit it get no outline, exactly as before.
+export type UIThemeTextOutline = {
+	Color: Color3,
+	Thickness: number,
+	Transparency: number, -- 0..1 (0 = solid outline)
+}
+
 -- Shape: the "feel" of surfaces independent of colour/font. Decides how round
 -- things are and whether buttons/cards read as Flat, Bubbly (pill-round, springy)
 -- or Raised3D (bevel + drop shadow that depresses on press). OPTIONAL on a theme
@@ -109,6 +129,10 @@ export type UITheme = {
 	-- Optional; ThemeShape.Resolve(theme) returns a full shape with Flat defaults
 	-- when a theme omits this, so every theme is shape-safe without editing it.
 	Shape: UIThemeShape?,
+	-- Optional; a tiled "studs"-style texture over panel/card fills. nil = flat.
+	Texture: UIThemeTexture?,
+	-- Optional; a bold outline around text glyphs + knob borders. nil = no outline.
+	TextOutline: UIThemeTextOutline?,
 }
 
 -- ========================================================================

@@ -12,17 +12,17 @@ local Types = require(script.Parent.Parent.Types)
 
 local UIPackConfig = {}
 
-UIPackConfig.DefaultPackId = "Standard"
+UIPackConfig.DefaultPackId = "Default"
 
 UIPackConfig.Packs = {
-	-- Balanced grid of medium cards. The everyday default.
+	-- The base-UI default: a scrollable LIST of boxy nested-box rows (see
+	-- UIListRowComponent / Reference RefServersShop). CardHeight is the row
+	-- height in px (load-bearing in List mode); EntryLayout "ServerRow" is what
+	-- routes ShopScreen to the UIListRowComponent renderer.
 	{
-		Id = "Standard",
-		DisplayName = "Standard",
-		-- The default pack, so it gets extra density. Was 5 columns, but that made
-		-- cards cramped enough to force ellipsis-truncated names; 4 gives each card
-		-- enough width for the text to wrap/scale cleanly instead.
-		Shop = { Container = "Grid", Columns = 4, CardHeight = 288, EntryLayout = "StandardCard", ShowCategoryBar = true },
+		Id = "Default",
+		DisplayName = "Default",
+		Shop = { Container = "List", Columns = 1, CardHeight = 200, EntryLayout = "ServerRow", ShowCategoryBar = true },
 		HUD = { Compact = false, ShowObjectives = true, Scale = 1, MoneyRegion = "TopRight", MoneyIconSide = "Left" },
 		Nav = { Side = "Left", Vertical = "Center" },
 		Tutorial = { ShowStepList = true },

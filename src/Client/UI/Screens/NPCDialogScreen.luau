@@ -220,10 +220,17 @@ function NPCDialogScreen:_RenderLine(line: any)
 	self._portraitInitial.Text = string.upper(string.sub(TextConfig.Resolve(line.speakerKey), 1, 1))
 	self._body.FontFace = theme.Fonts.Body
 	self._bodyConstraint.MaxTextSize = theme.TextSizes.Body
-	self._body.TextColor3 = theme.Colors.TextPrimary
+	-- Dark text on the LIGHT dialog body (never white on a light background).
+	self._body.TextColor3 = theme.Colors.Stroke
 	self._continue.FontFace = theme.Fonts.Body
 	self._continueConstraint.MaxTextSize = theme.TextSizes.Small
-	self._continue.TextColor3 = theme.Colors.TextSecondary
+	self._continue.TextColor3 = theme.Colors.Stroke
+	-- These four labels are parented into panel.Body after the panel's ApplyTheme
+	-- ran, so the global outline pass missed them — outline them each render.
+	UIStyler.ApplyThemeOutline(self._portraitInitial, theme.TextOutline)
+	UIStyler.ApplyThemeOutline(self._speaker, theme.TextOutline)
+	UIStyler.ApplyThemeOutline(self._body, theme.TextOutline)
+	UIStyler.ApplyThemeOutline(self._continue, theme.TextOutline)
 	self:_TypeLine(line)
 end
 

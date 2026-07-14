@@ -19,6 +19,8 @@ local UIScreenBase = require(script.Parent.UIScreenBase)
 local UIPanelComponent = require(script.Parent.Parent.Components.UIPanelComponent)
 local UIButtonComponent = require(script.Parent.Parent.Components.UIButtonComponent)
 local UICardComponent = require(script.Parent.Parent.Components.UICardComponent)
+local UIListRowComponent = require(script.Parent.Parent.Components.UIListRowComponent)
+local RefSkin = require(script.Parent.Parent.Reference.RefSkin)
 
 local ShopScreen = setmetatable({}, { __index = UIScreenBase })
 ShopScreen.__index = ShopScreen
@@ -35,6 +37,7 @@ function ShopScreen.new()
 	self._cardOrder = {} :: { string }
 	self._categoryButtons = {}
 	self._currencyLabels = {}
+	self._currencyChips = {}
 	-- Injected by ClientHandler: (item) -> Types.PurchaseResult
 	self._purchaseFn = nil :: ((SharedTypes.ShopItem) -> SharedTypes.PurchaseResult)?
 	return setmetatable(self, ShopScreen)
@@ -95,17 +98,46 @@ function ShopScreen:_BuildContent()
 	}).Parent = currencyBar
 	currencyBar.ZIndex = 2
 	currencyBar.Parent = panel.Header
+	self._currencyChips = {}
 	for _, currency in ShopConfig.GetOrderedCurrencies() do
-		local chip = UIStyler.TextLabel(currency.id)
+		-- Each currency is a BOXY chip (square light box + navy border + gradient)
+		-- holding the icon+amount, so the header matches the rest of the base UI
+		-- instead of being bare text. Themed in _RefreshCurrencies.
+		local chip = UIStyler.Frame(currency.id)
+		chip.BackgroundTransparency = 0
+		chip.Size = UDim2.fromScale(0, 0.86)
 		chip.AutomaticSize = Enum.AutomaticSize.X
-		chip.Size = UDim2.fromScale(0, 1)
-		chip.TextXAlignment = Enum.TextXAlignment.Right
-		chip.TextScaled = true
 		chip.ZIndex = 2
+		UIStyler.Corner(0).Parent = chip
+		local stroke = UIStyler.Stroke(Color3.new(), 2)
+		stroke.Parent = chip
+		local gradient = UIStyler.Gradient(90, 0.16)
+		gradient.Parent = chip
+		UIStyler.ListLayout({
+			FillDirection = Enum.FillDirection.Horizontal,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, 4),
+		}).Parent = chip
+		-- Currency IMAGE icon (coin for Coins, purpleGem for Gems) as the first chip
+		-- child — replaces the emoji that used to be baked into the amount text. A
+		-- square (1:1 off its height) sitting left of the amount.
+		local iconId = currency.id == "Gems" and RefSkin.Assets.purpleGem or RefSkin.Assets.cash
+		local icon = RefSkin.icon(chip, iconId, { size = UDim2.fromScale(1, 0.7), zindex = 2, layoutOrder = 1 })
+		local iconRatio = UIStyler.AspectRatio(1, Enum.DominantAxis.Height)
+		iconRatio.AspectType = Enum.AspectType.ScaleWithParentSize
+		iconRatio.Parent = icon
+		local label = UIStyler.TextLabel("Value")
+		label.AutomaticSize = Enum.AutomaticSize.X
+		label.Size = UDim2.fromScale(0, 0.7)
+		label.TextScaled = true
+		label.ZIndex = 2
+		label.LayoutOrder = 2
 		local constraint = UIStyler.TextSizeConstraint(18, 9)
-		constraint.Parent = chip
+		constraint.Parent = label
+		label.Parent = chip
 		chip.Parent = currencyBar
-		self._currencyLabels[currency.id] = chip
+		self._currencyLabels[currency.id] = label
+		self._currencyChips[currency.id] = { chip = chip, stroke = stroke, gradient = gradient }
 	end
 
 	-- Category bar — a horizontal UIListLayout of Scale-sized, evenly-spaced
@@ -171,6 +203,35 @@ function ShopScreen:_BuildContent()
 	pad.Parent = scroll
 	self._scrollPad = pad
 
+	-- Boxy-shop footer (shown only for the ServerRow layout, hidden otherwise):
+	-- an action button on the left + a timer on the right, fixed at the panel
+	-- bottom — matching the reference RefServersShop footer. Built once here;
+	-- _RebuildLayout toggles its visibility and shrinks the scroll to make room.
+	local footer = UIStyler.Frame("Footer")
+	footer.BackgroundTransparency = 1
+	footer.AnchorPoint = Vector2.new(0.5, 1)
+	footer.Position = UDim2.new(0.5, 0, 1, 0)
+	footer.Size = UDim2.new(1, 0, 0.13, 0)
+	footer.Visible = false
+	footer.ZIndex = 3
+	footer.Parent = panel.Body
+	self._footer = footer
+
+	-- Orange action button + timer, built through the EXACT reference skin so the
+	-- footer matches RefServersShop.build bar-for-bar (same gradients, sizes,
+	-- positions, text sizes and outlines).
+	local _, btnInner = RefSkin.box(footer, {
+		button = true, size = UDim2.fromScale(0.26, 0.72), position = UDim2.fromScale(0.03, 0.5), anchor = Vector2.new(0, 0.5),
+		gradTop = Color3.fromRGB(255, 186, 66), gradBottom = Color3.fromRGB(238, 150, 30), border = Color3.fromRGB(170, 96, 16),
+		lightBg = Color3.fromRGB(255, 236, 202), studs = false, gap = 4, zindex = 4,
+	})
+	RefSkin.label(btnInner, "Refresh", { color = RefSkin.C.White, outline = 2.5, textSize = 26, zindex = 6 })
+
+	RefSkin.label(footer, "Timer: 00:00", {
+		size = UDim2.fromScale(0.4, 0.6), position = UDim2.fromScale(0.97, 0.5), anchor = Vector2.new(1, 0.5),
+		align = Enum.TextXAlignment.Right, color = RefSkin.C.White, outline = 3, textSize = 28, zindex = 4,
+	})
+
 	-- Re-render when the scroll frame's width first becomes known / changes, so the
 	-- CardTop grid height (which is derived from the real cell width) is correct.
 	-- Guarded by _lastScrollW so a no-op resize doesn't loop.
@@ -217,6 +278,13 @@ function ShopScreen:_RebuildLayout()
 	local spec = EntryLayoutConfig.Get(shopLayout.EntryLayout)
 	self._activeSpec = spec
 	self._activeShopLayout = shopLayout
+
+	-- The boxy ServerRow layout gets the reference footer (button + timer) and a
+	-- shorter scroll to make room; every other layout hides it and takes the full
+	-- height.
+	local boxy = shopLayout.EntryLayout == "ServerRow"
+	self._footer.Visible = boxy
+	self._scroll.Size = boxy and UDim2.new(1, 0, 0.75, 0) or UDim2.new(1, 0, 0.88, 0)
 
 	-- Grid keeps the original -0.02 (a small negative pull that tightens the
 	-- top row against the category bar — fine there since a grid cell has
@@ -438,7 +506,12 @@ function ShopScreen:_SyncItems()
 			existing:Update({ affordable = affordable })
 			existing.Root.LayoutOrder = i
 		else
-			local card = UICardComponent.new()
+			-- The boxy nested-box list row (ServerRow spec) uses its own
+			-- self-contained renderer; every other spec uses the grid/list card
+			-- renderer. Both expose .Root, :Create, :Update, :PlayAnimation and
+			-- :Destroy, so the rest of the sync loop treats them identically.
+			local useRow = shopLayout.EntryLayout == "ServerRow"
+			local card = useRow and UIListRowComponent.new() or UICardComponent.new()
 			-- List rows get an explicit full-width size; grid cells are sized by the
 			-- grid layout, so leave size nil there.
 			local size = shopLayout.Container == "List" and UDim2.new(1, 0, 0, shopLayout.CardHeight) or nil
@@ -519,11 +592,27 @@ end
 function ShopScreen:_RefreshCurrencies()
 	local theme = self:GetTheme()
 	for id, label in self._currencyLabels do
-		local currency = ShopConfig.Currencies[id]
-		label.Text = string.format("%s %s", currency.icon, ShopConfig.FormatPrice(self._balances[id] or 0))
+		-- Amount only now — the currency is drawn as an image icon to its left (the
+		-- emoji glyph that used to prefix this text moved to a real ImageLabel).
+		-- Leading/trailing space keeps the amount off the box edge (no UIPadding —
+		-- it fights the label's AutomaticSize.X).
+		label.Text = string.format(" %s ", ShopConfig.FormatPrice(self._balances[id] or 0))
 		label.FontFace = theme.Fonts.Numeric
-		label.TextSize = theme.TextSizes.Body
-		label.TextColor3 = (theme.Colors :: any)[currency.colorToken] or theme.Colors.TextPrimary
+		-- White text on the COLOURED chip box (legible; not white on a light bg).
+		label.TextColor3 = theme.Colors.TextOnPrimary
+		-- These labels are parented into the panel Header AFTER the panel's own
+		-- ApplyTheme pass, so the global outline pass never sees them — outline
+		-- them here so the amounts get the navy stroke like all other text.
+		UIStyler.ApplyThemeOutline(label, theme.TextOutline)
+	end
+	-- Theme the boxy chip frames: the currency's OWN colour (gold coins / purple
+	-- gems) so the gradient reads and the box stands off the blue title bar.
+	for id, data in self._currencyChips do
+		local currency = ShopConfig.Currencies[id]
+		data.chip.BackgroundColor3 = (theme.Colors :: any)[currency.colorToken] or theme.Colors.SurfaceRaised
+		data.stroke.Color = theme.Colors.Stroke
+		data.stroke.Thickness = theme.Effects.StrokeThickness
+		data.gradient.Enabled = theme.Effects.UseGradients
 	end
 end
 

@@ -171,6 +171,10 @@ function ChatBarScreen:_Repaint()
 	self._body.FontFace = theme.Fonts.Body
 	self._bodyConstraint.MaxTextSize = theme.TextSizes.Body
 	self._body.TextColor3 = c.TextPrimary
+	-- Speaker + body are raw labels on a plain screen Frame (outside any
+	-- component), so the global outline pass never reaches them.
+	UIStyler.ApplyThemeOutline(self._speaker, theme.TextOutline)
+	UIStyler.ApplyThemeOutline(self._body, theme.TextOutline)
 end
 
 function ChatBarScreen:_OnHide()

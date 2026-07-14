@@ -19,6 +19,8 @@ UIScreenController.__index = UIScreenController
 -- HUD, chat bar and toasts are NOT in this set (they layer independently).
 local EXCLUSIVE_PANELS = {
 	shop = true,
+	store = true,
+	index = true,
 	themeSelector = true,
 	settings = true,
 	npcDialog = true,
@@ -136,7 +138,7 @@ function UIScreenController:CloseTopmost(): boolean
 		return true
 	end
 	-- Close panels in a sensible priority order.
-	for _, id in { "themeSelector", "shop", "tutorial" } do
+	for _, id in { "themeSelector", "store", "shop", "index", "settings", "tutorial" } do
 		if self._visible[id] then
 			self:HideScreen(id)
 			return true

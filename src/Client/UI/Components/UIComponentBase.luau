@@ -126,6 +126,17 @@ function UIComponentBase:ApplyTheme(theme: Types.UITheme?)
 	end
 	self.Theme = theme
 	self:_Style(theme)
+	-- Apply (or clear) the theme's optional text outline on EVERY text-bearing
+	-- descendant in one place, so a theme's "chunky outlined text" look — and the
+	-- legibility it buys for light-coloured text on light fills — lands on every
+	-- component's labels without each _Style having to opt each label in. Passing
+	-- theme.TextOutline (which may be nil) means switching to a non-outline theme
+	-- disables the strokes we added, so the effect is fully theme-gated.
+	for _, d in self.Root:GetDescendants() do
+		if d:IsA("TextLabel") or d:IsA("TextButton") then
+			UIStyler.ApplyThemeOutline(d, theme.TextOutline)
+		end
+	end
 	-- After the first paint, later theme changes are allowed to cross-fade.
 	self._styledOnce = true
 end

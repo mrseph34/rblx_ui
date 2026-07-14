@@ -45,8 +45,11 @@ function UIBadgeComponent:_Build(props: Types.UIComponentProps)
 		self._baseSize = UDim2.fromScale(0, 1)
 	end
 
-	self._corner = UIStyler.Corner(1000)
+	self._corner = UIStyler.Corner(0)
 	self._corner.Parent = root
+	-- Boxy gradient chip (square) so tags match the base UI's gradient boxes.
+	self._gradient = UIStyler.Gradient(90, 0.16)
+	self._gradient.Parent = root
 	-- NO UIPadding here: root is AutomaticSize.X off the label, and the label
 	-- is ALSO AutomaticSize.X — a UIPadding on root fighting that combination
 	-- produced unstable/incorrect sizing (confirmed by direct testing across
@@ -94,17 +97,11 @@ function UIBadgeComponent:_Style(theme: Types.UITheme)
 	local fill = (c :: any)[tokenName] or c.Primary
 
 	self.Root.BackgroundColor3 = fill
-	-- Scale-based (0.5 = Roblox's own "half of the shorter side" UICorner
-	-- semantic), NOT a pixel value computed from AbsoluteSize — reading
-	-- AbsoluteSize synchronously here is unreliable: _Style can run before a
-	-- freshly-created badge's AutomaticSize.X has resolved against its
-	-- label's real text width, reading a stale/near-zero size and computing
-	-- a near-zero radius — confirmed as the cause of tags rendering SQUARE
-	-- by default. A pure Scale radius adapts automatically with zero timing
-	-- risk and always yields a clean pill, matching every theme's
-	-- Radii.Pill = 1000 (always "make this maximally round," never a
-	-- moderate partial value, so no precision is lost by not reading it here).
-	self._corner.CornerRadius = UDim.new(0.5, 0)
+	-- Square corners for the boxy base UI (theme.Radii.Small is 0).
+	self._corner.CornerRadius = UDim.new(0, theme.Radii.Small)
+	if self._gradient then
+		self._gradient.Enabled = theme.Effects.UseGradients
+	end
 	self._label.FontFace = theme.Fonts.Button
 	self._label.TextColor3 = c.TextOnPrimary
 	if self._labelConstraint then
